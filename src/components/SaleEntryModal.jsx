@@ -124,9 +124,9 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
     const finalAmount = Number(saleTotalAmount) || 0;
     
     const workItems = [];
-    if (includeConsultationFee) workItems.push('Consultation');
-    if (selectedServices.length > 0) workItems.push(...selectedServices.map(s => s.name));
-    if (selectedPackages.length > 0) workItems.push(...selectedPackages.map(p => p.name));
+    if (includeConsultationFee) workItems.push(`Consultation (₹${consultationFeeAmount})`);
+    if (selectedServices.length > 0) workItems.push(...selectedServices.map(s => `${s.name} (₹${s.price})`));
+    if (selectedPackages.length > 0) workItems.push(...selectedPackages.map(p => `${p.name} (₹${p.price})`));
     if (selectedMedicines.length > 0) workItems.push(...selectedMedicines.map(m => `${m.name} [Qty: ${m.qty || 1}] (${medicineDuration} days - ₹${(m.price || 0) * (m.qty || 1)})`));
     const workStr = workItems.length > 0 ? workItems.join(', ') : 'Manual Entry';
 
