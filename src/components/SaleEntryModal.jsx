@@ -54,12 +54,12 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
 
             if (initialAppointment) {
                if (initialAppointment.services) {
-                   const sNames = initialAppointment.services.split(', ').map(s => s.split(' (₹')[0].split(' [Qty:')[0].trim());
-                   setSelectedServices(sData.filter(s => sNames.includes(s.name)));
+                   const sNames = initialAppointment.services.split(', ').map(s => s.split(' (₹')[0].split(' [Qty:')[0].trim().toLowerCase());
+                   setSelectedServices(sData.filter(s => sNames.includes((s.name || '').toLowerCase())));
                }
                if (initialAppointment.packages) {
-                   const pNames = initialAppointment.packages.split(', ').map(p => p.split(' (₹')[0].split(' [Qty:')[0].trim());
-                   setSelectedPackages(pData.filter(p => pNames.includes(p.name)));
+                   const pNames = initialAppointment.packages.split(', ').map(p => p.split(' (₹')[0].split(' [Qty:')[0].trim().toLowerCase());
+                   setSelectedPackages(pData.filter(p => pNames.includes((p.name || '').toLowerCase())));
                }
                if (initialAppointment.medicines) {
                    const mItems = initialAppointment.medicines.split(', ').map(str => {
@@ -70,9 +70,12 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
                    });
                    const selectedM = [];
                    mItems.forEach(item => {
-                       const med = mData.find(m => m.name === item.baseName);
+                       const med = mData.find(m => (m.name || '').toLowerCase() === item.baseName.toLowerCase());
                        if (med) {
                            selectedM.push({ ...med, qty: item.qty });
+                       } else if (item.baseName && !['Morning', 'Afternoon', 'Night', 'After Meal', 'Before Meal'].includes(item.baseName) && !item.baseName.endsWith(']')) {
+                           // If custom medicine typed in appointment
+                           selectedM.push({ id: 'custom-' + Date.now() + Math.random(), name: item.baseName, price: 0, qty: item.qty });
                        }
                    });
                    setSelectedMedicines(selectedM);
