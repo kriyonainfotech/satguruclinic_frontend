@@ -387,13 +387,17 @@ const Appointments = () => {
                     <td style={{ textAlign: 'right', paddingRight: '16px' }}>
                       {isAdminOrTeam && (
                         <div style={{ display: 'flex', gap: '6px', alignItems: 'center', justifyContent: 'flex-end' }}>
-                          <button 
-                            className="sale-entry-btn"
-                            onClick={() => { setSaleModalData({ mobile: a.patientId?.mobileNumber || '', name: a.patientId?.fullName || '', appointment: a }); setShowSaleModal(true); }} 
-                            title="Create Sale Entry"
-                          >
-                            + Sale Entry
-                          </button>
+                          {!a.hasSaleEntry ? (
+                            <button 
+                              className="sale-entry-btn"
+                              onClick={() => { setSaleModalData({ mobile: a.patientId?.mobileNumber || '', name: a.patientId?.fullName || '', appointment: a }); setShowSaleModal(true); }} 
+                              title="Create Sale Entry"
+                            >
+                              + Sale Entry
+                            </button>
+                          ) : (
+                            <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#10b981', background: '#d1fae5', padding: '4px 8px', borderRadius: '4px', border: '1px solid #10b981' }}>Billed</span>
+                          )}
                           <button 
                             className="action-btn edit"
                             title="Edit Appointment"
@@ -510,17 +514,21 @@ const Appointments = () => {
                 <div className="appt-card-footer">
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     {isAdminOrTeam && (
-                      <button 
-                        type="button"
-                        className="appt-sale-entry-btn"
-                        onClick={() => { 
-                          setSaleModalData({ mobile: a.patientId?.mobileNumber || '', name: a.patientId?.fullName || '', appointment: a }); 
-                          setShowSaleModal(true); 
-                        }} 
-                        title="Create Sale Entry"
-                      >
-                        + Sale Entry
-                      </button>
+                      !a.hasSaleEntry ? (
+                        <button 
+                          type="button"
+                          className="appt-sale-entry-btn"
+                          onClick={() => { 
+                            setSaleModalData({ mobile: a.patientId?.mobileNumber || '', name: a.patientId?.fullName || '', appointment: a }); 
+                            setShowSaleModal(true); 
+                          }} 
+                          title="Create Sale Entry"
+                        >
+                          + Sale Entry
+                        </button>
+                      ) : (
+                        <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#10b981', background: '#d1fae5', padding: '4px 8px', borderRadius: '4px', border: '1px solid #10b981', display: 'flex', alignItems: 'center' }}>Billed</span>
+                      )
                     )}
                     <button 
                       type="button"
@@ -825,7 +833,18 @@ const Appointments = () => {
         initialPatientMobile={saleModalData.mobile}
         initialPatientName={saleModalData.name}
         initialAppointment={saleModalData.appointment}
-        onSuccess={() => alert('Sale entry created successfully!')}
+        onSuccess={async () => {
+          alert('Sale entry created successfully!');
+          try {
+            const token = localStorage.getItem('token');
+            if (saleModalData.appointment?._id && token) {
+              await axios.put(`${import.meta.env.VITE_API_BASE_URL}/appointments/${saleModalData.appointment._id}`, { hasSaleEntry: true }, { headers: { Authorization: `Bearer ${token}` } });
+              fetchAppointments();
+            }
+          } catch(e) {
+            console.error('Failed to update appointment status:', e);
+          }
+        }}
       />
 
       {showDetailsModal && selectedDetails && (
