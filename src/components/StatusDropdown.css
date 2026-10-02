@@ -1,0 +1,135 @@
+/* ── Status Dropdown Wrapper ── */
+.sdd-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+/* ── Trigger Button ── */
+.sdd-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px 5px 8px;
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  outline: none;
+  min-width: 108px;
+}
+
+.sdd-trigger:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  color: #ffffff;
+}
+
+.sdd-trigger:hover .sdd-chevron {
+  color: #ffffff;
+}
+
+.sdd-trigger.sdd-open {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(20, 75, 121, 0.12);
+}
+
+.sdd-trigger:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Status color dot */
+.sdd-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.sdd-label {
+  flex: 1;
+  text-align: left;
+}
+
+/* Chevron */
+.sdd-chevron {
+  flex-shrink: 0;
+  color: #94a3b8;
+  transition: transform 0.18s ease;
+}
+.sdd-chevron-up {
+  transform: rotate(180deg);
+}
+
+/* ── Dropdown Menu ── */
+.sdd-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 148px;
+  background: #ffffff;
+  border: 1px solid #e8edf3;
+  border-radius: 10px;
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.08),
+    0 12px 28px -4px rgba(0, 0, 0, 0.12);
+  z-index: 1000;
+  padding: 6px;
+  animation: sddFadeSlide 0.14s ease;
+  overflow: hidden;
+}
+
+@keyframes sddFadeSlide {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0)   scale(1);    }
+}
+
+/* ── Option Row ── */
+.sdd-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #475569;
+  transition: background 0.1s;
+  position: relative;
+}
+
+.sdd-option:hover {
+  background: #f8fafc;
+  color: #1e293b;
+}
+
+.sdd-option.sdd-selected {
+  background: #f0fdfa;
+  color: #1e293b;
+  font-weight: 600;
+}
+
+/* Option color dot */
+.sdd-opt-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.sdd-opt-label {
+  flex: 1;
+}
+
+/* Checkmark for selected */
+.sdd-check {
+  margin-left: auto;
+  flex-shrink: 0;
+}

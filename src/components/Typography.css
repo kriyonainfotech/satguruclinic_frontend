@@ -1,0 +1,14 @@
+.crm-title {
+  font-size: 28px;
+  color: #2e2f3a;
+  margin-bottom: 8px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+.crm-subtitle {
+  font-size: 15px;
+  color: var(--primary-color);
+  margin-bottom: 32px;
+  font-weight: 500;
+}

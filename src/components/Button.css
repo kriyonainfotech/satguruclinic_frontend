@@ -1,0 +1,47 @@
+.crm-btn {
+  padding: 8px 18px;
+  height: 38px;
+  border-radius: 8px;
+  border: none;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: inherit;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: 0.2px;
+  box-sizing: border-box;
+  text-decoration: none;
+}
+
+.crm-btn-primary {
+  background-color: var(--primary-color);
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(20, 75, 121, 0.25), 0 1px 2px rgba(20, 75, 121, 0.15);
+}
+
+.crm-btn-primary:hover {
+  background-color: #0d385c;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(20, 75, 121, 0.35);
+}
+
+.crm-btn-primary:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(20, 75, 121, 0.2);
+}
+
+.crm-btn-secondary {
+  background-color: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+}
+
+.crm-btn-secondary:hover {
+  background-color: #e2e8f0;
+  color: #0f172a;
+}
+

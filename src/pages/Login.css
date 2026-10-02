@@ -1,0 +1,29 @@
+.login-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: #e9ecef; /* Clean light gray matching the image */
+}
+
+.login-box {
+    background: #ffffff;
+    padding: 50px 40px;
+    border-radius: 16px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.05), 0 20px 48px rgba(0,0,0,0.05);
+    width: 100%;
+    max-width: 420px;
+    text-align: center;
+    border: 1px solid rgba(255,255,255,0.8);
+}
+
+.w-100 {
+    width: 100%;
+    margin-top: 10px;
+}
+
+.error-text {
+    color: #e74c3c;
+    font-size: 14px;
+    margin-bottom: 15px;
+}

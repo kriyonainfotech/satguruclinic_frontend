@@ -1,0 +1,218 @@
+.custom-time-picker-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.custom-time-trigger {
+  width: 100%;
+  height: 38px;
+  padding: 0 12px;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13.5px;
+  color: #1e293b;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  user-select: none;
+}
+
+.custom-time-trigger:hover:not(.disabled) {
+  border-color: #94a3b8;
+  background-color: #f8fafc;
+}
+
+.custom-time-trigger.open {
+  border-color: var(--primary-color, #144b79);
+  box-shadow: 0 0 0 3px rgba(20, 75, 121, 0.15);
+  background-color: #ffffff;
+}
+
+.custom-time-trigger.disabled {
+  background-color: #f1f5f9;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.custom-time-value {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.custom-time-value.placeholder {
+  color: #64748b;
+  font-weight: 400;
+}
+
+.custom-time-icon {
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* Dropdown Menu */
+.custom-time-dropdown {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 10px 24px -4px rgba(15, 23, 42, 0.16), 0 3px 8px -2px rgba(15, 23, 42, 0.06);
+  padding: 8px 10px;
+  z-index: 9999;
+  width: 200px;
+  box-sizing: border-box;
+  animation: timeFadeIn 0.15s ease-out;
+}
+
+@keyframes timeFadeIn {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.custom-time-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #f1f5f9;
+  margin-bottom: 7px;
+}
+
+.custom-time-display {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--primary-color, #144b79);
+  letter-spacing: -0.2px;
+}
+
+.custom-time-ampm-toggle {
+  display: flex;
+  background: #f1f5f9;
+  border-radius: 5px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.custom-time-ampm-btn {
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.custom-time-ampm-btn.active {
+  background: var(--primary-color, #144b79);
+  color: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Columns */
+.custom-time-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 7px;
+}
+
+.custom-time-col-header {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 3px;
+  text-align: center;
+}
+
+.custom-time-col-scroll {
+  max-height: 120px;
+  overflow-y: auto;
+  border: 1px solid #f1f5f9;
+  border-radius: 6px;
+  padding: 2px;
+  background: #fafafa;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.custom-time-col-scroll::-webkit-scrollbar {
+  width: 3px;
+}
+.custom-time-col-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.custom-time-item {
+  padding: 3px 0;
+  text-align: center;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #334155;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  user-select: none;
+}
+
+.custom-time-item:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.custom-time-item.selected {
+  background: var(--primary-color, #144b79);
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.custom-time-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 6px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.custom-time-now-btn {
+  background: transparent;
+  border: none;
+  font-size: 11px;
+  font-weight: 600;
+  color: #0369a1;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+.custom-time-now-btn:hover {
+  text-decoration: underline;
+}
+
+.custom-time-done-btn {
+  background: var(--primary-color, #144b79);
+  color: #ffffff;
+  border: none;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3.5px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.custom-time-done-btn:hover {
+  background: #0d385c;
+}
