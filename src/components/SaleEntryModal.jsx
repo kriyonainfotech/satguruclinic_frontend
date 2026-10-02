@@ -54,16 +54,16 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
 
             if (initialAppointment) {
                if (initialAppointment.services) {
-                   const sNames = initialAppointment.services.split(', ').map(s => s.split(' (₹')[0]);
+                   const sNames = initialAppointment.services.split(', ').map(s => s.split(' (₹')[0].split(' [Qty:')[0].trim());
                    setSelectedServices(sData.filter(s => sNames.includes(s.name)));
                }
                if (initialAppointment.packages) {
-                   const pNames = initialAppointment.packages.split(', ').map(p => p.split(' (₹')[0]);
+                   const pNames = initialAppointment.packages.split(', ').map(p => p.split(' (₹')[0].split(' [Qty:')[0].trim());
                    setSelectedPackages(pData.filter(p => pNames.includes(p.name)));
                }
                if (initialAppointment.medicines) {
                    const mItems = initialAppointment.medicines.split(', ').map(str => {
-                       const baseName = str.split(' (₹')[0];
+                       const baseName = str.split(' (₹')[0].split(' [Qty:')[0].trim();
                        const qtyMatch = str.match(/\[Qty: (\d+)\]/);
                        const qty = qtyMatch ? parseInt(qtyMatch[1]) : 1;
                        return { baseName, qty };
@@ -93,7 +93,7 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
     setMedicineDuration(1);
     setIncludeConsultationFee(true);
     setSaleNotes('');
-  }, [isOpen, initialPatientMobile, initialPatientName]);
+  }, [isOpen, initialPatientMobile, initialPatientName, initialAppointment]);
   
   useEffect(() => {
     let sum = selectedServices.reduce((acc, srv) => acc + srv.price, 0);
