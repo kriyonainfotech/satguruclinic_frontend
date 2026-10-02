@@ -49,9 +49,36 @@ const Appointments = () => {
     setSelectedServices(a.services ? a.services.split(', ') : []);
     setSelectedPackages(a.packages ? a.packages.split(', ') : []);
     setSelectedMedicines(a.medicines ? a.medicines.split(', ').map(str => {
-        const match = str.match(/(.*?) \[([^\]]+)\]$/);
-        if (match) return { nameStr: match[1], dosage: match[2] };
-        return { nameStr: str, dosage: '' };
+        let nameStr = str;
+        let dosage = '';
+        let qty = 1;
+        
+        // Match dosage at the end if exists and doesn't start with Qty:
+        const dosageMatch = nameStr.match(/(.*?) \[([^\]]+)\]$/);
+        if (dosageMatch && !dosageMatch[2].startsWith('Qty:')) {
+            nameStr = dosageMatch[1];
+            dosage = dosageMatch[2];
+        }
+
+        // Match Qty block
+        const qtyMatch = nameStr.match(/(.*?) \[Qty: (\d+)\]$/);
+        if (qtyMatch) {
+            nameStr = qtyMatch[1];
+            qty = parseInt(qtyMatch[2], 10) || 1;
+        }
+
+        let baseName = nameStr;
+        let basePrice = 0;
+        
+        const priceMatch = nameStr.match(/^(.*?) \(₹(\d+(\.\d+)?)\)$/);
+        if (priceMatch) {
+            baseName = priceMatch[1];
+            // Since nameStr has total price, basePrice = total / qty
+            basePrice = parseFloat(priceMatch[2]) / qty;
+        }
+        
+        return { nameStr, dosage, baseName, basePrice, qty };
+        return { nameStr, dosage, baseName, basePrice, qty };
       }) : []);
     setShowModal(true);
   };
@@ -208,7 +235,11 @@ const Appointments = () => {
 
       const servicesStr = selectedServices.join(', ');
       const packagesStr = selectedPackages.join(', ');
-      const medicinesStr = selectedMedicines.map(m => m.dosage ? `${m.nameStr} [${m.dosage}]` : m.nameStr).join(', ');
+      const medicinesStr = selectedMedicines.map(m => {
+          let str = `${m.nameStr} [Qty: ${m.qty || 1}]`;
+          if (m.dosage) str += ` [${m.dosage}]`;
+          return str;
+      }).join(', ');
       const payload = { patientId: pId, appointmentDate: apptPayload, timeSlot: formatTime12Hour(timeSlot), reason, services: servicesStr, packages: packagesStr, medicines: medicinesStr };
       if (editId) {
         await axios.put(`${import.meta.env.VITE_API_BASE_URL}/appointments/${editId}`, payload, { headers: { Authorization: `Bearer ${token}` } });
@@ -358,7 +389,7 @@ const Appointments = () => {
                         <div style={{ display: 'flex', gap: '6px', alignItems: 'center', justifyContent: 'flex-end' }}>
                           <button 
                             className="sale-entry-btn"
-                            onClick={() => { setSaleModalData({ mobile: a.patientId?.mobileNumber || '', name: a.patientId?.fullName || '' }); setShowSaleModal(true); }} 
+                            onClick={() => { setSaleModalData({ mobile: a.patientId?.mobileNumber || '', name: a.patientId?.fullName || '', appointment: a }); setShowSaleModal(true); }} 
                             title="Create Sale Entry"
                           >
                             + Sale Entry
@@ -483,7 +514,7 @@ const Appointments = () => {
                         type="button"
                         className="appt-sale-entry-btn"
                         onClick={() => { 
-                          setSaleModalData({ mobile: a.patientId?.mobileNumber || '', name: a.patientId?.fullName || '' }); 
+                          setSaleModalData({ mobile: a.patientId?.mobileNumber || '', name: a.patientId?.fullName || '', appointment: a }); 
                           setShowSaleModal(true); 
                         }} 
                         title="Create Sale Entry"
@@ -707,16 +738,44 @@ const Appointments = () => {
                         label: `${m.name} (₹${m.price || 0})`
                       }))}
                       onChange={val => {
-                        if (val && !selectedMedicines.find(x => x.nameStr === val)) {
+                        const baseNameExtracted = val.split(' (₹')[0];
+                        if (val && !selectedMedicines.find(x => x.baseName === baseNameExtracted)) {
                           const medData = (medicines || []).find(m => `${m.name} (₹${m.price || 0})` === val);
-                          setSelectedMedicines([...selectedMedicines, { nameStr: val, dosage: medData?.defaultDosage || '' }]);
+                          setSelectedMedicines([...selectedMedicines, { 
+                            nameStr: val, 
+                            baseName: medData?.name || baseNameExtracted,
+                            basePrice: medData?.price || 0,
+                            qty: 1,
+                            dosage: medData?.defaultDosage || '' 
+                          }]);
                         }
                       }}
                     />
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
                       {selectedMedicines.map((m, i) => (
-                        <div key={i} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', color: '#0f172a', padding: '6px 12px', borderRadius: '8px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '10px', width: '100%', boxSizing: 'border-box' }}>
-                          <div style={{ fontWeight: 600, minWidth: '120px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#166534' }} title={m.nameStr}>{m.nameStr}</div>
+                        <div key={i} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', color: '#0f172a', padding: '6px 12px', borderRadius: '8px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', width: '100%', boxSizing: 'border-box' }}>
+                          <div style={{ fontWeight: 600, minWidth: '130px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#166534' }} title={m.nameStr}>{m.nameStr}</div>
+                          
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span style={{ fontSize: '11px', color: '#64748b' }}>Qty:</span>
+                            <input 
+                              type="number" 
+                              min="1"
+                              value={m.qty || 1} 
+                              onChange={(e) => {
+                                const newMeds = [...selectedMedicines];
+                                const newQty = parseInt(e.target.value) || 1;
+                                newMeds[i].qty = newQty;
+                                if (m.basePrice !== undefined) {
+                                    newMeds[i].nameStr = `${m.baseName} (₹${m.basePrice * newQty})`;
+                                }
+                                setSelectedMedicines(newMeds);
+                              }}
+                              className="modal-text-input"
+                              style={{ width: '45px', height: '32px', fontSize: '12.5px', padding: '4px' }}
+                            />
+                          </div>
+
                           <input 
                             type="text" 
                             placeholder="Dosage/Instructions" 
@@ -765,6 +824,7 @@ const Appointments = () => {
         onClose={() => setShowSaleModal(false)} 
         initialPatientMobile={saleModalData.mobile}
         initialPatientName={saleModalData.name}
+        initialAppointment={saleModalData.appointment}
         onSuccess={() => alert('Sale entry created successfully!')}
       />
 

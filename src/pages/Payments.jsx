@@ -274,8 +274,8 @@ const Payments = () => {
 const [saleTotalAmount, setSaleTotalAmount] = useState(0);
 
   useEffect(() => {
-    const sum = selectedServices.reduce((acc, srv) => acc + srv.price, 0) + selectedPackages.reduce((acc, p) => acc + p.price, 0) + selectedMedicines.reduce((acc, m) => acc + (m.price || 0), 0);
-    setSaleTotalAmount(sum);
+    const sum = selectedServices.reduce((acc, srv) => acc + srv.price, 0) + selectedPackages.reduce((acc, p) => acc + p.price, 0) + selectedMedicines.reduce((acc, m) => acc + ((m.price || 0) * (m.qty || 1)), 0);
+    setSaleTotalAmount(sum + (includeConsultationFee ? consultationFeeAmount : 0));
   }, [selectedServices, selectedPackages, selectedMedicines, includeConsultationFee, consultationFeeAmount]);
 
   const R = "\u20B9";
@@ -297,7 +297,7 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
       if (includeConsultationFee) workItems.push(`Consultation (₹${consultationFeeAmount})`);
       if (selectedServices.length > 0) workItems.push(...selectedServices.map(s => `${s.name} (₹${s.price})`));
       if (selectedPackages.length > 0) workItems.push(...selectedPackages.map(p => `${p.name} (₹${p.price})`));
-      if (selectedMedicines.length > 0) workItems.push(...selectedMedicines.map(m => `${m.name} (${medicineDuration} days${m.dosage ? ', ' + m.dosage : ''} - ₹${m.price || 0})`));
+      if (selectedMedicines.length > 0) workItems.push(...selectedMedicines.map(m => `${m.name} [Qty: ${m.qty || 1}] (${medicineDuration} days${m.dosage ? ', ' + m.dosage : ''} - ₹${(m.price || 0) * (m.qty || 1)})`));
       const workStr = workItems.length > 0 ? workItems.join(', ') : 'Manual Entry';
 
     const newInvoice = {
@@ -2353,8 +2353,13 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
                     {selectedMedicines.map(med => (
                       <div key={med.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#e0f2fe', color: '#0369a1', padding: '4px 10px', borderRadius: '16px', fontSize: '12px', fontWeight: 'bold' }}>
-                        {med.name} ({R}{med.price})
-                        <button onClick={() => toggleMedicine(med)} style={{ background: 'transparent', border: 'none', color: '#0369a1', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}>
+                        {med.name} ({R}{(med.price || 0) * (med.qty || 1)})
+                        <span style={{ fontSize: '10px', marginLeft: '4px' }}>Qty:</span>
+                        <input type="number" min="1" value={med.qty || 1} onChange={(e) => {
+                          const val = parseInt(e.target.value) || 1;
+                          setSelectedMedicines(prev => prev.map(m => m.id === med.id ? { ...m, qty: val } : m));
+                        }} style={{ width: '40px', height: '22px', fontSize: '12px', padding: '0 4px', borderRadius: '4px', border: '1px solid #bae6fd', outline: 'none' }} />
+                        <button onClick={() => toggleMedicine(med)} style={{ background: 'transparent', border: 'none', color: '#0369a1', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', marginLeft: '4px' }}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                         </button>
                       </div>

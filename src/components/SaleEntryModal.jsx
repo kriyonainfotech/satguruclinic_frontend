@@ -3,7 +3,7 @@ import axios from 'axios';
 import { XIcon } from './Icons';
 import CustomSelect from './CustomSelect';
 
-const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPatientName = '', onSuccess }) => {
+const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPatientName = '', initialAppointment = null, onSuccess }) => {
   const [saleMobile, setSaleMobile] = useState(initialPatientMobile);
   const [salePatientName, setSalePatientName] = useState(initialPatientName);
   const [showMobileDropdown, setShowMobileDropdown] = useState(false);
@@ -38,16 +38,46 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
             setPatientsList((pRes.data || []).map(p => ({ id: p._id, mobile: p.mobileNumber || '', name: p.fullName || '' })));
             
             const sRes = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/services`, config);
-            setServicesList((sRes.data || []).map(s => ({ id: s._id, name: s.name || '', price: s.price || 0 })));
+            const sData = (sRes.data || []).map(s => ({ id: s._id, name: s.name || '', price: s.price || 0 }));
+            setServicesList(sData);
             
             const pkgRes = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/packages`, config);
-            setAllPackages((pkgRes.data || []).map(p => ({ id: p._id, name: p.name || '', price: p.totalPrice || 0 })));
+            const pData = (pkgRes.data || []).map(p => ({ id: p._id, name: p.name || '', price: p.totalPrice || 0 }));
+            setAllPackages(pData);
             
             const mRes = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/medicines`, config);
-            setAllMedicines((mRes.data || []).map(m => ({ id: m._id, name: m.name || '', price: m.price || 0 })));
+            const mData = (mRes.data || []).map(m => ({ id: m._id, name: m.name || '', price: m.price || 0 }));
+            setAllMedicines(mData);
             
             const setRes = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/settings`, config);
             setConsultationFeeAmount(setRes.data?.consultationFee || 0);
+
+            if (initialAppointment) {
+               if (initialAppointment.services) {
+                   const sNames = initialAppointment.services.split(', ').map(s => s.split(' (₹')[0]);
+                   setSelectedServices(sData.filter(s => sNames.includes(s.name)));
+               }
+               if (initialAppointment.packages) {
+                   const pNames = initialAppointment.packages.split(', ').map(p => p.split(' (₹')[0]);
+                   setSelectedPackages(pData.filter(p => pNames.includes(p.name)));
+               }
+               if (initialAppointment.medicines) {
+                   const mItems = initialAppointment.medicines.split(', ').map(str => {
+                       const baseName = str.split(' (₹')[0];
+                       const qtyMatch = str.match(/\[Qty: (\d+)\]/);
+                       const qty = qtyMatch ? parseInt(qtyMatch[1]) : 1;
+                       return { baseName, qty };
+                   });
+                   const selectedM = [];
+                   mItems.forEach(item => {
+                       const med = mData.find(m => m.name === item.baseName);
+                       if (med) {
+                           selectedM.push({ ...med, qty: item.qty });
+                       }
+                   });
+                   setSelectedMedicines(selectedM);
+               }
+            }
         } catch(e) {
             console.error(e);
         }
@@ -68,7 +98,7 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
   useEffect(() => {
     let sum = selectedServices.reduce((acc, srv) => acc + srv.price, 0);
     sum += selectedPackages.reduce((acc, pkg) => acc + pkg.price, 0);
-    sum += selectedMedicines.reduce((acc, med) => acc + med.price, 0);
+    sum += selectedMedicines.reduce((acc, med) => acc + ((med.price || 0) * (med.qty || 1)), 0);
     if (includeConsultationFee) sum += consultationFeeAmount;
     setSaleTotalAmount(sum);
   }, [selectedServices, selectedPackages, selectedMedicines, includeConsultationFee, consultationFeeAmount]);
@@ -97,7 +127,7 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
     if (includeConsultationFee) workItems.push('Consultation');
     if (selectedServices.length > 0) workItems.push(...selectedServices.map(s => s.name));
     if (selectedPackages.length > 0) workItems.push(...selectedPackages.map(p => p.name));
-    if (selectedMedicines.length > 0) workItems.push(...selectedMedicines.map(m => m.name + ' (' + medicineDuration + ' days)'));
+    if (selectedMedicines.length > 0) workItems.push(...selectedMedicines.map(m => `${m.name} [Qty: ${m.qty || 1}] (${medicineDuration} days - ₹${(m.price || 0) * (m.qty || 1)})`));
     const workStr = workItems.length > 0 ? workItems.join(', ') : 'Manual Entry';
 
     const newInvoice = {
@@ -263,12 +293,17 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
             }}
           />
           {selectedMedicines.length > 0 && (
-            <div className="modal-chip-group">
+            <div className="modal-chip-group" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
               {selectedMedicines.map(med => (
-                <span key={'m'+med.id} className="modal-chip medicine">
-                  {med.name} ({R}{med.price})
-                  <span className="modal-chip-remove" onClick={() => setSelectedMedicines(selectedMedicines.filter(m => m.id !== med.id))} title="Remove">×</span>
-                </span>
+                <div key={'m'+med.id} className="modal-chip medicine" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {med.name} ({R}{(med.price || 0) * (med.qty || 1)})
+                  <span style={{ fontSize: '10px', marginLeft: '4px', opacity: 0.8 }}>Qty:</span>
+                  <input type="number" min="1" value={med.qty || 1} onChange={(e) => {
+                    const val = parseInt(e.target.value) || 1;
+                    setSelectedMedicines(prev => prev.map(m => m.id === med.id ? { ...m, qty: val } : m));
+                  }} style={{ width: '40px', height: '22px', fontSize: '12px', padding: '0 4px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.4)', outline: 'none', background: 'transparent', color: 'inherit' }} />
+                  <span className="modal-chip-remove" onClick={() => setSelectedMedicines(selectedMedicines.filter(m => m.id !== med.id))} title="Remove" style={{ marginLeft: '4px' }}>×</span>
+                </div>
               ))}
             </div>
           )}
