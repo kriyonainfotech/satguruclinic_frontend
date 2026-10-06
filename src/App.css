@@ -842,7 +842,7 @@ li {
   }
 
   .appt-sale-entry-btn {
-    background: #10b981;
+    background: #f59e0b;
     color: #ffffff;
     border: none;
     padding: 6px 12px;
@@ -857,7 +857,7 @@ li {
   }
 
   .appt-sale-entry-btn:hover {
-    background: #059669;
+    background: #d97706;
   }
 
   .appt-actions-right {
@@ -1628,9 +1628,9 @@ li {
 }
 
 .sale-entry-btn {
-  background: #ecfdf5;
-  color: #059669;
-  border: 1px solid #a7f3d0;
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fcd34d;
   padding: 0 10px;
   border-radius: 6px;
   font-size: 11.5px;
@@ -1647,11 +1647,11 @@ li {
 }
 
 .sale-entry-btn:hover {
-  background: #d1fae5;
-  border-color: #6ee7b7;
-  color: #047857;
+  background: #fef3c7;
+  border-color: #fbbf24;
+  color: #92400e;
   transform: translateY(-1px);
-  box-shadow: 0 2px 5px rgba(5, 150, 105, 0.18);
+  box-shadow: 0 2px 5px rgba(245, 158, 11, 0.18);
 }
 
 /* Modern CRM Table Components */
@@ -3096,4 +3096,49 @@ input[type='checkbox'] {
   }
   .desktop-badges { display: none !important; }
   .mobile-badges { display: flex !important; align-items: center; justify-content: center; width: 100%; }
+}
+
+.billed-edit-btn {
+  font-size: 11px;
+  font-weight: bold;
+  color: #10b981;
+  background: #d1fae5;
+  padding: 4px 12px;
+  border-radius: 4px;
+  border: 1px solid #10b981;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 85px;
+  text-align: center;
+}
+.billed-edit-btn::before {
+  content: 'Billed';
+}
+.billed-edit-btn:hover {
+  background: #10b981;
+  color: white;
+}
+.billed-edit-btn:hover::before {
+  content: 'Edit Bill';
+}
+.billed-edit-btn span {
+  display: none;
+}
+
+.tbl-admin-select {
+  padding: 4px 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background-color: #f8fafc;
+  color: #334155;
+  font-size: 13px;
+  outline: none;
+  cursor: pointer;
+}
+.tbl-admin-select:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(20, 75, 121, 0.1);
 }

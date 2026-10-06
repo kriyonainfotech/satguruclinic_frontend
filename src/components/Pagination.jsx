@@ -60,53 +60,51 @@ const Pagination = ({
         Showing <strong>{startRecord}</strong> - <strong>{endRecord}</strong> of <strong>{totalItems}</strong> {itemName}
       </div>
 
-      {totalPages > 1 && (
-        <div className="crm-pagination-controls">
-          <button
-            type="button"
-            className="crm-page-btn crm-page-nav-btn"
-            onClick={() => onPageChange(Math.max(currentPage - 1, 1))}
-            disabled={currentPage === 1}
-            title="Previous Page"
-            aria-label="Previous Page"
-          >
-            &lt;
-          </button>
+      <div className="crm-pagination-controls">
+        <button
+          type="button"
+          className="crm-page-btn crm-page-nav-btn"
+          onClick={() => onPageChange(Math.max(currentPage - 1, 1))}
+          disabled={currentPage === 1}
+          title="Previous Page"
+          aria-label="Previous Page"
+        >
+          &lt;
+        </button>
 
-          {getPageNumbers().map((page, index) => {
-            if (page === '...') {
-              return (
-                <span key={`ellipsis-${index}`} className="crm-page-ellipsis">
-                  …
-                </span>
-              );
-            }
-
+        {getPageNumbers().map((page, index) => {
+          if (page === '...') {
             return (
-              <button
-                key={page}
-                type="button"
-                className={`crm-page-btn ${currentPage === page ? 'active' : ''}`}
-                onClick={() => onPageChange(page)}
-                aria-label={`Page ${page}`}
-              >
-                {page}
-              </button>
+              <span key={`ellipsis-${index}`} className="crm-page-ellipsis">
+                …
+              </span>
             );
-          })}
+          }
 
-          <button
-            type="button"
-            className="crm-page-btn crm-page-nav-btn"
-            onClick={() => onPageChange(Math.min(currentPage + 1, totalPages))}
-            disabled={currentPage === totalPages}
-            title="Next Page"
-            aria-label="Next Page"
-          >
-            &gt;
-          </button>
-        </div>
-      )}
+          return (
+            <button
+              key={page}
+              type="button"
+              className={`crm-page-btn ${currentPage === page ? 'active' : ''}`}
+              onClick={() => onPageChange(page)}
+              aria-label={`Page ${page}`}
+            >
+              {page}
+            </button>
+          );
+        })}
+
+        <button
+          type="button"
+          className="crm-page-btn crm-page-nav-btn"
+          onClick={() => onPageChange(Math.min(currentPage + 1, totalPages))}
+          disabled={currentPage === totalPages}
+          title="Next Page"
+          aria-label="Next Page"
+        >
+          &gt;
+        </button>
+      </div>
     </div>
   );
 };

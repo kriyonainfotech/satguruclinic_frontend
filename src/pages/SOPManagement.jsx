@@ -7,12 +7,14 @@ import CustomSelect from '../components/CustomSelect';
 import { EditIcon, TrashIcon } from '../components/Icons';
 
 const SOPManagement = () => {
+    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+    const isSuperadmin = currentUser.role === 'superadmin';
     const [sops, setSops] = useState([]);
     const [users, setUsers] = useState([]);
     const [selectedSOP, setSelectedSOP] = useState(null);
 
     const uniqueCategories = [...new Set(users.filter(u => u.role === 'team' && u.category).map(u => u.category))];
-    const dynamicRoles = ['superadmin', 'admin', ...uniqueCategories];
+    const dynamicRoles = isSuperadmin ? ['superadmin', 'admin', ...uniqueCategories] : [...uniqueCategories];
     
     // SOP Modal State
     const [showSopModal, setShowSopModal] = useState(false);
@@ -27,6 +29,7 @@ const SOPManagement = () => {
     const [pointId, setPointId] = useState(null);
     const [pointHeading, setPointHeading] = useState('');
     const [pointDesc, setPointDesc] = useState('');
+    
 
     const token = localStorage.getItem('token');
 
@@ -39,7 +42,12 @@ const SOPManagement = () => {
                 axios.get(`${import.meta.env.VITE_API_BASE_URL}/auth/users/superadmin`, { headers: { Authorization: `Bearer ${token}` } })
             ]);
             setSops(sopRes.data);
-            setUsers([...superadminRes.data, ...adminRes.data, ...teamRes.data]);
+            const allFetchedUsers = [...superadminRes.data, ...adminRes.data, ...teamRes.data];
+            setUsers(
+                isSuperadmin 
+                ? allFetchedUsers 
+                : allFetchedUsers.filter(u => u.role === 'team' || (currentUser.id && u._id === currentUser.id))
+            );
             
             setSelectedSOP(prev => {
                 if (prev) {
@@ -205,21 +213,19 @@ const SOPManagement = () => {
     });
 
     return (
-        <div style={{ backgroundColor: '#fff', height: 'calc(100vh - 60px)', padding: '15px 20px', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxSizing: 'border-box' }}>
+        <div className="task-page-container">
             <div className="page-header" style={{ marginBottom: '15px' }}>
                 <div>
                     <h2>Standard Operating Procedures</h2>
                    
                 </div>
-                <button onClick={() => openSopModal()} style={{ background: '#0f4a8a', color: 'white', padding: '8px 14px', borderRadius: '6px', border: 'none', fontWeight: '600', cursor: 'pointer', fontSize: '13px' }}>
-                    Create Global SOP
-                </button>
+                <button onClick={() => openSopModal()} className="crm-btn crm-btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>+ Create Global SOP</button>
             </div>
 
             {/* Filters */}
             <div style={{ marginBottom: '15px', display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-start', maxWidth: '100%' }}>
                 <div className="hide-scrollbar" style={{ display: 'inline-flex', gap: '2px', background: '#f8fafc', padding: '3px', borderRadius: '8px', flexWrap: 'nowrap', overflowX: 'auto', maxWidth: '100%', WebkitOverflowScrolling: 'touch' }}>
-                    {['All Roles', 'Superadmin', 'Admin', ...uniqueCategories].map(role => (
+                    { (isSuperadmin ? ['All Roles', 'Superadmin', 'Admin', ...uniqueCategories] : ['All Roles', ...uniqueCategories]).map(role => (
                         <button 
                             key={role}
                             onClick={() => setActiveRoleFilter(role)}
@@ -242,6 +248,7 @@ const SOPManagement = () => {
                 </div>
                 <div className="hide-scrollbar" style={{ display: 'inline-flex', gap: '2px', background: '#f8fafc', padding: '3px', borderRadius: '8px', flexWrap: 'nowrap', overflowX: 'auto', maxWidth: '100%', WebkitOverflowScrolling: 'touch' }}>
                     {['All Users', ...users.filter(u => {
+        if (!isSuperadmin && u.role === 'superadmin') return false;
                         if (activeRoleFilter === 'All Roles') return true;
                         if (activeRoleFilter === 'Superadmin') return u.role === 'superadmin';
                         if (activeRoleFilter === 'Admin') return u.role === 'admin';
@@ -493,3 +500,4 @@ const SOPManagement = () => {
 };
 
 export default SOPManagement;
+

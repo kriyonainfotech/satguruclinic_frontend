@@ -23,6 +23,8 @@ button.custom-select-trigger {
 }
 
 button.custom-select-trigger:hover:not(.disabled) {
+  color: #1e293b !important;
+  background-color: #f8fafc !important;
   border-color: #cbd5e1 !important;
   background-color: #ffffff !important;
 }

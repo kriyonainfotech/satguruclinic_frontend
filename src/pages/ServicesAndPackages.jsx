@@ -11,16 +11,8 @@ const ServicesAndPackages = () => {
     return (
         <div className="services-packages-wrapper">
             {/* Top Page Header */}
-            <div className="sp-page-header">
-                <div className="sp-title-area">
-                    <div className="sp-icon-badge">
-                        <PackageIcon size={24} />
-                    </div>
-                    <div>
-                        <h1 className="sp-main-title">Services & Packages</h1>
-                    </div>
-                </div>
-
+            <div className="page-header" style={{ marginBottom: '16px' }}>
+                <h2>Services & Packages</h2>
                 {/* Modern Tab Switcher */}
                 <div className="sp-tab-nav">
                     <button

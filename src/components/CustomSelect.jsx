@@ -25,19 +25,7 @@ const CustomSelect = ({ value, onChange, options = [], placeholder = "Select..."
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
-  // Close on scroll outside menu
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e) => {
-      // Don't close if scrolling inside the dropdown menu itself
-      if (menuRef.current && (menuRef.current === e.target || menuRef.current.contains(e.target))) {
-        return;
-      }
-      setOpen(false);
-    };
-    window.addEventListener('scroll', handler, true);
-    return () => window.removeEventListener('scroll', handler, true);
-  }, [open]);
+  
 
   const handleToggle = () => {
     if (disabled) return;
@@ -92,11 +80,11 @@ const CustomSelect = ({ value, onChange, options = [], placeholder = "Select..."
   ) : null;
 
   return (
-    <div className="custom-select-wrapper" style={style}>
+    <div className="custom-select-wrapper" style={{ ...style, position: "relative" }}>
       <button
         type="button"
         ref={triggerRef}
-        className={`custom-select-trigger ${open ? 'open' : ''} ${disabled ? 'disabled' : ''}`}
+        className={`custom-select-trigger ${open ? 'open' : ''} ${disabled ? 'disabled' : ''}`} style={{ backgroundColor: "#ffffff", color: "#1e293b", borderColor: "#cbd5e1" }}
         onClick={handleToggle}
         disabled={disabled}
         aria-haspopup="listbox"

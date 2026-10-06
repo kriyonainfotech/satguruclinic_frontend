@@ -16,6 +16,9 @@ import './Attendance.css';
 
 const formatTime12HourStr = (time24) => {
   if (!time24) return '';
+  if (time24.toUpperCase().includes('AM') || time24.toUpperCase().includes('PM')) {
+    return time24;
+  }
   const [hours, minutes] = time24.split(':');
   let h = parseInt(hours, 10);
   const ampm = h >= 12 ? 'PM' : 'AM';
@@ -40,6 +43,7 @@ const STATUS_SELECT_OPTIONS = [
 ];
 
 const Attendance = () => {
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
   const [activeTab, setActiveTab] = useState('team');
   const [selectMode, setSelectMode] = useState('single'); // 'single' or 'range'
   const [currentDate, setCurrentDate] = useState(moment().format('YYYY-MM-DD'));
@@ -128,6 +132,10 @@ const Attendance = () => {
     fetchAttendance();
   }, [currentDate, activeTab, selectMode, rangeStart, rangeEnd, currentMonth.format('YYYY-MM')]);
 
+  useEffect(() => {
+    setCurrentMonth(moment(currentDate));
+  }, [currentDate]);
+
   // Edit modal states
   const [editingRecord, setEditingRecord] = useState(null);
   const [editClockIn, setEditClockIn] = useState('');
@@ -181,6 +189,7 @@ const Attendance = () => {
   const getStatusBadge = (status) => {
     if (status === 'present') return <span className="att-status-badge present">FULL DAY</span>;
     if (status === 'half-day') return <span className="att-status-badge half">HALF DAY</span>;
+    if (status === 'short-time') return <span className="att-status-badge" style={{ background: '#f3e8ff', color: '#7e22ce', border: '1px solid #d8b4fe' }}>SHORT TIME</span>;
     if (status === 'leave') return <span className="att-status-badge leave">LEAVE</span>;
     if (status === 'holiday') return <span className="att-status-badge" style={{ background: '#dcfce7', color: '#166534', border: '1px solid #4ade80' }}>PAID HOLIDAY</span>;
     if (status === 'unpaid-holiday') return <span className="att-status-badge" style={{ background: '#fef3c7', color: '#b45309', border: '1px solid #fcd34d' }}>UNPAID HOLIDAY</span>;
@@ -190,21 +199,14 @@ const Attendance = () => {
   return (
     <div className="attendance-page-container">
       {/* Top Page Header */}
-      <div className="attendance-page-header">
-        <div className="attendance-header-left">
-          <div className="attendance-header-icon-badge">
-            <ClockIcon size={24} />
-          </div>
-          <div>
-            <h1 className="attendance-page-title">Attendance Management</h1>
-          </div>
-        </div>
-
+      <div className="page-header" style={{ marginBottom: '16px' }}>
+        <h2>Attendance Management</h2>
         <button 
           type="button"
           onClick={fetchAttendance}
           disabled={loading}
-          className="attendance-sync-btn"
+          className="attendance-sync-btn crm-btn"
+          style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#ffffff', color: '#475569', border: '1px solid #e2e8f0', padding: '8px 12px', borderRadius: '6px', cursor: 'pointer' }}
           title="Sync latest attendance data from database"
         >
           <svg 
@@ -225,18 +227,20 @@ const Attendance = () => {
       </div>
 
       {/* Role Tabs */}
-      <div className="attendance-tabs-wrap">
-        {['superadmins', 'admins', 'team', 'leaves'].map(tab => (
-          <button 
-            key={tab}
-            type="button"
-            onClick={() => setActiveTab(tab)}
-            className={`attendance-tab-btn ${activeTab === tab ? 'active' : ''}`}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
+      {user.role !== 'admin' && (
+        <div className="attendance-tabs-wrap">
+          {['superadmins', 'admins', 'team', 'leaves'].map(tab => (
+            <button 
+              key={tab}
+              type="button"
+              onClick={() => setActiveTab(tab)}
+              className={`attendance-tab-btn ${activeTab === tab ? 'active' : ''}`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Month Calendar Card */}
       <div className="attendance-calendar-card">
@@ -275,7 +279,11 @@ const Attendance = () => {
           <div className="calendar-nav-arrows">
             <button 
               type="button"
-              onClick={() => setCurrentMonth(currentMonth.clone().subtract(1, 'month'))} 
+              onClick={() => {
+                const newM = currentMonth.clone().subtract(1, 'month');
+                setCurrentMonth(newM);
+                setCurrentDate(newM.startOf('month').format('YYYY-MM-DD'));
+              }} 
               className="cal-nav-arrow-btn"
               title="Previous Month"
               aria-label="Previous Month"
@@ -286,7 +294,11 @@ const Attendance = () => {
             </button>
             <button 
               type="button"
-              onClick={() => setCurrentMonth(currentMonth.clone().add(1, 'month'))} 
+              onClick={() => {
+                const newM = currentMonth.clone().add(1, 'month');
+                setCurrentMonth(newM);
+                setCurrentDate(newM.startOf('month').format('YYYY-MM-DD'));
+              }} 
               className="cal-nav-arrow-btn"
               title="Next Month"
               aria-label="Next Month"
@@ -424,22 +436,10 @@ const Attendance = () => {
               : `Marking for ${moment(rangeStart || currentDate).format('MMM DD, YYYY')} - ${moment(rangeEnd || rangeStart || currentDate).format('MMM DD, YYYY')}`
             }
           </h3>
-
-          {selectMode === 'single' && (
-            <div className="att-marking-date-picker">
-              <CalendarPicker
-                selectedDate={currentDate}
-                onChange={d => d && setCurrentDate(d)}
-                allowClear={false}
-              />
-            </div>
-          )}
         </div>
         
         {loading ? (
-          <div style={{ padding: '48px', textAlign: 'center', color: '#64748b' }}>
-            Loading attendance records...
-          </div>
+          <div style={{ padding: '48px', textAlign: 'center', color: '#64748b' }}><div className="global-loader-container"><div className="global-spinner"></div><div>Loading attendance records...</div></div></div>
         ) : (
           <>
             {/* Desktop Table View */}
@@ -825,3 +825,5 @@ const Attendance = () => {
 };
 
 export default Attendance;
+
+

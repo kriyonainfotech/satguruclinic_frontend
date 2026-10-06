@@ -17,6 +17,7 @@ const formatTime12Hour = (time24) => {
 
 const TeamManagement = () => {
   const [teamMembers, setTeamMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -30,6 +31,12 @@ const TeamManagement = () => {
   const [salary, setSalary] = useState('');
   const [timingType, setTimingType] = useState('normal');
   const [timings, setTimings] = useState([{ startTime: '', endTime: '' }]);
+  const [adminId, setAdminId] = useState('');
+  const [admins, setAdmins] = useState([]);
+  
+  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const isSuperadmin = currentUser.role === 'superadmin';
+  
   const [message, setMessage] = useState('');
 
   // Change Password Modal State
@@ -97,6 +104,25 @@ const TeamManagement = () => {
     }
   };
 
+  
+  const fetchAdmins = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/auth/users/admin`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setAdmins(res.data);
+    } catch (error) {
+      console.error("Error fetching admins:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (isSuperadmin) {
+      fetchAdmins();
+    }
+  }, [isSuperadmin]);
+
   const fetchTeamMembers = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -106,6 +132,8 @@ const TeamManagement = () => {
       setTeamMembers(res.data);
     } catch (error) {
       console.error('Error fetching team members:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -113,7 +141,7 @@ const TeamManagement = () => {
     setIsEditMode(false);
     setEditingId(null);
     setName(''); setEmail(''); setPassword(''); setMobile(''); setBirthDate(''); setCategory(''); setSalary(''); 
-    setTimingType('normal'); setTimings([{ startTime: '', endTime: '' }]);
+    setTimingType('normal'); setTimings([{ startTime: '', endTime: '' }]); setAdminId('');
     setMessage('');
     setShowModal(true);
   };
@@ -129,6 +157,7 @@ const TeamManagement = () => {
     setSalary(member.salary || '');
     setTimingType(member.timingType || 'normal');
     setTimings(member.timings && member.timings.length > 0 ? member.timings : [{ startTime: '', endTime: '' }]);
+    setAdminId(member.adminId || '');
     setPassword(''); 
     setMessage('');
     setShowModal(true);
@@ -145,6 +174,19 @@ const TeamManagement = () => {
     } catch (error) {
       console.error('Error deleting team member:', error);
       alert('Error deleting team member: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const handleAdminChange = async (memberId, newAdminId) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.put(`${import.meta.env.VITE_API_BASE_URL}/auth/users/${memberId}`, { adminId: newAdminId }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchTeamMembers();
+    } catch (error) {
+      console.error("Error assigning admin:", error);
+      alert("Failed to assign admin");
     }
   };
 
@@ -176,14 +218,14 @@ const TeamManagement = () => {
       if (isEditMode) {
         await axios.put(`${import.meta.env.VITE_API_BASE_URL}/auth/users/${editingId}`, {
           name, email, mobile, category, salary: Number(salary) || 0, timingType, timings: validTimings
-        }, {
+        , adminId: isSuperadmin ? adminId : undefined}, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setMessage('Team member updated successfully!');
       } else {
         await axios.post(`${import.meta.env.VITE_API_BASE_URL}/auth/register`, {
           name, email, password, mobile, role: 'team', category, salary: Number(salary) || 0, timingType, timings: validTimings
-        }, {
+        , adminId: isSuperadmin ? adminId : undefined}, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setMessage('Team member created successfully!');
@@ -201,10 +243,12 @@ const TeamManagement = () => {
 
   return (
     <div>
-      <div className="page-header">
-        <h2>Team Management</h2>
-        <Button onClick={openCreateModal}>+ Create Team Member</Button>
-      </div>
+      <div className="page-header" style={{ marginBottom: '16px' }}>
+          <h2>Team Management</h2>
+          <button onClick={openCreateModal} className="crm-btn crm-btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            + Create Team Member
+          </button>
+        </div>
 
       {/* Desktop Table View */}
       <div className="desktop-table-wrap">
@@ -217,11 +261,12 @@ const TeamManagement = () => {
                 <th>Mobile</th>
                 <th>Role / Category</th>
                 <th>Timings</th>
+                {isSuperadmin && <th>Assign To</th>}
                 <th style={{ textAlign: 'right', paddingRight: '22px' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {teamMembers.length === 0 ? (
+              {loading ? ( <tr><td colSpan="6" style={{ textAlign: "center", padding: "36px 20px", color: "#94a3b8" }}><div className="global-loader-container"><div className="global-spinner"></div><div>Loading team members...</div></div></td></tr> ) : teamMembers.length === 0 ? (
                 <tr>
                   <td colSpan="6" style={{ textAlign: 'center', padding: '36px 20px', color: '#94a3b8' }}>
                     No team members found.
@@ -270,6 +315,16 @@ const TeamManagement = () => {
                           </div>
                         )}
                       </td>
+                      {isSuperadmin && (
+                        <td>
+                          <CustomSelect 
+                              value={member.adminId || ''} 
+                              onChange={(val) => handleAdminChange(member._id, val)}
+                              options={[{value: '', label: 'Unassigned'}, ...admins.map(a => ({ value: a._id, label: a.name }))]}
+                              placeholder="Unassigned"
+                            />
+                        </td>
+                      )}
                       <td style={{ textAlign: 'right', paddingRight: '20px' }}>
                         <button className="action-btn key" title="Change Password" aria-label="Change Password" onClick={() => openPasswordModal(member)}>
                           <KeyIcon size={16} />
@@ -298,7 +353,7 @@ const TeamManagement = () => {
       {/* Responsive Card View for Mobile/Tablet */}
       <div className="mobile-cards-wrap">
         <div className="crm-card-view">
-          {teamMembers.length === 0 ? <p style={{ padding: '24px', color: '#64748b', textAlign: 'center' }}>No team members found.</p> : (
+          {loading ? <div className="empty-state"><div className="global-loader-container"><div className="global-spinner"></div><div>Loading team members...</div></div></div> : teamMembers.length === 0 ? <p style={{ padding: "24px", color: "#64748b", textAlign: "center" }}>No team members found.</p> : (
             teamMembers.map(member => (
               <div className="tm-card" key={member._id}>
                 {/* Top: Avatar + Name + Role */}
@@ -386,6 +441,16 @@ const TeamManagement = () => {
                 <FormInput type="email" label="Email Address" placeholder="Enter email address" value={email} onChange={e => setEmail(e.target.value)} required />
               </div>
               <div>
+                {isSuperadmin && (
+                  <div className="crm-input-group">
+                    <label className="crm-input-label">Assign to Admin</label>
+                    <CustomSelect 
+                      value={adminId} 
+                      onChange={setAdminId} 
+                      options={[{value: '', label: 'Select Admin'}, ...admins.map(a => ({ value: a._id, label: a.name }))]} 
+                    />
+                  </div>
+                )}
                 <div className="crm-input-group">
                   <label className="crm-input-label">Category</label>
                   <CustomSelect 
@@ -558,3 +623,5 @@ const TeamManagement = () => {
 };
 
 export default TeamManagement;
+
+

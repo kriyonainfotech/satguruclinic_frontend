@@ -190,6 +190,7 @@
 .sp-item-card {
   background: #ffffff;
   border: 1px solid #e2e8f0;
+  border-left: 4px solid var(--primary-color, #144b79);
   border-radius: 12px;
   padding: 16px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);

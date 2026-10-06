@@ -1,0 +1,361 @@
+.schedule-management-container {
+    padding-bottom: 30px;
+  }
+  
+  .schedule-management-container .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 24px;
+  }
+  
+  .schedule-management-container .header-actions {
+    display: flex;
+    gap: 12px;
+  }
+
+
+.schedule-custom-tabs {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  width: 100%;
+}
+
+.sch-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: white;
+  color: #475569;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.sch-tab:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.sch-tab-active {
+  background: var(--primary-color, #144b79);
+  color: white;
+  border-color: var(--primary-color, #144b79);
+  box-shadow: 0 4px 6px -1px rgba(20, 75, 121, 0.2);
+}
+
+.sch-tab-active:hover {
+  background: #0d385c;
+  border-color: #0d385c;
+}
+
+
+@media (max-width: 992px) {
+  .schedule-management-container .crm-card-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 16px;
+  }
+  .schedule-custom-tabs {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 768px) {
+  .schedule-management-container .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  
+  .schedule-management-container .header-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .schedule-management-container .header-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .schedule-custom-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 8px; /* For scrollbar space */
+  }
+  .sch-tab {
+    white-space: nowrap;
+    padding: 8px 12px;
+  }
+  
+  .schedule-management-container .form-two-col-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+
+@media (max-width: 992px) {
+  .schedule-management-container .page-header h1 {
+    font-size: 22px;
+  }
+  .crm-btn {
+    padding: 6px 14px;
+    font-size: 13px;
+  }
+  .sch-tab {
+    padding: 6px 14px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 768px) {
+  .schedule-management-container .page-header h1 {
+    font-size: 18px;
+    margin-bottom: 4px;
+  }
+  .schedule-management-container .page-header p {
+    font-size: 12px;
+  }
+  .crm-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+  .sch-tab {
+    padding: 6px 10px;
+    font-size: 12px;
+    gap: 4px;
+  }
+  .schedule-custom-tabs svg {
+    width: 14px;
+    height: 14px;
+  }
+  .schedule-management-container .crm-card-header {
+    padding: 12px !important;
+    gap: 12px;
+  }
+  .schedule-management-container .crm-card-body {
+    padding: 12px !important;
+  }
+
+}
+
+
+@media (max-width: 992px) {
+  .schedule-bottom-title {
+     font-size: 15px !important;
+     margin-bottom: 12px !important;
+  }
+  .schedule-list-item-title {
+     font-size: 14px !important;
+  }
+  .schedule-list-item-subtitle {
+     font-size: 12px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .schedule-bottom-title {
+     font-size: 14px !important;
+  }
+  .schedule-list-item-title {
+     font-size: 13px !important;
+  }
+  .schedule-list-item-subtitle {
+     font-size: 11px !important;
+  }
+  .sch-action-btn {
+     padding: 8px !important;
+  }
+  .action-text {
+     display: none;
+  }
+}
+
+
+@media (max-width: 768px) {
+  .page-container {
+      padding: 10px !important;
+  }
+  .schedule-management-container {
+      padding: 0 !important;
+  }
+  
+  .schedule-management-container .header-actions {
+      align-items: stretch !important;
+      width: 100% !important;
+  }
+  
+  .schedule-management-container .header-actions .crm-btn {
+      white-space: normal !important;
+      height: auto !important;
+      text-align: center;
+      justify-content: center;
+      padding: 10px !important;
+      font-size: 13px !important;
+      width: 100% !important;
+  }
+  
+  .crm-card {
+      margin: 0 !important;
+      border-radius: 8px !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+  }
+  
+  .schedule-management-container .crm-card-header {
+      padding: 12px !important;
+  }
+  
+  .schedule-management-container .crm-card-body {
+      padding: 12px 8px !important;
+  }
+  
+  /* Fix tabs */
+  .schedule-custom-tabs {
+      width: 100% !important;
+      overflow-x: auto !important;
+      flex-wrap: nowrap !important;
+      -webkit-overflow-scrolling: touch;
+  }
+  
+  .sch-tab {
+      flex: 0 0 auto;
+  }
+}
+
+
+@media (max-width: 768px) {
+  /* Force page header to stack vertically */
+  .schedule-management-container .page-header {
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: flex-start !important;
+      gap: 16px !important;
+  }
+  
+  /* Force buttons container to stack vertically */
+  .schedule-management-container .header-actions {
+      display: flex !important;
+      flex-direction: column !important;
+      width: 100% !important;
+      gap: 8px !important;
+  }
+  
+  /* Force buttons to be full width, smaller height */
+  .schedule-management-container .header-actions .crm-btn {
+      width: 100% !important;
+      padding: 8px !important; /* reduced height */
+      white-space: normal !important;
+      display: flex !important;
+      justify-content: center !important;
+      align-items: center !important;
+  }
+  
+  /* Remove horizontal scroll from tabs, let them wrap */
+  .schedule-custom-tabs {
+      flex-wrap: wrap !important;
+      overflow-x: visible !important;
+      padding-bottom: 0 !important;
+  }
+  
+  .sch-tab {
+      flex: 1 1 auto;
+      text-align: center;
+      justify-content: center;
+      padding: 8px !important;
+  }
+  
+  /* Further reduce container padding */
+  .page-container {
+      padding: 8px !important;
+  }
+  
+  /* Calendar grid spacing */
+  .crm-card {
+      margin: 0 !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+  }
+  .full-calendar-container {
+      width: 100% !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .page-container {
+      padding: 0 !important;
+  }
+}
+
+
+@media (max-width: 992px) {
+  /* No blue border */
+  .crm-card {
+      border-left: none !important;
+      border-radius: 8px !important;
+  }
+  
+  /* Kill scroll */
+  body, html, #root, .layout-container, .main-content, .page-content-wrapper, .page-container, .schedule-management-container {
+      overflow-x: hidden !important;
+      max-width: 100% !important;
+      box-sizing: border-box !important;
+  }
+  
+  /* Fix width 100% overflow issues */
+  * {
+      box-sizing: border-box !important;
+  }
+  
+  /* Make sure tabs don't force width */
+  .schedule-custom-tabs {
+      flex-wrap: wrap !important;
+      width: 100% !important;
+  }
+  
+  /* Header adjustments */
+  .schedule-management-container .page-header {
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: flex-start !important;
+      width: 100% !important;
+  }
+  
+  .schedule-management-container .header-actions {
+      display: flex !important;
+      flex-direction: column !important;
+      width: 100% !important;
+  }
+  
+  .schedule-management-container .header-actions .crm-btn {
+      width: 100% !important;
+      box-sizing: border-box !important;
+  }
+}
+
+
+/* Desktop spacing reductions */
+@media (min-width: 993px) {
+  .schedule-management-container .page-header {
+      margin-bottom: 16px !important;
+  }
+  .schedule-management-container {
+      padding-bottom: 10px !important;
+  }
+  .crm-card-header {
+      padding: 12px 24px !important;
+  }
+  .crm-card-body {
+      padding: 16px 24px !important;
+  }
+  .schedule-custom-tabs {
+      gap: 8px !important;
+  }
+}

@@ -20,6 +20,7 @@ const Packages = () => {
     const [description, setDescription] = useState('');
     const [selectedServices, setSelectedServices] = useState([]);
     const [selectedMedicines, setSelectedMedicines] = useState([]);
+    const [medicineQuantities, setMedicineQuantities] = useState({}); // New state for quantities
 
     // Extra custom services for this package
     const [extraServices, setExtraServices] = useState([]);
@@ -60,6 +61,7 @@ const Packages = () => {
         setDescription('');
         setSelectedServices([]);
         setSelectedMedicines([]);
+        setMedicineQuantities({});
         setExtraServices([]);
         setNewExtraServiceName('');
         setNewExtraServicePrice('');
@@ -72,7 +74,16 @@ const Packages = () => {
         setName(pkg.name);
         setDescription(pkg.description || '');
         setSelectedServices(pkg.services ? pkg.services.map(s => s._id) : []);
-        setSelectedMedicines(pkg.medicines ? pkg.medicines.map(m => m._id) : []);
+        
+        const medIds = pkg.medicines ? pkg.medicines.map(m => m._id) : [];
+        setSelectedMedicines([...new Set(medIds)]);
+        
+        const qtyMap = {};
+        medIds.forEach(id => {
+            qtyMap[id] = (qtyMap[id] || 0) + 1;
+        });
+        setMedicineQuantities(qtyMap);
+
         setExtraServices(pkg.extraServices || []);
         setNewExtraServiceName('');
         setNewExtraServicePrice('');
@@ -89,6 +100,14 @@ const Packages = () => {
 
     const handleRemoveExtraService = (index) => {
         setExtraServices(extraServices.filter((_, i) => i !== index));
+    };
+
+    const handleMedQtyChange = (id, change) => {
+        setMedicineQuantities(prev => {
+            const current = prev[id] || 1;
+            const newQty = Math.max(1, current + change);
+            return { ...prev, [id]: newQty };
+        });
     };
 
     const handleDelete = async (id) => {
@@ -114,11 +133,17 @@ const Packages = () => {
                 setNewExtraServicePrice('');
             }
 
+            const finalMedicinesArray = [];
+            selectedMedicines.forEach(medId => {
+                const qty = medicineQuantities[medId] || 1;
+                for (let i = 0; i < qty; i++) finalMedicinesArray.push(medId);
+            });
+
             const payload = {
                 name,
                 description,
                 services: selectedServices,
-                medicines: selectedMedicines,
+                medicines: finalMedicinesArray,
                 extraServices: finalExtraServices
             };
 
@@ -144,7 +169,10 @@ const Packages = () => {
         .reduce((sum, s) => sum + (s.price || 0), 0);
     const currentMedPrice = allMedicines
         .filter(m => selectedMedicines.includes(m._id))
-        .reduce((sum, m) => sum + (m.price || 0), 0);
+        .reduce((sum, m) => {
+            const qty = medicineQuantities[m._id] || 1;
+            return sum + ((m.price || 0) * qty);
+        }, 0);
     const extraPrice = extraServices.reduce((sum, es) => sum + Number(es.price || 0), 0);
     const pendingExtraPrice = (newExtraServiceName.trim() && newExtraServicePrice) ? Number(newExtraServicePrice) : 0;
     const currentTotalPrice = currentBasePrice + currentMedPrice + extraPrice + pendingExtraPrice;
@@ -370,6 +398,27 @@ const Packages = () => {
                             placeholder="Choose medicines to include..."
                             searchPlaceholder="Search available medicines..."
                         />
+                        {selectedMedicines.length > 0 && (
+                            <div className="selected-meds-qty-list" style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                {selectedMedicines.map(medId => {
+                                    const medObj = allMedicines.find(m => m._id === medId);
+                                    if (!medObj) return null;
+                                    const qty = medicineQuantities[medId] || 1;
+                                    return (
+                                        <div key={medId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', padding: '8px 12px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                                            <span style={{ fontSize: '13px', fontWeight: 500, color: '#334155' }}>
+                                                {medObj.name} <span style={{color: '#94a3b8', fontSize: '12px'}}>(₹{medObj.price})</span>
+                                            </span>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                <button type="button" onClick={() => handleMedQtyChange(medId, -1)} style={{ width: '26px', height: '26px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff', border: '1px solid #cbd5e1', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', color: '#334155' }}>-</button>
+                                                <span style={{ fontSize: '13px', fontWeight: 600, minWidth: '16px', textAlign: 'center', color: '#0f172a' }}>{qty}</span>
+                                                <button type="button" onClick={() => handleMedQtyChange(medId, 1)} style={{ width: '26px', height: '26px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff', border: '1px solid #cbd5e1', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', color: '#334155' }}>+</button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
 
                     {/* Extra / Custom Services */}

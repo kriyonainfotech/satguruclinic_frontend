@@ -436,9 +436,7 @@ const CallLogs = () => {
         {/* Mobile View */}
         <div className="mobile-cards">
           {loading ? (
-            <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
-              Loading followup logs...
-            </div>
+            <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}><div className="global-loader-container"><div className="global-spinner"></div><div>Loading followup logs...</div></div></div>
           ) : filteredLogs.length === 0 ? (
             <div className="call-empty-state">
               <div className="call-empty-icon">
@@ -568,9 +566,7 @@ const CallLogs = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={user.role !== 'team' ? 7 : 6} style={{ textAlign: 'center', padding: '48px', color: '#64748b' }}>
-                    Loading followup logs...
-                  </td>
+                  <td colSpan={user.role !== 'team' ? 7 : 6} style={{ textAlign: 'center', padding: '48px', color: '#64748b' }}><div className="global-loader-container"><div className="global-spinner"></div><div>Loading followup logs...</div></div></td>
                 </tr>
               ) : filteredLogs.length === 0 ? (
                 <tr>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const MySOP = () => {
+const MySOP = ({ isEmbedded }) => {
     const [sops, setSops] = useState([]);
     const [expandedId, setExpandedId] = useState(null);
     const token = localStorage.getItem('token');
@@ -25,12 +25,14 @@ const MySOP = () => {
     };
 
     return (
-        <div style={{ backgroundColor: '#fff', minHeight: 'calc(100vh - 60px)', padding: '20px', boxSizing: 'border-box' }}>
+        <div style={{ backgroundColor: '#fff', minHeight: isEmbedded ? 'auto' : 'calc(100vh - 60px)', padding: '20px', boxSizing: 'border-box' }}>
+            {!isEmbedded && (
             <div className="page-header" style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                     <h2>My Standard Operating Procedures</h2>
                </div>
             </div>
+            )}
 
             <div>
                 {sops.length === 0 ? (

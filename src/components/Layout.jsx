@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import {
+import { CheckSquareIcon,
   LogoutIcon,
   XIcon,
   DashboardIcon,
@@ -10,7 +10,6 @@ import {
   BookOpenIcon,
   BookmarkIcon,
   SlidersIcon,
-  CheckSquareIcon,
   HeartPulseIcon,
   PhoneCallIcon,
   CalendarDaysIcon,
@@ -20,7 +19,8 @@ import {
   BanknoteIcon,
   CreditCardIcon,
   QrCodeIcon,
-  SettingsIcon
+  SettingsIcon,
+  BellIcon
 } from './Icons';
 import './Layout.css';
 
@@ -29,7 +29,21 @@ const Layout = ({ children }) => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarHidden, setIsSidebarHidden] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const mainContentRef = useRef(null);
+
+  const profileMenuRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
+        setIsProfileOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
 
   // Automatically reset scroll to top on every page change
   useEffect(() => {
@@ -49,7 +63,7 @@ const Layout = ({ children }) => {
   };
 
   const toggleMobileMenu = () => {
-    if (window.innerWidth <= 768) {
+    if (window.innerWidth <= 992) {
       setIsMobileMenuOpen(!isMobileMenuOpen);
     } else {
       setIsSidebarHidden(false);
@@ -57,7 +71,7 @@ const Layout = ({ children }) => {
   };
 
   const closeMobileMenu = () => {
-    if (window.innerWidth <= 768) {
+    if (window.innerWidth <= 992) {
       setIsMobileMenuOpen(false);
     }
   };
@@ -80,8 +94,8 @@ const Layout = ({ children }) => {
         <div className="sidebar-header">
           <div className="sidebar-brand-mobile">
             <h2>Satguru Clinic</h2>
-            <button className="mobile-menu-close" onClick={() => { closeMobileMenu(); manuallyHideSidebar(); }} aria-label="Close menu">
-              <XIcon size={20} />
+            <button className="mobile-menu-close" onClick={closeMobileMenu} style={{ background: 'transparent', border: 'none', color: 'white', fontSize: '20px', cursor: 'pointer' }}>
+              <XIcon size={24} />
             </button>
           </div>
         </div>
@@ -101,6 +115,8 @@ const Layout = ({ children }) => {
               </Link>
             </li>
           )}
+          
+
           {(user.role === 'superadmin' || user.role === 'admin') && (
             <li className={location.pathname === '/team-management' ? 'active' : ''} onClick={closeMobileMenu}>
               <Link to="/team-management">
@@ -109,6 +125,17 @@ const Layout = ({ children }) => {
               </Link>
             </li>
           )}
+
+
+          {user.role === 'superadmin' && (
+            <li className={location.pathname === '/superadmin/schedule-management' ? 'active' : ''} onClick={closeMobileMenu}>
+              <Link to="/superadmin/schedule-management">
+                <CalendarDaysIcon size={14} />
+                <span>Schedule Management</span>
+              </Link>
+            </li>
+          )}
+
 
           <li className={location.pathname === '/appointments' ? 'active' : ''} onClick={closeMobileMenu}>
             <Link to="/appointments">
@@ -126,13 +153,6 @@ const Layout = ({ children }) => {
             </li>
           )}
 
-          <li className={location.pathname === '/my-sop' ? 'active' : ''} onClick={closeMobileMenu}>
-            <Link to="/my-sop">
-              <BookmarkIcon size={14} />
-              <span>My SOP</span>
-            </Link>
-          </li>
-
           {(user.role === 'superadmin' || user.role === 'admin') && (
             <li className={location.pathname === '/rule-management' ? 'active' : ''} onClick={closeMobileMenu}>
               <Link to="/rule-management">
@@ -142,10 +162,18 @@ const Layout = ({ children }) => {
             </li>
           )}
 
-          <li className={location.pathname === '/my-rules' ? 'active' : ''} onClick={closeMobileMenu}>
-            <Link to="/my-rules">
-              <CheckSquareIcon size={14} />
-              <span>My Rules</span>
+          <li className={location.pathname === '/my-workspace' || location.pathname === '/my-sop' ? 'active' : ''} onClick={closeMobileMenu}>
+            <Link to="/my-workspace">
+              <BookmarkIcon size={14} />
+              <span>My SOP and Rules</span>
+            </Link>
+          </li>
+
+          
+          <li className={location.pathname === '/tasks' || location.pathname === '/my-tasks' ? 'active' : ''} onClick={closeMobileMenu}>
+            <Link to="/tasks">
+              <ClipboardListIcon size={14} />
+              <span>Task Management</span>
             </Link>
           </li>
 
@@ -156,6 +184,21 @@ const Layout = ({ children }) => {
             </Link>
           </li>
           
+          <li className={location.pathname === '/leads' ? 'active' : ''} onClick={closeMobileMenu}>
+            <Link to="/leads">
+              <UsersIcon size={14} />
+              <span>Leads</span>
+            </Link>
+          </li>
+
+
+          <li className={location.pathname === '/reminders' ? 'active' : ''} onClick={closeMobileMenu}>
+            <Link to="/reminders">
+              <BellIcon size={14} />
+              <span>Reminders</span>
+            </Link>
+          </li>
+
           {user && (user.role === 'superadmin' || user.role === 'admin') && (
             <li className={location.pathname === '/call-logs' ? 'active' : ''} onClick={closeMobileMenu}>
               <Link to="/call-logs">
@@ -165,15 +208,7 @@ const Layout = ({ children }) => {
             </li>
           )}
 
-          {user && (user.role === 'admin' || user.role === 'team') && (
-            <li className={location.pathname === '/calls' ? 'active' : ''} onClick={closeMobileMenu}>
-              <Link to="/calls">
-                <PhoneCallIcon size={14} />
-                <span>Followup Calls</span>
-              </Link>
-            </li>
-          )}
-
+         
           <li className={location.pathname === '/holidays' ? 'active' : ''} onClick={closeMobileMenu}>
             <Link to="/holidays">
               <CalendarDaysIcon size={14} />
@@ -187,13 +222,15 @@ const Layout = ({ children }) => {
               <span>Services & Packages</span>
             </Link>
           </li>
-       
-          <li className={location.pathname === '/tasks' || location.pathname === '/my-tasks' ? 'active' : ''} onClick={closeMobileMenu}>
-            <Link to="/tasks">
-              <ClipboardListIcon size={14} />
-              <span>Task Management</span>
-            </Link>
-          </li>
+          
+          {(user.role === 'superadmin' || user.role === 'admin') && (
+            <li className={location.pathname === '/checklist-templates' ? 'active' : ''}  onClick={closeMobileMenu}>
+              <Link to="/checklist-templates">
+                <CheckSquareIcon size={14} />
+                <span>Checklist Templates</span>
+              </Link>
+            </li>
+          )}
           
           {(user.role === 'superadmin' || user.role === 'admin') && (
             <li className={location.pathname === '/attendance' ? 'active' : ''} onClick={closeMobileMenu}>
@@ -261,11 +298,58 @@ const Layout = ({ children }) => {
       
       {isMobileMenuOpen && <div className="sidebar-overlay" onClick={closeMobileMenu}></div>}
 
+      
       <div className="main-content" ref={mainContentRef}>
-        {children}
+        <div className="global-topbar">
+          <div className="topbar-left">
+            <button className="hamburger-btn" onClick={() => { if (window.innerWidth <= 992) { setIsMobileMenuOpen(!isMobileMenuOpen); } else { setIsSidebarHidden(!isSidebarHidden); } }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+            </button>
+            <h2 className="topbar-brand">Satguru Clinic</h2>
+          </div>
+          <div className="topbar-right">
+            <div className="profile-menu-container" ref={profileMenuRef}>
+              <div className="profile-avatar-btn" onClick={() => setIsProfileOpen(!isProfileOpen)}>
+                {(user.name || user.role || 'U').charAt(0).toUpperCase()}
+              </div>
+              {isProfileOpen && (
+                <div className="profile-dropdown-panel">
+                  <div className="panel-header">
+                    <div className="panel-avatar">{(user.name || user.role || 'U').charAt(0).toUpperCase()}</div>
+                    <div className="panel-user-info">
+                      <span className="panel-name">{user.name || 'User'}</span>
+                      <span className="panel-email">{user.email || user.role || 'No Email'}</span>
+                    </div>
+                  </div>
+                  <div className="panel-body">
+                    <button onClick={handleLogout} className="panel-logout-btn">
+                      <LogoutIcon size={16} /> Logout
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="page-content-wrapper">
+          {children}
+        </div>
       </div>
+
     </div>
   );
 };
 
 export default Layout;
+
+
+
+
+
+
+
+
+
+
+
+

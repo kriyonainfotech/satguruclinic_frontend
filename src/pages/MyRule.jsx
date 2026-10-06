@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const MyRule = () => {
+const MyRule = ({ isEmbedded }) => {
     const [rules, setSops] = useState([]);
     const [expandedId, setExpandedId] = useState(null);
     const token = localStorage.getItem('token');
@@ -25,13 +25,15 @@ const MyRule = () => {
     };
 
     return (
-        <div style={{ backgroundColor: '#fff', minHeight: 'calc(100vh - 60px)', padding: '20px', boxSizing: 'border-box' }}>
+        <div style={{ backgroundColor: '#fff', minHeight: isEmbedded ? 'auto' : 'calc(100vh - 60px)', padding: '20px', boxSizing: 'border-box' }}>
+            {!isEmbedded && (
             <div className="page-header" style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                     <h2>My Rules</h2>
                    
                 </div>
             </div>
+            )}
 
             <div>
                 {rules.length === 0 ? (

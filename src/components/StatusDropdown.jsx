@@ -30,13 +30,7 @@ const StatusDropdown = ({ value, onChange, disabled = false, options = DEFAULT_O
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
-  // Close on scroll
-  useEffect(() => {
-    if (!open) return;
-    const handler = () => setOpen(false);
-    window.addEventListener('scroll', handler, true);
-    return () => window.removeEventListener('scroll', handler, true);
-  }, [open]);
+  
 
   const handleToggle = () => {
     if (disabled) return;
@@ -93,7 +87,7 @@ const StatusDropdown = ({ value, onChange, disabled = false, options = DEFAULT_O
       <button
         type="button"
         ref={triggerRef}
-        className={`sdd-trigger ${open ? 'sdd-open' : ''}`}
+        className={`sdd-trigger ${open ? 'sdd-open' : ''}`} style={{ backgroundColor: "#ffffff", color: "#334155" }}
         onClick={handleToggle}
         disabled={disabled}
         aria-haspopup="listbox"

@@ -6,6 +6,8 @@
 }
 
 .calendar-trigger-btn {
+  color: #334155 !important;
+  background: #ffffff !important;
   display: flex;
   width: 100%;
   box-sizing: border-box;
@@ -24,6 +26,8 @@
 }
 
 .calendar-trigger-btn:hover {
+  background: #f8fafc !important;
+  color: var(--primary-color) !important;
   border-color: var(--primary-color);
   color: var(--primary-color);
 }
@@ -72,6 +76,8 @@
 }
 
 .calendar-preset-btn {
+  background: #f8fafc !important;
+  color: #475569 !important;
   padding: 3px 8px;
   font-size: 11px;
   font-weight: 500;
@@ -85,11 +91,15 @@
 }
 
 .calendar-preset-btn:hover {
+  background: #f1f5f9 !important;
+  color: var(--primary-color) !important;
   background: #f1f5f9;
   color: var(--primary-color);
 }
 
 .calendar-preset-btn.active {
+  background: var(--primary-color) !important;
+  color: #ffffff !important;
   background: var(--primary-color);
   color: #ffffff;
   border-color: var(--primary-color);
@@ -109,6 +119,8 @@
 }
 
 .calendar-nav-btn {
+  background: transparent !important;
+  color: #64748b !important;
   background: transparent;
   border: 1px solid #e2e8f0;
   border-radius: 5px;
@@ -122,6 +134,8 @@
 }
 
 .calendar-nav-btn:hover:not(:disabled) {
+  background: #f1f5f9 !important;
+  color: #1e293b !important;
   background: #f1f5f9;
   color: #1e293b;
   border-color: #cbd5e1;
@@ -150,6 +164,8 @@
 }
 
 .calendar-day-cell {
+  background: transparent !important;
+  color: #334155 !important;
   aspect-ratio: 1;
   display: flex;
   align-items: center;
@@ -165,6 +181,8 @@
 }
 
 .calendar-day-cell:hover:not(:disabled) {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
   background: #f1f5f9;
   color: #0f172a;
 }
@@ -208,6 +226,8 @@
 }
 
 .calendar-clear-btn {
+  background: transparent !important;
+  color: #94a3b8 !important;
   background: transparent;
   border: none;
   font-size: 11px;
@@ -218,6 +238,8 @@
 }
 
 .calendar-clear-btn:hover {
+  color: #e53e3e !important;
+  background: transparent !important;
   color: #e53e3e;
 }
 
@@ -238,3 +260,29 @@ input[type='number'] {
   -moz-appearance: textfield;
 }
 
+
+.calendar-day-cell.in-range {
+  background: #e0f2fe !important;
+  color: #0284c7 !important;
+  border-radius: 0 !important;
+}
+
+.calendar-day-cell.selected.start-date {
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+
+.calendar-day-cell.selected.end-date {
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+}
+
+.calendar-day-cell.selected:hover:not(:disabled) {
+  background: var(--primary-color) !important;
+  color: #ffffff !important;
+}
+
+.calendar-day-cell.in-range:hover:not(:disabled) {
+  background: #e0f2fe !important;
+  color: #0284c7 !important;
+}

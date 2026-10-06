@@ -7,19 +7,25 @@ import TeamManagement from './pages/TeamManagement';
 import Tasks from './pages/Tasks';
 import PatientManagement from './pages/PatientManagement';
 import Appointments from './pages/Appointments';
+import Leads from './pages/Leads';
+import Reminders from './pages/Reminders';
+import LeadProfile from './pages/LeadProfile';
 import ServicesAndPackages from './pages/ServicesAndPackages';
 import SOPManagement from './pages/SOPManagement';
 import MySOP from './pages/MySOP';
+import MyWorkspace from './pages/MyWorkspace';
 import RuleManagement from './pages/RuleManagement';
 import MyRule from './pages/MyRule';
 import WebsiteSettings from './pages/WebsiteSettings';
 import Attendance from './pages/Attendance';
+import ChecklistTemplates from './pages/ChecklistTemplates';
 import Payroll from './pages/Payroll';
 import CallLogs from './pages/CallLogs';
 import AdminCallLogs from './pages/AdminCallLogs';
 import HolidaysEvents from './pages/HolidaysEvents';
 import Payments from './pages/Payments';
 import PaymentQR from './pages/PaymentQR';
+import ScheduleManagement from './pages/ScheduleManagement';
 import Layout from './components/Layout';
 import './App.css';
 
@@ -70,6 +76,15 @@ function App() {
         <Route path="/appointments" element={
           isAuthenticated ? <Layout><Appointments /></Layout> : <Navigate to="/login" />
         } />
+        <Route path="/leads" element={
+          isAuthenticated ? <Layout><Leads /></Layout> : <Navigate to="/login" />
+        } />
+        <Route path="/reminders" element={
+          isAuthenticated ? <Layout><Reminders /></Layout> : <Navigate to="/login" />
+        } />
+        <Route path="/leads/:id" element={
+          isAuthenticated ? <Layout><LeadProfile /></Layout> : <Navigate to="/login" />
+        } />
         
         <Route path="/admin-management" element={
           isAuthenticated ? <Layout><AdminManagement /></Layout> : <Navigate to="/login" />
@@ -102,7 +117,10 @@ function App() {
         } />
 
         <Route path="/my-sop" element={
-          isAuthenticated ? <Layout><MySOP /></Layout> : <Navigate to="/login" />
+          isAuthenticated ? <Layout><MyWorkspace /></Layout> : <Navigate to="/login" />
+        } />
+        <Route path="/my-workspace" element={
+          isAuthenticated ? <Layout><MyWorkspace /></Layout> : <Navigate to="/login" />
         } />
 
         <Route path="/rule-management" element={
@@ -110,11 +128,19 @@ function App() {
         } />
 
         <Route path="/my-rules" element={
-          isAuthenticated ? <Layout><MyRule /></Layout> : <Navigate to="/login" />
+          isAuthenticated ? <Layout><MyWorkspace /></Layout> : <Navigate to="/login" />
         } />
         
         <Route path="/website-settings" element={
           isAuthenticated ? <Layout><WebsiteSettings /></Layout> : <Navigate to="/login" />
+        } />
+        
+        <Route path="/checklist-templates" element={
+          isAuthenticated ? (
+            (user.role === 'superadmin' || user.role === 'admin') ? (
+              <Layout><ChecklistTemplates /></Layout>
+            ) : <Navigate to="/" />
+          ) : <Navigate to="/login" />
         } />
         
         <Route path="/attendance" element={
@@ -154,6 +180,16 @@ function App() {
             )
           ) : <Navigate to="/login" />
         } />
+        
+        <Route path="/superadmin/schedule-management" element={
+          isAuthenticated ? (
+            user.role === 'superadmin' ? (
+              <Layout><ScheduleManagement /></Layout>
+            ) : (
+              <Navigate to="/" replace />
+            )
+          ) : <Navigate to="/login" />
+        } />
         <Route path="/holidays" element={isAuthenticated ? <Layout><HolidaysEvents /></Layout> : <Navigate to="/login" />} />
       </Routes>
     </Router>
@@ -161,4 +197,6 @@ function App() {
 }
 
 export default App;
+
+
 

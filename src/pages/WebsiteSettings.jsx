@@ -133,7 +133,7 @@ const WebsiteSettings = () => {
                     </div>
                     <div>
                         <h2 className="settings-title">Website & Clinic Settings</h2>
-                        <p className="settings-subtitle">Manage default consultation fees and staff designation categories</p>
+                        
                     </div>
                 </div>
             </div>

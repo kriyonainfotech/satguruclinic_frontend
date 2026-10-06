@@ -27,11 +27,12 @@
 .sdd-trigger:hover {
   border-color: #cbd5e1;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-  color: #ffffff;
+  background: #f8fafc !important;
+  color: #334155 !important;
 }
 
 .sdd-trigger:hover .sdd-chevron {
-  color: #ffffff;
+  color: #94a3b8 !important;
 }
 
 .sdd-trigger.sdd-open {
@@ -79,7 +80,7 @@
   box-shadow:
     0 4px 6px -1px rgba(0, 0, 0, 0.08),
     0 12px 28px -4px rgba(0, 0, 0, 0.12);
-  z-index: 1000;
+  z-index: 10000;
   padding: 6px;
   animation: sddFadeSlide 0.14s ease;
   overflow: hidden;

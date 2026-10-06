@@ -2323,7 +2323,7 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
                   <input type="text" value={searchPackage} onChange={(e) => { setSearchPackage(e.target.value); setShowPackageDropdown(true); }} onFocus={() => setShowPackageDropdown(true)} placeholder="Search to add packages..." style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '14px', color: '#1e293b', background: '#ffffff', boxSizing: 'border-box' }} />
                   {showPackageDropdown && (
                     <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '4px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '6px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', zIndex: 50, maxHeight: '160px', overflowY: 'auto' }}>
-                      {allPackages.length === 0 && <div style={{ padding: '10px 12px', fontSize: '13px', color: '#94a3b8', textAlign: 'center' }}>Loading...</div>}
+                      {allPackages.length === 0 && <div style={{ padding: '10px 12px', fontSize: '13px', color: '#94a3b8', textAlign: 'center' }}><div className="global-loader-container"><div className="global-spinner"></div><div>Loading...</div></div></div>}
                       {filteredPackages.length > 0 ? (
                         filteredPackages.map(pkg => {
                           const isSelected = !!selectedPackages.find(p => p.id === pkg.id);
@@ -2372,7 +2372,7 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
                     <input type="text" value={searchMedicine} onChange={(e) => { setSearchMedicine(e.target.value); setShowMedicineDropdown(true); }} onFocus={() => setShowMedicineDropdown(true)} placeholder="Search to add medicines..." style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '14px', color: '#1e293b', background: '#ffffff', boxSizing: 'border-box' }} />
                     {showMedicineDropdown && (
                       <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '4px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '6px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', zIndex: 50, maxHeight: '160px', overflowY: 'auto' }}>
-                        {allMedicines.length === 0 && <div style={{ padding: '10px 12px', fontSize: '13px', color: '#94a3b8', textAlign: 'center' }}>Loading...</div>}
+                        {allMedicines.length === 0 && <div style={{ padding: '10px 12px', fontSize: '13px', color: '#94a3b8', textAlign: 'center' }}><div className="global-loader-container"><div className="global-spinner"></div><div>Loading...</div></div></div>}
                         {filteredMedicines.length > 0 ? (
                           filteredMedicines.map(med => {
                             const isSelected = !!selectedMedicines.find(m => m.id === med.id);
@@ -2431,7 +2431,7 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
                 
                 {showServiceDropdown && (
                   <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '4px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '6px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', zIndex: 50, maxHeight: '160px', overflowY: 'auto' }}>
-                    {servicesList.length === 0 && <div style={{ padding: '10px 12px', fontSize: '13px', color: '#94a3b8', textAlign: 'center' }}>Loading...</div>}
+                    {servicesList.length === 0 && <div style={{ padding: '10px 12px', fontSize: '13px', color: '#94a3b8', textAlign: 'center' }}><div className="global-loader-container"><div className="global-spinner"></div><div>Loading...</div></div></div>}
                     {filteredServices.length > 0 ? (
                       filteredServices.map(srv => {
                         const isSelected = !!selectedServices.find(s => s.id === srv.id);

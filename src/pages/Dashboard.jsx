@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 import moment from 'moment';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { 
   CalendarIcon, 
   ClockIcon, 
@@ -16,6 +17,9 @@ import './Dashboard.css';
 
 const formatTime12HourStr = (time24) => {
   if (!time24) return '';
+  if (time24.toUpperCase().includes('AM') || time24.toUpperCase().includes('PM')) {
+    return time24;
+  }
   const [hours, minutes] = time24.split(':');
   let h = parseInt(hours, 10);
   const ampm = h >= 12 ? 'PM' : 'AM';
@@ -28,6 +32,24 @@ const Dashboard = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const [todayBirthdays, setTodayBirthdays] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [saData, setSaData] = useState(null);
+
+  useEffect(() => {
+    if (user.role === 'superadmin') {
+      const fetchSaData = async () => {
+        try {
+          const token = localStorage.getItem('token');
+          const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/dashboard/superadmin`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          setSaData(res.data);
+        } catch (err) {
+          console.error('Superadmin dashboard data fetch error:', err);
+        }
+      };
+      fetchSaData();
+    }
+  }, [user.role]);
 
   useEffect(() => {
     const fetchBirthdays = async () => {
@@ -61,7 +83,7 @@ const Dashboard = () => {
   useEffect(() => {
     fetchTodayAttendance();
     fetchUpcomingHolidays();
-    if (user.role === 'team' || user.role === 'admin') {
+    if (user.role === 'team') {
       fetchWalletData();
     }
   }, []);
@@ -237,77 +259,176 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Main Grid: Duty Schedule + Monthly Wallet (For Admin & Team Members, Hidden for Superadmin) */}
-      {user.role !== 'superadmin' && (
-        <div className="dashboard-main-grid">
-          {/* Left Column: Today's Duty & Shifts */}
-          <div className="dashboard-duty-section">
-            <div className="section-title-wrap">
-              <h2 className="section-heading">
-                <ClockIcon size={18} color="var(--primary-color, #144b79)" />
-                <span>Today's Duty Schedule</span>
-              </h2>
+      {/* Superadmin Dashboard */}
+      {user.role === 'superadmin' && (
+        <div className="superadmin-dashboard-container">
+          <div className="superadmin-top-row">
+            <div className="sa-main-content">
+              <div className="sa-financials-row">
+                <div className="sa-fin-card">
+                  <h3>Total Available Fund</h3>
+                  <p>₹ {saData?.financials?.totalAvailableFund?.toLocaleString('en-IN') || '0'}</p>
+                </div>
+                <div className="sa-fin-card">
+                  <h3>Total Outstanding</h3>
+                  <p>₹ {saData?.financials?.totalOutstanding?.toLocaleString('en-IN') || '0'}</p>
+                </div>
+              </div>
+              
+              <div className="sa-financials-row">
+                <div className="sa-fin-card">
+                  <h3>Current Month Sale</h3>
+                  <p>₹ {saData?.financials?.currentMonthSale?.toLocaleString('en-IN') || '0'}</p>
+                </div>
+                <div className="sa-fin-card">
+                  <h3>Collection of Current Month</h3>
+                  <p>₹ {saData?.financials?.currentMonthCollection?.toLocaleString('en-IN') || '0'}</p>
+                </div>
+              </div>
+
+              <div className="sa-stats-grid">
+                <div className="sa-stat-card">
+                  <span className="sa-stat-val">{saData?.counts?.services || 0}</span>
+                  <span className="sa-stat-label">Services</span>
+                </div>
+                <div className="sa-stat-card">
+                  <span className="sa-stat-val">{saData?.counts?.packages || 0}</span>
+                  <span className="sa-stat-label">Packages</span>
+                </div>
+                <div className="sa-stat-card">
+                  <span className="sa-stat-val">{saData?.counts?.patients || 0}</span>
+                  <span className="sa-stat-label">Total Patients</span>
+                </div>
+                <div className="sa-stat-card">
+                  <span className="sa-stat-val">{saData?.counts?.appointmentsToday || 0}</span>
+                  <span className="sa-stat-label">Today's Appts</span>
+                </div>
+                <div className="sa-stat-card">
+                  <span className="sa-stat-val">{saData?.counts?.teamMembers || 0}</span>
+                  <span className="sa-stat-label">Team Members</span>
+                </div>
+                <div className="sa-stat-card">
+                  <span className="sa-stat-val">{saData?.counts?.admins || 0}</span>
+                  <span className="sa-stat-label">Total Admins</span>
+                </div>
+              </div>
             </div>
 
-            <div className="shift-cards-wrap">
-              {userShifts.map((shift, idx) => {
-                const shiftRecord = attendance?.shifts?.find(s => s.shiftIndex === idx) || 
-                  (idx === 0 && (!attendance?.shifts || attendance?.shifts?.length === 0) && attendance?.clockIn 
-                    ? { clockIn: attendance.clockIn, clockOut: attendance.clockOut } 
-                    : null);
-                
-                const isShiftClockedIn = shiftRecord && shiftRecord.clockIn && !shiftRecord.clockOut;
-                const hasShiftClockedOut = shiftRecord && shiftRecord.clockOut;
+            <div className="sa-sidebar">
+              <div className="sa-rituals-card">
+                <h3>User Daily Work (Rituals)</h3>
+                {saData?.rituals?.length > 0 ? (
+                  <ul className="sa-rituals-list">
+                    {saData.rituals.map((r, i) => (
+                      <li key={i} className={r.status}>
+                        <span className="ritual-name">{r.name}</span>
+                        <span className="ritual-time">{r.time}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p style={{ color: '#94a3b8', fontSize: '0.9rem', textAlign: 'center', marginTop: '20px' }}>No rituals for today</p>
+                )}
+              </div>
+            </div>
+          </div>
 
-                let hasShiftEnded = false;
-                let endNotice = '';
-                if (shift.endTime) {
-                  const now = new Date();
-                  const [eHour, eMin] = shift.endTime.split(':').map(Number);
-                  const shiftEnd = new Date();
-                  shiftEnd.setHours(eHour, eMin, 0, 0);
-                  if (shift.startTime) {
-                    const [sHour, sMin] = shift.startTime.split(':').map(Number);
-                    const shiftStart = new Date();
-                    shiftStart.setHours(sHour, sMin, 0, 0);
-                    if (shiftEnd < shiftStart) {
-                      shiftEnd.setDate(shiftEnd.getDate() + 1);
+          <div className="sa-graph-card full-width-graph">
+            <h3>Team Performance</h3>
+            <div className="sa-graph-wrapper">
+              {saData?.teamGraph && saData.teamGraph.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={saData.teamGraph} barSize={20} barGap={4}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="attendance" name="Attendance (%)" fill="#4285F4" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="punctuality" name="Punctuality (%)" fill="#9b59b6" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="tasks" name="Tasks Completed (%)" fill="#0f9d58" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: '#94a3b8' }}>
+                  No team members found
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main Grid: Duty Schedule + Monthly Wallet (For Admin & Team Members, Hidden for Superadmin) */}
+      {user.role !== 'superadmin' && (
+        <div className={`dashboard-main-grid ${user.role === 'admin' ? 'admin-only-grid' : ''}`}>
+          {/* Left Column: Today's Duty & Shifts (Only for Team) */}
+          {user.role === 'team' && (
+            <div className="dashboard-duty-section">
+              <div className="section-title-wrap">
+                <h2 className="section-heading">
+                  <ClockIcon size={18} color="var(--primary-color, #144b79)" />
+                  <span>Today's Duty Schedule</span>
+                </h2>
+              </div>
+
+              <div className="shift-cards-wrap">
+                {attendance === null ? (
+                  <div style={{ color: '#94a3b8', fontSize: '0.9rem', padding: '10px' }}><div className="global-loader-container"><div className="global-spinner"></div><div>Loading duty schedule...</div></div></div>
+                ) : userShifts.map((shift, idx) => {
+                  const shiftRecord = attendance?.shifts?.find(s => s.shiftIndex === idx) || 
+                    (idx === 0 && (!attendance?.shifts || attendance?.shifts?.length === 0) && attendance?.clockIn 
+                      ? { clockIn: attendance.clockIn, clockOut: attendance.clockOut } 
+                      : null);
+                  
+                  const isShiftClockedIn = shiftRecord && shiftRecord.clockIn && !shiftRecord.clockOut;
+                  const hasShiftClockedOut = shiftRecord && shiftRecord.clockOut;
+
+                  let hasShiftEnded = false;
+                  let endNotice = '';
+                  if (shift.endTime) {
+                    const now = moment();
+                    const timeFormats = ['HH:mm', 'hh:mm A', 'h:mm A', 'hh:mm a', 'h:mm a'];
+                    const shiftEnd = moment(shift.endTime, timeFormats);
+                    if (shift.startTime) {
+                      const shiftStart = moment(shift.startTime, timeFormats);
+                      if (shiftEnd.isBefore(shiftStart)) {
+                        shiftEnd.add(1, 'days');
+                      }
+                    }
+                    if (now.isAfter(shiftEnd)) {
+                      hasShiftEnded = true;
+                      endNotice = `Shift ended at ${formatTime12HourStr(shift.endTime)}`;
                     }
                   }
-                  if (now > shiftEnd) {
-                    hasShiftEnded = true;
-                    endNotice = `Shift ended at ${formatTime12HourStr(shift.endTime)}`;
-                  }
-                }
 
-                let canClockIn = true;
-                let lockNotice = '';
-                if (hasShiftEnded) {
-                  canClockIn = false;
-                  lockNotice = endNotice;
-                } else if (idx > 0 && shift.startTime) {
-                  const now = new Date();
-                  const [sHour, sMin] = shift.startTime.split(':').map(Number);
-                  const shiftStart = new Date();
-                  shiftStart.setHours(sHour, sMin, 0, 0);
-                  const allowedTime = new Date(shiftStart.getTime() - 5 * 60000);
-                  if (now < allowedTime) {
+                  let canClockIn = true;
+                  let lockNotice = '';
+                  if (hasShiftEnded) {
                     canClockIn = false;
-                    lockNotice = `Clock In opens 5 mins before shift (from ${allowedTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`;
+                    lockNotice = endNotice;
+                  } else if (shift.startTime) {
+                    const now = moment();
+                    const timeFormats = ['HH:mm', 'hh:mm A', 'h:mm A', 'hh:mm a', 'h:mm a'];
+                    const shiftStart = moment(shift.startTime, timeFormats);
+                    const allowedTime = shiftStart.clone().subtract(5, 'minutes');
+                    if (now.isBefore(allowedTime)) {
+                      canClockIn = false;
+                      lockNotice = `Clock In opens 5 mins before shift (from ${allowedTime.format('hh:mm A')})`;
+                    }
                   }
-                }
 
-                const shiftLabel = isMultiShift ? `Shift ${idx + 1}` : 'General Duty';
-                const timingText = (shift.startTime && shift.endTime) 
-                  ? `${formatTime12HourStr(shift.startTime)} - ${formatTime12HourStr(shift.endTime)}`
-                  : '';
+                  const shiftLabel = isMultiShift ? `Shift ${idx + 1}` : 'General Duty';
+                  const timingText = (shift.startTime && shift.endTime) 
+                    ? `${formatTime12HourStr(shift.startTime)} - ${formatTime12HourStr(shift.endTime)}`
+                    : '';
 
-                return (
-                  <div 
-                    key={idx} 
-                    className={`shift-card ${isShiftClockedIn ? 'active-duty' : (hasShiftClockedOut ? 'duty-completed' : '')}`}
-                  >
-                    <div className="shift-left-info">
+                  return (
+                    <div 
+                      key={idx} 
+                      className={`shift-card ${isShiftClockedIn ? 'active-duty' : (hasShiftClockedOut ? 'duty-completed' : '')}`}
+                    >
+                      <div className="shift-left-info">
                       <div className={`shift-status-icon-wrap ${isShiftClockedIn ? 'active' : (hasShiftClockedOut ? 'completed' : (hasShiftEnded ? 'ended' : 'pending'))}`}>
                         <ClockIcon size={22} />
                       </div>
@@ -393,12 +514,13 @@ const Dashboard = () => {
                 );
               })}
             </div>
-        </div>
+          </div>
+          )}
 
         {/* Right Column: Monthly Wallet + Quick Shortcuts */}
         <div className="dashboard-right-column">
           {/* Monthly Wallet Widget */}
-          {(user.role === 'team' || user.role === 'admin') && walletData && (
+          {user.role === 'team' && walletData && (
             <div className="dashboard-wallet-card">
               <div className="wallet-card-header">
                 <div className="wallet-header-left">

@@ -3,7 +3,7 @@ import axios from 'axios';
 import { XIcon } from './Icons';
 import CustomSelect from './CustomSelect';
 
-const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPatientName = '', initialAppointment = null, onSuccess }) => {
+const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPatientName = '', initialAppointment = null, initialInvoice = null, onSuccess }) => {
   const [saleMobile, setSaleMobile] = useState(initialPatientMobile);
   const [salePatientName, setSalePatientName] = useState(initialPatientName);
   const [showMobileDropdown, setShowMobileDropdown] = useState(false);
@@ -52,7 +52,20 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
             const setRes = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/settings`, config);
             setConsultationFeeAmount(setRes.data?.consultationFee || 0);
 
-            if (initialAppointment) {
+            if (initialInvoice && initialInvoice.work) {
+                const workItems = initialInvoice.work.split(', ').map(s => s.split(' (?')[0].split(' (\u20B9')[0].split(' (Rs.')[0].split(' [Qty:')[0].trim().toLowerCase());
+                
+                const matchedServices = sData.filter(s => workItems.includes((s.name || '').toLowerCase()));
+                setSelectedServices(matchedServices);
+                
+                const matchedPackages = pData.filter(p => workItems.includes((p.name || '').toLowerCase()));
+                setSelectedPackages(matchedPackages);
+                
+                const matchedMedicines = mData.filter(m => workItems.includes((m.name || '').toLowerCase()));
+                setSelectedMedicines(matchedMedicines);
+
+                setManualTotal(initialInvoice.total);
+            } else if (initialAppointment) {
                if (initialAppointment.services) {
                    const sNames = initialAppointment.services.split(', ').map(s => s.split(' (₹')[0].split(' [Qty:')[0].trim().toLowerCase());
                    setSelectedServices(sData.filter(s => sNames.includes((s.name || '').toLowerCase())));
@@ -133,26 +146,45 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
     if (selectedMedicines.length > 0) workItems.push(...selectedMedicines.map(m => `${m.name} [Qty: ${m.qty || 1}] (${medicineDuration} days - ₹${(m.price || 0) * (m.qty || 1)})`));
     const workStr = workItems.length > 0 ? workItems.join(', ') : 'Manual Entry';
 
-    const newInvoice = {
-      date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
-      client: salePatientName,
-      mobile: saleMobile,
-      work: workStr,
-      total: finalAmount,
-      balance: finalAmount,
-      status: 'Pending',
-      notes: saleNotes
-    };
-
     try {
       const token = localStorage.getItem('token');
-      await axios.post(`${import.meta.env.VITE_API_BASE_URL}/invoices`, newInvoice, {
-        headers: { Authorization: 'Bearer ' + token }
-      });
+      
+      if (initialInvoice) {
+          const diff = Number(finalAmount) - Number(initialInvoice.total || 0);
+          const newBalance = Number(initialInvoice.balance || 0) + diff;
+          
+          const updatedInvoice = {
+              ...initialInvoice,
+              client: salePatientName,
+              mobile: saleMobile,
+              work: workStr,
+              total: finalAmount,
+              balance: newBalance,
+              notes: saleNotes
+          };
+          
+          await axios.put(`${import.meta.env.VITE_API_BASE_URL}/invoices/${initialInvoice._id}`, updatedInvoice, {
+              headers: { Authorization: 'Bearer ' + token }
+          });
+      } else {
+          const newInvoice = {
+            date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+            client: salePatientName,
+            mobile: saleMobile,
+            work: workStr,
+            total: finalAmount,
+            balance: finalAmount,
+            status: 'Pending',
+            notes: saleNotes
+          };
+          await axios.post(`${import.meta.env.VITE_API_BASE_URL}/invoices`, newInvoice, {
+            headers: { Authorization: 'Bearer ' + token }
+          });
+      }
       if (onSuccess) onSuccess();
       onClose();
     } catch (err) {
-      alert("Error creating entry");
+      alert("Error saving entry");
     }
   };
 
@@ -160,7 +192,7 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '520px' }}>
         <div className="modal-header">
-          <h3 className="modal-title">New Sale Entry</h3>
+          <h3 className="modal-title">{initialInvoice ? "Edit Bill" : "New Sale Entry"}</h3>
           <button className="modal-close" onClick={onClose} title="Close" aria-label="Close">
             <XIcon size={16} />
           </button>

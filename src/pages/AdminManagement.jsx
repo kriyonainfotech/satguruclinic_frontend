@@ -10,6 +10,7 @@ import '../App.css';
 
 const AdminManagement = () => {
   const [admins, setAdmins] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -97,6 +98,8 @@ const AdminManagement = () => {
       setAdmins(res.data);
     } catch (error) {
       console.error('Error fetching admins:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -176,10 +179,12 @@ const AdminManagement = () => {
 
   return (
     <div>
-      <div className="page-header">
-        <h2>Admin Management</h2>
-        <Button onClick={openCreateModal}>+ Create Admin</Button>
-      </div>
+      <div className="page-header" style={{ marginBottom: '16px' }}>
+          <h2>Admin Management</h2>
+          <button onClick={openCreateModal} className="crm-btn crm-btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            + Create Admin
+          </button>
+        </div>
 
       {/* Desktop Table View */}
       <div className="desktop-table-wrap">
@@ -195,7 +200,7 @@ const AdminManagement = () => {
               </tr>
             </thead>
             <tbody>
-              {admins.length === 0 ? (
+              {loading ? ( <tr><td colSpan="5" style={{ textAlign: "center", padding: "36px 20px", color: "#94a3b8" }}><div className="global-loader-container"><div className="global-spinner"></div><div>Loading admins...</div></div></td></tr> ) : admins.length === 0 ? (
                 <tr>
                   <td colSpan="5" style={{ textAlign: 'center', padding: '36px 20px', color: '#94a3b8' }}>
                     No admins found.
@@ -252,7 +257,7 @@ const AdminManagement = () => {
       {/* Responsive Card View for Mobile/Tablet */}
       <div className="mobile-cards-wrap">
         <div className="crm-card-view">
-          {admins.length === 0 ? <p style={{ padding: '24px', color: '#64748b', textAlign: 'center' }}>No admins found.</p> : (
+          {loading ? <div className="empty-state"><div className="global-loader-container"><div className="global-spinner"></div><div>Loading admins...</div></div></div> : admins.length === 0 ? <p style={{ padding: "24px", color: "#64748b", textAlign: "center" }}>No admins found.</p> : (
             admins.map(admin => (
               <div className="tm-card" key={admin._id}>
                 <div className="tm-card-top">
@@ -428,3 +433,5 @@ const AdminManagement = () => {
 };
 
 export default AdminManagement;
+
+

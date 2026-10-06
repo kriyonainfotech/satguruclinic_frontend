@@ -161,6 +161,10 @@
   align-items: start;
 }
 
+.dashboard-main-grid.admin-only-grid {
+  grid-template-columns: 1fr;
+}
+
 @media (max-width: 1080px) {
   .dashboard-main-grid {
     grid-template-columns: 1fr;
@@ -620,4 +624,176 @@
 
 .shortcut-icon {
   color: var(--primary-color, #144b79);
+}
+
+/* Superadmin Dashboard */
+.superadmin-dashboard-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.superadmin-top-row {
+  display: flex;
+  gap: 20px;
+  flex-direction: row;
+}
+
+@media (max-width: 1024px) {
+  .superadmin-top-row {
+    flex-direction: column;
+  }
+}
+
+.full-width-graph {
+  width: 100%;
+}
+
+.sa-graph-wrapper {
+  width: 100%;
+  height: 300px;
+  margin-top: 20px;
+}
+
+.sa-main-content {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sa-sidebar {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sa-financials-row {
+  display: flex;
+  gap: 20px;
+}
+
+@media (max-width: 768px) {
+  .sa-financials-row {
+    flex-direction: column;
+  }
+}
+
+.sa-fin-card {
+  flex: 1;
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  border: 1px solid #eef2f6;
+}
+
+.sa-fin-card h3 {
+  font-size: 0.95rem;
+  color: #64748b;
+  margin: 0 0 10px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sa-fin-card p {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+}
+
+.sa-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+@media (max-width: 768px) {
+  .sa-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.sa-stat-card {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  border: 1px solid #eef2f6;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.sa-stat-val {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--primary-color, #144b79);
+  margin-bottom: 5px;
+}
+
+.sa-stat-label {
+  font-size: 0.9rem;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.sa-rituals-card, .sa-graph-card {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  border: 1px solid #eef2f6;
+}
+
+.sa-rituals-card h3, .sa-graph-card h3 {
+  margin: 0 0 15px 0;
+  font-size: 1.1rem;
+  color: #1e293b;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 10px;
+}
+
+.sa-rituals-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.sa-rituals-list li {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.sa-rituals-list li:last-child {
+  border-bottom: none;
+}
+
+.sa-rituals-list li.completed .ritual-name {
+  color: #10b981;
+  text-decoration: line-through;
+}
+
+.sa-rituals-list li.pending .ritual-name {
+  color: #f59e0b;
+}
+
+.ritual-name {
+  font-weight: 500;
+  color: #334155;
+}
+
+.ritual-time {
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
+.sa-graph-wrapper {
+  margin-top: 15px;
 }

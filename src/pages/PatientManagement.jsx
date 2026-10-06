@@ -225,7 +225,8 @@ const PatientManagement = () => {
   };
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [formData, setFormData] = useState({
+  const [dobError, setDobError] = useState('');
+    const [formData, setFormData] = useState({
     fullName: '',
     gender: 'Male',
     dateOfBirth: '',
@@ -246,11 +247,39 @@ const PatientManagement = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedYear, setSelectedYear] = useState('');
   const [selectedMonth, setSelectedMonth] = useState('');
+  const [dateFilterMode, setDateFilterMode] = useState('All');
+  const [filterDate, setFilterDate] = useState('');
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo] = useState('');
+  const [filterCreatedBy, setFilterCreatedBy] = useState('');
+  const [showOnlyBirthdays, setShowOnlyBirthdays] = useState(false);
+
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportFilters, setExportFilters] = useState({
+    fromDate: '',
+    toDate: '',
+    minAge: '',
+    maxAge: '',
+    gender: 'All',
+    createdBy: 'All',
+    status: 'All'
+  });
   
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const isAdminOrTeam = ['superadmin', 'admin', 'team'].includes(user.role);
 
   // Generate Year options
+  const createdByOptions = React.useMemo(() => {
+    const map = new Map();
+    patients.forEach(p => {
+      if (p.createdBy && p.createdBy._id) {
+        const roleLabel = p.createdBy.role ? ` (${p.createdBy.role})` : '';
+        map.set(p.createdBy._id, `${p.createdBy.name}${roleLabel}`);
+      }
+    });
+    return [{ value: '', label: 'All Creators' }, ...Array.from(map.entries()).map(([value, label]) => ({ value, label }))];
+  }, [patients]);
+
   const YEAR_OPTIONS = React.useMemo(() => {
     const currentYear = new Date().getFullYear();
     const years = [];
@@ -297,7 +326,27 @@ const PatientManagement = () => {
     }
   };
 
-  const formatDateInput = (val) => { let v = val.replace(/[^\d/]/g, '').replace(/\/+/g, '/'); let parts = v.split('/'); if (parts.length > 1 && parts[0].length === 1) parts[0] = '0' + parts[0]; if (parts.length > 2 && parts[1].length === 1) parts[1] = '0' + parts[1]; let digits = parts.join('').replace(/\D/g, ''); let formatted = ''; if (digits.length > 0) formatted = digits.substring(0, 2); if (digits.length > 2) formatted += '/' + digits.substring(2, 4); if (digits.length > 4) formatted += '/' + digits.substring(4, 8); if (v.endsWith('/') && digits.length > 0 && digits.length % 2 === 0 && digits.length < 5 && !formatted.endsWith('/')) formatted += '/'; return formatted; }; const handleInputChange = (e) => {
+  const formatDateInput = (val) => {
+    let v = val.replace(/[^\d/]/g, '').replace(/\/+/g, '/');
+    if (v.startsWith('/')) v = v.substring(1);
+    let parts = v.split('/');
+    if (parts[0] && parts[0].length > 2) {
+        const p0 = parts[0];
+        parts[0] = p0.substring(0, 2);
+        parts.splice(1, 0, p0.substring(2));
+    }
+    if (parts[1] && parts[1].length > 2) {
+        const p1 = parts[1];
+        parts[1] = p1.substring(0, 2);
+        parts.splice(2, 0, p1.substring(2));
+    }
+    if (parts.length > 3) parts.length = 3;
+    if (parts[2] && parts[2].length > 4) parts[2] = parts[2].substring(0, 4);
+    
+    // if the original string ended with a slash, and we didn't naturally create a new part, preserve it
+    // actually parts.join('/') will preserve empty parts like ['12', ''] -> '12/'
+    return parts.join('/');
+}; const handleInputChange = (e) => {
     const { name, value } = e.target;
     
     // Only allow max 10 digits for phone numbers
@@ -308,7 +357,7 @@ const PatientManagement = () => {
       return;
     }
     
-    if(name==='dateOfBirth'){ setFormData({ ...formData, [name]: formatDateInput(value) }); return; } setFormData({ ...formData, [name]: value });
+     setFormData({ ...formData, [name]: value });
   };
 
   const calculateAgePreview = (dobStr) => {
@@ -385,21 +434,55 @@ const PatientManagement = () => {
         p.mobileNumber?.includes(q)
       );
     }
-    if (selectedYear) {
-      filtered = filtered.filter(p => p.registrationDate && new Date(p.registrationDate).getFullYear().toString() === selectedYear);
+    
+    if (dateFilterMode === 'Today Birthday') {
+        const today = new Date();
+        filtered = filtered.filter(p => {
+          if (!p.dateOfBirth) return false;
+          const dob = new Date(p.dateOfBirth);
+          return dob.getMonth() === today.getMonth() && dob.getDate() === today.getDate();
+        });
+      } else if (dateFilterMode === 'Month/Year') {
+      if (selectedYear) {
+        filtered = filtered.filter(p => p.registrationDate && new Date(p.registrationDate).getFullYear().toString() === selectedYear);
+      }
+      if (selectedMonth) {
+        filtered = filtered.filter(p => p.registrationDate && (new Date(p.registrationDate).getMonth() + 1).toString().padStart(2, '0') === selectedMonth);
+      }
+    } else if (dateFilterMode === 'Single Date') {
+      if (filterDate) {
+        filtered = filtered.filter(p => p.registrationDate && p.registrationDate.substring(0, 10) === filterDate);
+      }
+    } else if (dateFilterMode === 'Date Range') {
+      if (filterDateFrom) {
+        filtered = filtered.filter(p => p.registrationDate && p.registrationDate.substring(0, 10) >= filterDateFrom);
+      }
+      if (filterDateTo) {
+        filtered = filtered.filter(p => p.registrationDate && p.registrationDate.substring(0, 10) <= filterDateTo);
+      }
     }
-    if (selectedMonth) {
-      filtered = filtered.filter(p => p.registrationDate && (new Date(p.registrationDate).getMonth() + 1).toString().padStart(2, '0') === selectedMonth);
+
+    if (showOnlyBirthdays) {
+      const today = new Date();
+      filtered = filtered.filter(p => {
+        if (!p.dateOfBirth) return false;
+        const dob = new Date(p.dateOfBirth);
+        return dob.getMonth() === today.getMonth() && dob.getDate() === today.getDate();
+      });
+    }
+
+    if (filterCreatedBy) {
+      filtered = filtered.filter(p => p.createdBy && p.createdBy._id === filterCreatedBy);
     }
     return filtered;
-  }, [patients, searchQuery, selectedYear, selectedMonth]);
+  }, [patients, searchQuery, dateFilterMode, selectedYear, selectedMonth, filterDate, filterDateFrom, filterDateTo, filterCreatedBy, showOnlyBirthdays]);
 
   const [currentPage, setCurrentPage] = useState(1);
   const recordsPerPage = 10;
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedYear, selectedMonth]);
+  }, [searchQuery, dateFilterMode, selectedYear, selectedMonth, filterDate, filterDateFrom, filterDateTo, filterCreatedBy, showOnlyBirthdays]);
 
   const indexOfLastRecord = currentPage * recordsPerPage;
   const indexOfFirstRecord = indexOfLastRecord - recordsPerPage;
@@ -476,7 +559,20 @@ const PatientManagement = () => {
     alert('Message copied to clipboard!');
   };
 
-  const handleWhatsApp = (patientName, mobileNumber) => {
+  const handleWhatsApp = (p) => {
+    if (!p.dateOfBirth) {
+      alert(`Alert: Patient's Date of Birth (DOB) is not added in the system! Please add it first.`);
+      return;
+    }
+    const dob = new Date(p.dateOfBirth);
+    const today = new Date();
+    const isBirthdayToday = dob.getMonth() === today.getMonth() && dob.getDate() === today.getDate();
+    if (!isBirthdayToday) {
+      alert(`Alert: Today is not ${p.fullName}'s birthday! Birthday wish can only be sent on their actual birthday.`);
+      return;
+    }
+    const patientName = p.fullName;
+    const mobileNumber = p.mobileNumber;
     const msg = generateMessage(patientName);
     const encoded = encodeURIComponent(msg);
     // Remove any non-digit characters from the mobile number and prefix with country code if missing
@@ -538,8 +634,8 @@ const PatientManagement = () => {
         </div>
       </div>
 
-      <div className="patient-filter-bar">
-        <div className="patient-search-input-box">
+      <div className="patient-filter-bar" style={{ display: 'flex', flexWrap: 'nowrap', gap: '12px', alignItems: 'center', width: '100%', overflowX: 'auto', paddingBottom: '4px' }}>
+        <div className="patient-search-input-box" style={{ flex: '1 1 auto', minWidth: '150px' }}>
           <SearchIcon size={16} color="#94a3b8" />
           <input 
             type="text" 
@@ -548,31 +644,90 @@ const PatientManagement = () => {
             onChange={e => setSearchQuery(e.target.value)} 
           />
         </div>
-        <div className="patient-filter-selects">
-          <div className="patient-filter-select-item">
-            <CustomSelect
-              value={selectedYear}
-              options={yearOptions}
-              placeholder="All Years"
-              onChange={val => setSelectedYear(val)}
-            />
+        <div className="patient-filter-selects" style={{ display: 'flex', flexWrap: 'nowrap', gap: '10px', alignItems: 'center', flexShrink: 0 }}>
+            <button 
+              type="button"
+              onClick={() => setShowOnlyBirthdays(!showOnlyBirthdays)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '6px',
+                padding: '0 12px', height: '36px', borderRadius: '6px',
+                border: showOnlyBirthdays ? '1px solid #0284c7' : '1px solid #e2e8f0',
+                background: showOnlyBirthdays ? '#e0f2fe' : '#ffffff',
+                color: showOnlyBirthdays ? '#0284c7' : '#475569',
+                fontWeight: 600, fontSize: '13px', cursor: 'pointer',
+                transition: 'all 0.2s', whiteSpace: 'nowrap'
+              }}
+            >
+              Today's Birthdays
+            </button>
+            <div style={{ minWidth: '140px' }}>
+             <CustomSelect
+               value={dateFilterMode}
+               options={[
+                 {value: 'All', label: 'All Dates'},
+                 {value: 'Single Date', label: 'Single Date'},
+                 {value: 'Date Range', label: 'Date Range'},
+                 {value: 'Month/Year', label: 'Month/Year'}
+               ]}
+               onChange={setDateFilterMode}
+             />
           </div>
-          <div className="patient-filter-select-item">
+
+          {dateFilterMode === 'Single Date' && (
+             <div style={{ minWidth: '150px' }}>
+               <CalendarPicker selectedDate={filterDate} onChange={setFilterDate} placeholder="Select Date" />
+             </div>
+          )}
+
+          {dateFilterMode === 'Date Range' && (
+             <>
+               <div style={{ minWidth: '140px' }}>
+                 <CalendarPicker selectedDate={filterDateFrom} onChange={setFilterDateFrom} placeholder="From Date" />
+               </div>
+               <div style={{ minWidth: '140px' }}>
+                 <CalendarPicker selectedDate={filterDateTo} onChange={setFilterDateTo} placeholder="To Date" />
+               </div>
+             </>
+          )}
+
+          {dateFilterMode === 'Month/Year' && (
+             <>
+               <div style={{ minWidth: '120px' }}>
+                 <CustomSelect
+                   value={selectedYear}
+                   options={yearOptions}
+                   placeholder="All Years"
+                   onChange={val => setSelectedYear(val)}
+                 />
+               </div>
+               <div style={{ minWidth: '130px' }}>
+                 <CustomSelect
+                   value={selectedMonth}
+                   options={monthOptions}
+                   placeholder="All Months"
+                   onChange={val => setSelectedMonth(val)}
+                 />
+               </div>
+             </>
+          )}
+
+          <div style={{ minWidth: '160px', marginLeft: 'auto' }}>
             <CustomSelect
-              value={selectedMonth}
-              options={monthOptions}
-              placeholder="All Months"
-              onChange={val => setSelectedMonth(val)}
+              value={filterCreatedBy}
+              options={createdByOptions}
+              placeholder="All Creators"
+              onChange={val => setFilterCreatedBy(val)}
             />
           </div>
         </div>
       </div>
 
+
       {/* Desktop Table View */}
       <div className="desktop-table-wrap">
         <div className="table-container" style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
           {loading ? (
-          <p style={{ textAlign: 'center', padding: '36px 20px', color: '#64748b' }}>Loading patients...</p>
+          <div style={{ textAlign: 'center', padding: '36px 20px', color: '#64748b' }}><div className="global-loader-container"><div className="global-spinner"></div><div>Loading patients...</div></div></div>
         ) : displayedPatients.length === 0 ? (
           <p style={{ textAlign: 'center', padding: '36px 20px', color: '#64748b' }}>No patients found.</p>
         ) : (
@@ -676,12 +831,25 @@ const PatientManagement = () => {
                   </td>
                   <td style={{ textAlign: 'center' }}>
                     <div className="table-action-icons-wrap" style={{ justifyContent: 'center' }}>
-                      {isAdminOrTeam && (
+                        {p.mobileNumber && (
+                          <button 
+                            className="action-btn tbl-icon-btn" 
+                            style={{ color: '#25D366' }} 
+                            onClick={() => handleWhatsApp(p)} 
+                            title="Send Birthday Wish" 
+                            aria-label="Send Birthday Wish"
+                          >
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.82 9.82 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/>
+                            </svg>
+                          </button>
+                        )}
+                        {isAdminOrTeam && (
                         <button className="action-btn edit tbl-icon-btn" onClick={() => openEditModal(p)} title="Edit Patient" aria-label="Edit Patient">
                           <EditIcon size={15} />
                         </button>
                       )}
-                      {user.role === 'admin' && (
+                      {(user.role === 'admin' || user.role === 'superadmin') && (
                         <button className="action-btn delete tbl-icon-btn" onClick={() => handleDelete(p._id)} title="Delete Patient" aria-label="Delete Patient">
                           <TrashIcon size={15} />
                         </button>
@@ -712,7 +880,7 @@ const PatientManagement = () => {
       <div className="mobile-cards-wrap">
         <div className="crm-card-view">
           {loading ? (
-            <div className="empty-state">Loading patients...</div>
+            <div className="empty-state"><div className="global-loader-container"><div className="global-spinner"></div><div>Loading patients...</div></div></div>
           ) : displayedPatients.length === 0 ? (
             <div className="empty-state">No patients found.</div>
           ) : (
@@ -788,6 +956,19 @@ const PatientManagement = () => {
                   </button>
 
                   <div className="patient-actions-right">
+                    {p.mobileNumber && (
+                      <button 
+                        type="button"
+                        className="action-btn tbl-icon-btn" 
+                        style={{ color: '#25D366' }}
+                        onClick={() => handleWhatsApp(p)} 
+                        title="Send Birthday Wish via WhatsApp" 
+                      >
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.82 9.82 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/>
+                        </svg>
+                      </button>
+                    )}
                     {isAdminOrTeam && (
                       <button 
                         type="button"
@@ -799,7 +980,7 @@ const PatientManagement = () => {
                         <EditIcon size={15} />
                       </button>
                     )}
-                    {user.role === 'admin' && (
+                    {(user.role === 'admin' || user.role === 'superadmin') && (
                       <button 
                         type="button"
                         className="action-btn delete tbl-icon-btn" 
@@ -829,9 +1010,133 @@ const PatientManagement = () => {
         )}
       </div>
 
+      
+      {showExportModal && (
+        <div className="modal-overlay" onClick={() => setShowExportModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px', width: '90%', padding: '16px 20px', borderRadius: '12px' }}>
+            <div className="modal-header" style={{ marginBottom: '15px', paddingBottom: '8px', borderBottom: '1px solid #f1f5f9' }}>
+              <h3 className="modal-title" style={{ fontSize: '16px', fontWeight: 700, color: 'var(--primary-color, #144b79)' }}>Export Patients</h3>
+              <button className="modal-close" onClick={() => setShowExportModal(false)}><XIcon size={16} /></button>
+            </div>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '15px' }}>
+              <div className="form-group">
+                <label>From Date</label>
+                <input type="date" className="crm-form-input" value={exportFilters.fromDate} onChange={e => setExportFilters({...exportFilters, fromDate: e.target.value})} />
+              </div>
+              <div className="form-group">
+                <label>To Date</label>
+                <input type="date" className="crm-form-input" value={exportFilters.toDate} onChange={e => setExportFilters({...exportFilters, toDate: e.target.value})} />
+              </div>
+              
+              <div className="form-group">
+                <label>Min Age</label>
+                <input type="number" className="crm-form-input" placeholder="0" value={exportFilters.minAge} onChange={e => setExportFilters({...exportFilters, minAge: e.target.value})} />
+              </div>
+              <div className="form-group">
+                <label>Max Age</label>
+                <input type="number" className="crm-form-input" placeholder="100" value={exportFilters.maxAge} onChange={e => setExportFilters({...exportFilters, maxAge: e.target.value})} />
+              </div>
+
+              <div className="form-group">
+                <label>Gender</label>
+                <CustomSelect 
+                  value={exportFilters.gender} 
+                  options={[{value: 'All', label: 'All'}, {value: 'Male', label: 'Male'}, {value: 'Female', label: 'Female'}, {value: 'Other', label: 'Other'}]} 
+                  onChange={v => setExportFilters({...exportFilters, gender: v})} 
+                  placeholder="All"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Status</label>
+                <CustomSelect 
+                  value={exportFilters.status} 
+                  options={[{value: 'All', label: 'All'}, {value: 'Active', label: 'Active'}, {value: 'Inactive', label: 'Inactive'}]} 
+                  onChange={v => setExportFilters({...exportFilters, status: v})} 
+                  placeholder="All"
+                />
+              </div>
+
+              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                <label>Created By</label>
+                <CustomSelect 
+                  value={exportFilters.createdBy} 
+                  options={createdByOptions} 
+                  onChange={v => setExportFilters({...exportFilters, createdBy: v})} 
+                  placeholder="All Creators"
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button className="crm-btn secondary" onClick={() => setShowExportModal(false)}>Cancel</button>
+              <button className="crm-btn primary" onClick={() => {
+                // Apply filters to export data
+                let exportData = patients;
+                
+                if (exportFilters.fromDate) {
+                  exportData = exportData.filter(p => p.registrationDate && p.registrationDate.substring(0, 10) >= exportFilters.fromDate);
+                }
+                if (exportFilters.toDate) {
+                  exportData = exportData.filter(p => p.registrationDate && p.registrationDate.substring(0, 10) <= exportFilters.toDate);
+                }
+                if (exportFilters.minAge) {
+                  exportData = exportData.filter(p => p.age >= parseInt(exportFilters.minAge));
+                }
+                if (exportFilters.maxAge) {
+                  exportData = exportData.filter(p => p.age <= parseInt(exportFilters.maxAge));
+                }
+                if (exportFilters.gender !== 'All') {
+                  exportData = exportData.filter(p => p.gender === exportFilters.gender);
+                }
+                if (exportFilters.status !== 'All') {
+                  exportData = exportData.filter(p => p.status === exportFilters.status);
+                }
+                if (exportFilters.createdBy && exportFilters.createdBy !== 'All') {
+                  exportData = exportData.filter(p => p.createdBy && p.createdBy._id === exportFilters.createdBy);
+                }
+
+                if (exportData.length === 0) {
+                  alert('No patients match these filters');
+                  return;
+                }
+
+                // Generate CSV
+                const headers = ['Patient ID', 'Name', 'Age', 'Gender', 'Mobile', 'Email', 'Registration Date', 'Status', 'Created By'];
+                const rows = exportData.map(p => [
+                  p.patientId,
+                  p.fullName || '',
+                  p.age || '',
+                  p.gender || '',
+                  p.mobileNumber || '',
+                  p.email || '',
+                  p.registrationDate ? new Date(p.registrationDate).toLocaleDateString() : '',
+                  p.status || 'Active',
+                  p.createdBy ? p.createdBy.name : ''
+                ]);
+                
+                const csvContent = "data:text/csv;charset=utf-8," 
+                  + headers.join(",") + "\n" 
+                  + rows.map(e => e.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
+                
+                const encodedUri = encodeURI(csvContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", `patients_export_${new Date().getTime()}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                setShowExportModal(false);
+              }}>Download CSV</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px', padding: '16px 20px', borderRadius: '12px' }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '700px', width: '90%', padding: '16px 20px', borderRadius: '12px' }}>
             <div className="modal-header" style={{ marginBottom: '10px', paddingBottom: '8px', borderBottom: '1px solid #f1f5f9' }}>
               <h3 className="modal-title" style={{ fontSize: '16px', fontWeight: 700, color: 'var(--primary-color, #144b79)' }}>
                 {isEditMode ? 'Edit Patient' : 'Add New Patient'}
@@ -851,7 +1156,7 @@ const PatientManagement = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 10px' }}>
                   <div>
                     <label style={{ fontSize: '11px', fontWeight: 600, color: '#475569', marginBottom: '3px', display: 'block' }}>Full Name *</label>
-                    <input type="text" name="fullName" className="modal-text-input" placeholder="Enter full name" required value={formData.fullName} onChange={handleInputChange} style={{ height: '36px', fontSize: '13px' }} />
+                    <input autoFocus type="text" name="fullName" className="modal-text-input" placeholder="Enter full name" required value={formData.fullName} onChange={handleInputChange} style={{ height: '36px', fontSize: '13px' }} />
                   </div>
                   <div>
                     <label style={{ fontSize: '11px', fontWeight: 600, color: '#475569', marginBottom: '3px', display: 'block' }}>Mobile Number *</label>
@@ -859,17 +1164,9 @@ const PatientManagement = () => {
                   </div>
                   <div>
                     <label style={{ fontSize: '11px', fontWeight: 600, color: '#475569', marginBottom: '3px', display: 'block' }}>Date of Birth *</label>
-                    <input 
-                      type="text" 
-                      name="dateOfBirth" 
-                      className="modal-text-input" 
-                      placeholder="DD/MM/YYYY" 
-                      value={formData.dateOfBirth} 
-                      onChange={handleInputChange} 
-                      required 
-                      style={{ height: '36px', fontSize: '13px' }}
-                    />
-                    {formData.dateOfBirth && <div style={{ fontSize: '10.5px', color: '#0284c7', marginTop: '2px', fontWeight: 500 }}>Age: {calculateAgePreview(formData.dateOfBirth)} yrs</div>}
+                    <input type="text" name="dateOfBirth" className="modal-text-input" placeholder="DD/MM/YYYY" value={formData.dateOfBirth} onChange={handleInputChange} required style={{ height: '36px', fontSize: '13px' }} />
+                      {dobError && <div style={{color: 'red', fontSize: '11px', marginTop: '4px'}}>{dobError}</div>}
+                    {!dobError && formData.dateOfBirth && <div style={{ fontSize: '10.5px', color: '#0284c7', marginTop: '2px', fontWeight: 500 }}>Age: {calculateAgePreview(formData.dateOfBirth)} yrs</div>}
                   </div>
                   <div>
                     <label style={{ fontSize: '11px', fontWeight: 600, color: '#475569', marginBottom: '3px', display: 'block' }}>Gender *</label>
@@ -1002,7 +1299,7 @@ const PatientManagement = () => {
                     </button>
                     {p.mobileNumber && (
                       <button 
-                        onClick={() => handleWhatsApp(p.fullName, p.mobileNumber)}
+                        onClick={() => handleWhatsApp(p)}
                         style={{ 
                           display: 'flex', alignItems: 'center', gap: '6px',
                           background: '#25D366', border: 'none', color: '#ffffff', 
@@ -1037,7 +1334,7 @@ const PatientManagement = () => {
             </div>
             
             {historyModal.loading ? (
-              <p style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}>Loading history...</p>
+              <div style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}><div className="global-loader-container"><div className="global-spinner"></div><div>Loading history...</div></div></div>
             ) : historyModal.appointments.length === 0 ? (
               <p style={{ textAlign: 'center', padding: '20px', color: '#64748b', background: '#f8fafc', borderRadius: '8px' }}>No appointments found for this patient.</p>
             ) : (
@@ -1074,6 +1371,23 @@ const PatientManagement = () => {
 };
 
 export default PatientManagement;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

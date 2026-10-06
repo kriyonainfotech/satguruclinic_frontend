@@ -221,20 +221,13 @@ const HolidaysEvents = () => {
   return (
     <div className="holidays-events-container">
       {/* Page Header */}
-      <div className="holidays-header">
-        <div className="header-left">
-          <div className="header-icon-badge">
-            <CalendarIcon size={22} />
-          </div>
-          <div>
-            <h1 className="page-title">Holidays & Events</h1>
-          </div>
-        </div>
-
+      <div className="page-header" style={{ marginBottom: '16px' }}>
+        <h2>Holidays & Events</h2>
         {isSuperAdmin && (
           <button
             type="button"
-            className="holiday-primary-btn"
+            className="crm-btn crm-btn-primary"
+            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
             onClick={() => {
               setCustomData({
                 title: '',
@@ -540,7 +533,7 @@ const HolidaysEvents = () => {
 
             <div className="upcoming-holidays-list">
               {loading ? (
-                <p style={{ fontSize: '13px', color: '#64748b', margin: '8px 0' }}>Loading holidays...</p>
+                <div style={{ fontSize: '13px', color: '#64748b', margin: '8px 0' }}><div className="global-loader-container"><div className="global-spinner"></div><div>Loading holidays...</div></div></div>
               ) : currentMonthHolidays.length === 0 ? (
                 <p style={{ fontSize: '13px', color: '#64748b', margin: '8px 0' }}>
                   No official holidays declared this month.
@@ -722,3 +715,4 @@ const HolidaysEvents = () => {
 };
 
 export default HolidaysEvents;
+

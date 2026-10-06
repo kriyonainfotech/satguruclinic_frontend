@@ -28,6 +28,7 @@ const AdminCallLogs = () => {
   const [editingId, setEditingId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const recordsPerPage = 10;
+  const [readMoreData, setReadMoreData] = useState(null);
 
   const [formData, setFormData] = useState({ 
     patientId: '', 
@@ -230,6 +231,10 @@ const AdminCallLogs = () => {
       alternateRowStyles: {
         fillColor: [248, 250, 252],
       },
+      columnStyles: {
+        5: { cellWidth: 65 }, // Feedback
+        6: { cellWidth: 20 }  // Remarks
+      },
     });
 
     doc.save(`CallLogs_Report_${moment().format('YYYYMMDD')}.pdf`);
@@ -318,6 +323,24 @@ const AdminCallLogs = () => {
     );
   };
 
+  const renderReadMoreText = (text, title) => {
+    if (!text) return '-';
+    if (text.length > 20) {
+      return (
+        <span>
+          {text.slice(0, 20)}...{' '}
+          <span 
+            style={{ color: '#0284c7', cursor: 'pointer', fontWeight: 600, fontSize: '0.95em' }} 
+            onClick={() => setReadMoreData({ title, text })}
+          >
+            read more
+          </span>
+        </span>
+      );
+    }
+    return text;
+  };
+
   return (
     <div className="page-container" style={{ boxSizing: 'border-box' }}>
       <div className="page-header" style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'nowrap', gap: '10px' }}>
@@ -397,7 +420,7 @@ const AdminCallLogs = () => {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="8" style={{ textAlign: 'center', padding: '36px', color: '#64748b' }}>Loading call logs...</td></tr>
+                <tr><td colSpan="8" style={{ textAlign: 'center', padding: '36px', color: '#64748b' }}><div className="global-loader-container"><div className="global-spinner"></div><div>Loading call logs...</div></div></td></tr>
               ) : filteredLogs.length === 0 ? (
                 <tr><td colSpan="8" style={{ textAlign: 'center', padding: '36px', color: '#94a3b8' }}>No call logs found matching your filters.</td></tr>
               ) : (
@@ -463,10 +486,10 @@ const AdminCallLogs = () => {
                       </span>
                     </td>
                     <td style={{ color: '#334155', fontSize: '13px', maxWidth: '260px', lineHeight: 1.4 }}>
-                      {log.discussion}
+                      {renderReadMoreText(log.discussion, 'Patient Feedback')}
                     </td>
                     <td style={{ color: '#64748b', fontSize: '12.5px', maxWidth: '160px' }}>
-                      {log.remarks || '—'}
+                      {renderReadMoreText(log.remarks, 'Remarks')}
                     </td>
                     <td style={{ textAlign: 'center' }}>
                       {(user.role === 'superadmin' || user.role === 'admin') && (
@@ -502,9 +525,7 @@ const AdminCallLogs = () => {
       <div className="mobile-cards-wrap" style={{ marginBottom: '24px' }}>
         <div className="crm-card-view">
           {loading ? (
-            <div style={{ textAlign: 'center', padding: '36px 20px', color: '#64748b', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', gridColumn: '1 / -1' }}>
-              Loading call logs...
-            </div>
+            <div style={{ textAlign: 'center', padding: '36px 20px', color: '#64748b', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', gridColumn: '1 / -1' }}><div className="global-loader-container"><div className="global-spinner"></div><div>Loading call logs...</div></div></div>
           ) : filteredLogs.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '36px 20px', color: '#94a3b8', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', gridColumn: '1 / -1' }}>
               No call logs found matching your filters.
@@ -570,15 +591,13 @@ const AdminCallLogs = () => {
                   <div className="call-card-body">
                     <div className="call-feedback-box">
                       <span className="call-feedback-label">Patient Feedback / Discussion</span>
-                      <p className="call-feedback-text">{log.discussion || '—'}</p>
+                      <p className="call-feedback-text">{renderReadMoreText(log.discussion, 'Patient Feedback')}</p>
                     </div>
 
-                    {log.remarks && (
-                      <div className="call-remarks-box">
-                        <span className="call-remarks-label">Remarks:</span>
-                        <span className="call-remarks-text">{log.remarks}</span>
-                      </div>
-                    )}
+                    <div className="call-remarks-box">
+                      <span className="call-remarks-label">Remarks:</span>
+                      <span className="call-remarks-text">{renderReadMoreText(log.remarks, 'Remarks')}</span>
+                    </div>
                   </div>
 
                   {/* Card Footer */}
@@ -691,6 +710,27 @@ const AdminCallLogs = () => {
                 <button type="submit" className="crm-btn crm-btn-primary" style={{ padding: '8px 20px', fontSize: '13px', borderRadius: '8px', cursor: 'pointer' }}>Save Call Log</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {readMoreData && (
+        <div className="modal-overlay" style={{ zIndex: 1000 }} onClick={() => setReadMoreData(null)}>
+          <div className="modal-content" style={{ maxWidth: '500px', width: '90%' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">{readMoreData.title}</h3>
+              <button type="button" className="modal-close-btn" onClick={() => setReadMoreData(null)} title="Close">
+                <XIcon size={18} />
+              </button>
+            </div>
+            <div className="modal-body" style={{ padding: '20px' }}>
+              <p style={{ margin: 0, fontSize: '14px', color: '#334155', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                {readMoreData.text}
+              </p>
+            </div>
+            <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', padding: '12px 20px', borderTop: '1px solid #f1f5f9' }}>
+              <button type="button" className="crm-btn crm-btn-secondary" onClick={() => setReadMoreData(null)} style={{ padding: '6px 14px', fontSize: '13px', borderRadius: '6px', cursor: 'pointer' }}>Close</button>
+            </div>
           </div>
         </div>
       )}

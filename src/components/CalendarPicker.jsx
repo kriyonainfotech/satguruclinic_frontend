@@ -38,6 +38,7 @@ const CalendarPicker = ({
   openUp = false,
   disablePastDates = false,
   minDate = null,
+  maxDate = null,
   enableYearMonthDropdown = false,
   className = ''
 }) => {
@@ -170,6 +171,9 @@ const CalendarPicker = ({
     if (effectiveMinDate && iso < effectiveMinDate) {
       return; // Cannot select past date
     }
+    if (maxDate && iso > maxDate) {
+      return; // Cannot select future date
+    }
 
     onChange(iso);
     setIsOpen(false);
@@ -211,7 +215,7 @@ const CalendarPicker = ({
     >
       {showPresets && (
         <div className="calendar-quick-presets">
-          {!disablePastDates && (
+          {!disablePastDates && allowClear && (
             <button
               type="button"
               className={`calendar-preset-btn ${!selectedDate ? 'active' : ''}`}
@@ -350,7 +354,7 @@ const CalendarPicker = ({
       <button
         type="button"
         ref={triggerRef}
-        className={`calendar-trigger-btn ${selectedDate ? 'active' : ''}`}
+        className={`calendar-trigger-btn ${selectedDate ? 'active' : ''}`} style={{ backgroundColor: "#ffffff", color: "#334155" }}
         onClick={handleToggle}
       >
         <CalendarIcon size={16} />

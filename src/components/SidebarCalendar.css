@@ -133,3 +133,5 @@
 .sidebar-cal-cell.selected .cal-dot {
   background: #ffffff;
 }
+
+.cal-dot.overdue { background: #ef4444; }

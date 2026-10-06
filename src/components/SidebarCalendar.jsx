@@ -28,15 +28,22 @@ const SidebarCalendar = ({
   // Map tasks to dates for dot indicators
   // key: 'YYYY-MM-DD' -> { hasPending: bool, hasCompleted: bool }
   const dateTaskMap = {};
+  const todayIsoForCheck = toIso(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
   tasks.forEach((t) => {
     if (!t.dueDate) return;
     const d = new Date(t.dueDate);
     const key = toIso(d.getFullYear(), d.getMonth(), d.getDate());
+    
     if (!dateTaskMap[key]) {
-      dateTaskMap[key] = { hasPending: false, hasCompleted: false };
+      dateTaskMap[key] = { hasPending: false, hasCompleted: false, hasOverdue: false };
     }
-    if (t.status === 'Completed' || t.status === 'Approved') {
+    
+    const isCompleted = (t.status === 'Completed' || t.status === 'Approved' || t.status === 'Done');
+    
+    if (isCompleted) {
       dateTaskMap[key].hasCompleted = true;
+    } else if (t.status === 'Overdue' || key < todayIsoForCheck) {
+      dateTaskMap[key].hasOverdue = true;
     } else {
       dateTaskMap[key].hasPending = true;
     }
@@ -147,6 +154,7 @@ const SidebarCalendar = ({
               {/* Task status dot indicator */}
               {taskInfo && (
                 <span className="cal-dots-container">
+                  {taskInfo.hasOverdue && <span className="cal-dot overdue" />}
                   {taskInfo.hasPending && <span className="cal-dot pending" />}
                   {taskInfo.hasCompleted && <span className="cal-dot completed" />}
                 </span>

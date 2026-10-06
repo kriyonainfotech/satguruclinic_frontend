@@ -17,6 +17,7 @@ import {
 import './Payroll.css';
 
 const Payroll = () => {
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
   const [payrollData, setPayrollData] = useState({ summary: {}, details: [] });
   const [loading, setLoading] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(moment());
@@ -76,6 +77,9 @@ const Payroll = () => {
 
   const formatTime12HourStr = (time24) => {
     if (!time24) return '';
+    if (time24.toUpperCase().includes('AM') || time24.toUpperCase().includes('PM')) {
+      return time24;
+    }
     const [hours, minutes] = time24.split(':');
     let h = parseInt(hours, 10);
     const ampm = h >= 12 ? 'PM' : 'AM';
@@ -215,18 +219,22 @@ const Payroll = () => {
 
       {/* Filters & Search */}
       <div className="payroll-filter-bar">
-        <div className="payroll-tabs-wrap">
-          {['All', 'Superadmins', 'Admins', 'Team'].map(tab => (
-            <button 
-              key={tab}
-              type="button"
-              onClick={() => setActiveTab(tab)}
-              className={`payroll-tab-btn ${activeTab === tab ? 'active' : ''}`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
+        {user.role !== 'admin' ? (
+          <div className="payroll-tabs-wrap">
+            {['All', 'Superadmins', 'Admins', 'Team'].map(tab => (
+              <button 
+                key={tab}
+                type="button"
+                onClick={() => setActiveTab(tab)}
+                className={`payroll-tab-btn ${activeTab === tab ? 'active' : ''}`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div style={{ flex: 1 }}></div>
+        )}
 
         <div className="payroll-search-box">
           <SearchIcon size={15} className="payroll-search-icon" />
@@ -252,9 +260,7 @@ const Payroll = () => {
 
       {/* Main Content / Tables */}
       {loading ? (
-        <div style={{ background: '#fff', padding: '48px', textAlign: 'center', borderRadius: '12px', border: '1px solid #e2e8f0', color: '#64748b', fontWeight: 500 }}>
-          Loading payroll records...
-        </div>
+        <div style={{ background: '#fff', padding: '48px', textAlign: 'center', borderRadius: '12px', border: '1px solid #e2e8f0', color: '#64748b', fontWeight: 500 }}><div className="global-loader-container"><div className="global-spinner"></div><div>Loading payroll records...</div></div></div>
       ) : (
         <div>
           {Object.keys(groupedData).length === 0 ? (
@@ -346,7 +352,7 @@ const Payroll = () => {
                             {/* Total Days */}
                             <td>
                               <div className="total-days-badge">
-                                {record.totalDays} <span className="total-days-sub">/ {record.daysInMonth} DAYS</span>
+                                {typeof record.totalDays === 'number' ? Number(record.totalDays.toFixed(2)) : record.totalDays} <span className="total-days-sub">/ {record.daysInMonth} DAYS</span>
                               </div>
                             </td>
 
@@ -460,7 +466,7 @@ const Payroll = () => {
 
                       <div className="payroll-mobile-footer">
                         <div className="total-days-badge">
-                          {record.totalDays} <span className="total-days-sub">/ {record.daysInMonth} DAYS</span>
+                          {typeof record.totalDays === 'number' ? Number(record.totalDays.toFixed(2)) : record.totalDays} <span className="total-days-sub">/ {record.daysInMonth} DAYS</span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <button 
@@ -522,54 +528,142 @@ const Payroll = () => {
                   if (!selectedLogsForUser || !selectedLogsForUser.records) return;
                   
                   const doc = new jsPDF();
-                  
-                  // Title
-                  doc.setFontSize(18);
-                  doc.text('Attendance Report', 14, 22);
-                  
-                  // Employee details
-                  doc.setFontSize(12);
-                  doc.text(`Employee: ${selectedLogsForUser.user.name}`, 14, 32);
-                  
                   const shiftStr = (selectedLogsForUser.user.timings || []).map(t => `${formatTime12HourStr(t.startTime)} - ${formatTime12HourStr(t.endTime)}`).join(' | ') || 'No shift assigned';
-                  doc.setFontSize(10);
-                  doc.text(`Assigned Shift: ${shiftStr}`, 14, 40);
+
+                  // Pre-calculate late days & rows
+                  let totalLateDays = 0;
+                  let totalLateMins = 0;
                   
-                  doc.setFontSize(12);
-                  doc.text(`Month: ${currentMonth.format('MMMM YYYY')}`, 14, 48);
-                  
-                  const headers = [['Date', 'Day', 'Status', 'Clock In', 'Clock Out', 'Hours']];
+                  const headers = [['Date', 'Status', 'Time In', 'Time Out', 'Hours', 'Late By']];
                   const rows = getFullMonthLogs(selectedLogsForUser.records).map(log => {
                     const logDate = moment(log.date);
-                    let statusLabel = log.status === 'half-day' ? 'Half Day' : (log.status === 'leave' ? 'Leave' : (log.status === 'holiday' ? `Holiday (${log.holidayName})` : 'Full Day'));
+                    let statusLabel = log.status === 'half-day' ? 'Half Day' : (log.status === 'short-time' ? 'Short Time' : (log.status === 'leave' ? 'Leave' : (log.status === 'holiday' ? `Holiday` : 'Full Day')));
                     
-                    let clockInStr = 'No time logged';
+                    let clockInStr = '-';
                     let clockOutStr = '-';
                     let hoursWorked = '-';
+                    let lateMinStr = '-';
+                    let isLate = false;
                     
                     if (log.status === 'holiday') {
                       clockInStr = log.isPaid ? 'Paid' : 'Unpaid';
-                      if (log.isHalfDay) clockInStr += ' (Half)';
                     } else if (log.clockIn) {
-                      clockInStr = moment(log.clockIn).format('HH:mm');
+                      clockInStr = moment(log.clockIn).format('hh:mm A');
+                      
+                      if (selectedLogsForUser.user.timings && selectedLogsForUser.user.timings.length > 0) {
+                         const shiftStart = selectedLogsForUser.user.timings[0].startTime;
+                         if (shiftStart) {
+                           const shiftStartMom = moment(log.date).set({
+                              hour: parseInt(shiftStart.split(':')[0], 10),
+                              minute: parseInt(shiftStart.split(':')[1], 10),
+                              second: 0
+                           });
+                           const diffMins = moment(log.clockIn).diff(shiftStartMom, 'minutes');
+                           if (diffMins > 0) {
+                              isLate = true;
+                              lateMinStr = `${diffMins} min`;
+                              totalLateDays++;
+                              totalLateMins += diffMins;
+                           }
+                         }
+                      }
+                      
                       if (log.clockOut) {
-                        clockOutStr = moment(log.clockOut).format('HH:mm');
-                        hoursWorked = moment(log.clockOut).diff(moment(log.clockIn), 'hours', true).toFixed(2) + 'h';
+                        clockOutStr = moment(log.clockOut).format('hh:mm A');
+                        hoursWorked = moment(log.clockOut).diff(moment(log.clockIn), 'hours', true).toFixed(2) + ' h';
                       } else {
                         clockOutStr = 'Missed Out';
                       }
                     }
-                    return [logDate.format('YYYY-MM-DD'), logDate.format('ddd'), statusLabel, clockInStr, clockOutStr, hoursWorked];
+                    
+                    return [
+                      logDate.format('DD MMM YYYY'), 
+                      statusLabel, 
+                      clockInStr, 
+                      clockOutStr, 
+                      hoursWorked, 
+                      { content: lateMinStr, styles: { textColor: isLate ? [220, 38, 38] : [100, 116, 139] } }
+                    ];
                   });
+
+                  // Header Background
+                  doc.setFillColor(30, 41, 59); // Slate-800
+                  doc.rect(0, 0, 210, 45, 'F');
                   
+                  // Header Text
+                  doc.setTextColor(255, 255, 255);
+                  doc.setFontSize(18);
+                  doc.setFont(undefined, 'bold');
+                  doc.text(`Attendance Report - ${selectedLogsForUser.user.name}`, 14, 22);
+                  
+                  doc.setFontSize(11);
+                  doc.setFont(undefined, 'normal');
+                  doc.text(`${currentMonth.format('MMMM YYYY')}`, 14, 31);
+                  doc.text(`Shift: ${shiftStr}`, 14, 38);
+
+                  // Analytics Summary
+                  doc.setTextColor(30, 41, 59);
+                  doc.setFontSize(13);
+                  doc.setFont(undefined, 'bold');
+                  doc.text('Analytics Summary', 14, 58);
+
+                  doc.setFontSize(10);
+                  doc.setFont(undefined, 'normal');
+                  const presentCount = selectedLogsForUser.stats?.present || 0;
+                  const halfCount = selectedLogsForUser.stats?.halfDay || 0;
+                  const leaveCount = selectedLogsForUser.stats?.leave || 0;
+                  
+                  doc.text(`Present: ${presentCount}`, 14, 68);
+                  doc.text(`Half Days: ${halfCount}`, 60, 68);
+                  doc.text(`Leaves: ${leaveCount}`, 110, 68);
+                  doc.text(`Late Days: ${totalLateDays} (${totalLateMins} min total)`, 155, 68);
+
+                  // Financial Summary
+                  doc.setFontSize(13);
+                  doc.setFont(undefined, 'bold');
+                  doc.text('Financial Summary', 14, 85);
+
+                  doc.setFontSize(11);
+                  doc.setFont(undefined, 'normal');
+                  const bSalary = selectedLogsForUser.salary ? selectedLogsForUser.salary.toLocaleString('en-IN') : '0';
+                  const eSalary = selectedLogsForUser.earned ? Math.round(selectedLogsForUser.earned).toLocaleString('en-IN') : '0';
+                  
+                  doc.text(`Base Salary: Rs. ${bSalary}`, 14, 95);
+                  doc.text(`Earned Salary: Rs. ${eSalary}`, 70, 95);
+
+                  // Separator
+                  doc.setDrawColor(226, 232, 240);
+                  doc.line(14, 105, 196, 105);
+
+                  // Detailed Logs
+                  doc.setFontSize(13);
+                  doc.setFont(undefined, 'bold');
+                  doc.text('Detailed Logs', 14, 120);
+
                   autoTable(doc, {
-                    startY: 54,
+                    startY: 126,
                     head: headers,
                     body: rows,
-                    theme: 'grid',
-                    headStyles: { fillColor: [20, 75, 121] },
+                    theme: 'plain',
+                    headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold', halign: 'center' },
+                    bodyStyles: { textColor: [51, 65, 85] },
+                    styles: { cellPadding: 5, fontSize: 9 },
+                    alternateRowStyles: { fillColor: [248, 250, 252] },
+                    columnStyles: {
+                       0: { halign: 'left' },
+                       1: { halign: 'center' },
+                       2: { halign: 'center' },
+                       3: { halign: 'center' },
+                       4: { halign: 'center' },
+                       5: { halign: 'right' }
+                    }
                   });
                   
+                  const finalY = doc.lastAutoTable.finalY || 130;
+                  doc.setFontSize(8);
+                  doc.setTextColor(156, 163, 175);
+                  doc.text(`Generated on: ${moment().format('D/M/YYYY, hh:mm:ss a')}`, 14, finalY + 15);
+
                   doc.save(`${selectedLogsForUser.user.name.replace(/\s+/g, '_')}_Attendance_${currentMonth.format('MMM_YYYY')}.pdf`);
                 }}
                 className="payroll-btn-download-pdf"

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import FormInput from '../components/FormInput';
-import CalendarPicker, { formatDateToISO } from '../components/CalendarPicker';
+import CalendarPicker, { formatDateToISO, formatDisplayDate } from '../components/CalendarPicker';
+import DateRangePicker from '../components/DateRangePicker';
 import SidebarCalendar from '../components/SidebarCalendar';
 import StatusDropdown from '../components/StatusDropdown';
 import CustomSelect from '../components/CustomSelect';
@@ -54,7 +55,7 @@ const formatLongDate = (dateVal) => {
   return `${d} ${monthNames[monthIdx] || m} ${y}`;
 };
 
-const Tasks = () => {
+const Tasks = ({ isEmbedded }) => {
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
   const userRole = currentUser.role || 'team';
   const isTeam = userRole === 'team';
@@ -65,6 +66,7 @@ const Tasks = () => {
   const availableTabs = useMemo(() => {
     if (isSuperadmin) {
       return [
+        { id: 'all', label: 'All Tasks' },
         { id: 'my', label: 'My Tasks' },
         { id: 'superadmin', label: 'Superadmin Tasks' },
         { id: 'admin', label: 'Admin Tasks' },
@@ -74,7 +76,6 @@ const Tasks = () => {
     if (isAdmin) {
       return [
         { id: 'my', label: 'My Tasks' },
-        { id: 'admin', label: 'Admin Tasks' },
         { id: 'team', label: 'Team Tasks' }
       ];
     }
@@ -92,7 +93,7 @@ const Tasks = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedYear, setSelectedYear] = useState('');
   const [selectedMonth, setSelectedMonth] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [selectedstatus, setSelectedstatus] = useState('all');
   const [selectedAssignee, setSelectedAssignee] = useState('all');
   const [selectedCalendarDate, setSelectedCalendarDate] = useState(() => formatDateToISO(new Date()));
 
@@ -100,6 +101,14 @@ const Tasks = () => {
   const [showModal, setShowModal] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [editingTaskData, setEditingTaskData] = useState(null);
+  const [bulkEditStartDate, setBulkEditStartDate] = useState('');
+  const [bulkEditEndDate, setBulkEditEndDate] = useState('');
+
+  // Bulk Modal State
+  const [showBulkModal, setShowBulkModal] = useState(false);
+  const [bulkStartDate, setBulkStartDate] = useState('');
+  const [bulkEndDate, setBulkEndDate] = useState('');
 
   // View Details Modal
   const [viewingTask, setViewingTask] = useState(null);
@@ -112,16 +121,19 @@ const Tasks = () => {
   const [assignedTo, setAssignedTo] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [priority, setPriority] = useState('Medium');
-  const [status, setStatus] = useState('Pending');
+  const [status, setstatus] = useState('Pending');
   const [message, setMessage] = useState('');
+  const [checklistTemplates, setChecklistTemplates] = useState([]);
+  const [selectedChecklist, setSelectedChecklist] = useState('');
 
   // Initial Fetch & Refresh on filter change
   useEffect(() => {
     fetchTasks();
+    fetchChecklistTemplates();
     if (assignableUsers.length === 0) {
       fetchAssignableUsers();
     }
-  }, [activeTab, searchQuery, selectedYear, selectedMonth, selectedStatus, selectedAssignee]);
+  }, [activeTab, searchQuery, selectedYear, selectedMonth, selectedstatus, selectedAssignee]);
 
   const currentUserId = currentUser.id || currentUser._id;
 
@@ -149,6 +161,19 @@ const Tasks = () => {
     return assignableUsers;
   }, [activeTab, teamAssignees, adminAssignees, superadminAssignees, assignableUsers]);
 
+  const fetchChecklistTemplates = async () => {
+    try {
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/checklists`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (Array.isArray(res.data)) {
+        setChecklistTemplates(res.data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const fetchTasks = async () => {
     try {
       setLoading(true);
@@ -164,7 +189,7 @@ const Tasks = () => {
       if (searchQuery.trim()) params.append('search', searchQuery.trim());
       if (selectedYear) params.append('year', selectedYear);
       if (selectedMonth) params.append('month', selectedMonth);
-      if (selectedStatus && selectedStatus !== 'all') params.append('status', selectedStatus);
+      if (selectedstatus && selectedstatus !== 'all') params.append('status', selectedstatus);
       if (selectedAssignee && selectedAssignee !== 'all') params.append('assignedTo', selectedAssignee);
 
       const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/tasks?${params.toString()}`, {
@@ -234,7 +259,7 @@ const Tasks = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedYear, selectedMonth, selectedStatus, selectedAssignee, selectedCalendarDate, activeTab, tasks]);
+  }, [searchQuery, selectedYear, selectedMonth, selectedstatus, selectedAssignee, selectedCalendarDate, activeTab, tasks]);
 
   const indexOfLastRecord = currentPage * recordsPerPage;
   const indexOfFirstRecord = indexOfLastRecord - recordsPerPage;
@@ -248,7 +273,113 @@ const Tasks = () => {
     return 'Add Task';
   }, [activeTab]);
 
+  const openBulkModal = () => {
+    fetchChecklistTemplates();
+    setTitle('');
+    setDescription('');
+    setCategory('General');
+    setCustomCategory('');
+    
+    setAssignedTo(currentUserId);
+    setBulkStartDate('');
+    setBulkEndDate('');
+    setPriority('Medium');
+    setMessage('');
+    setSelectedChecklist('');
+    setShowBulkModal(true);
+  };
+
+  const handleBulkSubmit = async (e) => {
+    e.preventDefault();
+    if (!title.trim()) {
+      setMessage('Task title is required');
+      return;
+    }
+    if (!bulkStartDate || !bulkEndDate) {
+      setMessage('Date range is required');
+      return;
+    }
+    if (bulkStartDate === bulkEndDate) {
+        setMessage('Please select a Date Range (Start Date and End Date must be different for a Bulk Task). Click two different dates in the calendar.');
+        return;
+      }
+      if (new Date(bulkStartDate) > new Date(bulkEndDate)) {
+      setMessage('End Date must be after Start Date');
+      return;
+    }
+    
+    // Generate dates
+    const dueDates = [];
+    let current = new Date(bulkStartDate);
+    const end = new Date(bulkEndDate);
+    while (current <= end) {
+      dueDates.push(formatDateToISO(current));
+      current.setDate(current.getDate() + 1);
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      let targetAssignee = assignedTo;
+      if (assignedTo === 'ALL_TEAM') {
+        targetAssignee = teamAssignees.map(u => u._id || u.id).filter(Boolean);
+        if (!targetAssignee || targetAssignee.length === 0) targetAssignee = 'ALL_TEAM';
+      } else if (assignedTo === 'ALL_ADMIN') {
+        targetAssignee = adminAssignees.map(u => u._id || u.id).filter(Boolean);
+        if (!targetAssignee || targetAssignee.length === 0) targetAssignee = 'ALL_ADMIN';
+      }
+
+      if (!targetAssignee || (Array.isArray(targetAssignee) && targetAssignee.length === 0)) {
+        setMessage('Please select an assignee.');
+        return;
+      }
+
+      console.log('Generated dueDates:', dueDates);
+      
+      let finalCategory = category;
+      if (category === 'Custom' && customCategory.trim()) {
+        finalCategory = customCategory.trim();
+      }
+
+      const payload = {
+        title: title.trim(),
+        description: description.trim(),
+        category: finalCategory,
+        dueDates, // Multiple dates
+        dueDate: dueDates.length > 0 ? dueDates[0] : null, // Fallback for backend validation
+        priority,
+        status: 'Pending'
+      };
+
+      if (category === 'Checklist' && selectedChecklist) {
+        payload.checklistTemplate = selectedChecklist;
+        const tpl = checklistTemplates.find(t => t._id === selectedChecklist);
+        if (tpl) payload.checklistItems = tpl.items.map(i => ({ text: i, isCompleted: false }));
+      }
+
+      if (Array.isArray(targetAssignee) && targetAssignee.length > 1) {
+        payload.assignedTo = targetAssignee;
+      } else {
+        payload.assignedTo = Array.isArray(targetAssignee) ? targetAssignee[0] : targetAssignee;
+      }
+
+      console.log('Sending Bulk Add payload:', payload);
+
+      await axios.post(`${import.meta.env.VITE_API_BASE_URL}/tasks`, payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      fetchTasks();
+      fetchChecklistTemplates();
+      setSelectedCalendarDate(bulkStartDate);
+      setShowBulkModal(false);
+    } catch (err) {
+      console.error('Error bulk adding tasks:', err);
+      setMessage(err.response?.data?.message || 'Error bulk adding tasks');
+    }
+  };
+
   const openCreateModal = () => {
+    fetchChecklistTemplates();
     setIsEditMode(false);
     setEditingId(null);
     setTitle('');
@@ -274,14 +405,23 @@ const Tasks = () => {
     setAssignedTo(defaultAssignee);
     setDueDate(formatDateToISO(new Date()));
     setPriority('Medium');
-    setStatus('Pending');
+    setstatus('Pending');
     setMessage('');
+    setSelectedChecklist('');
     setShowModal(true);
   };
 
   const openEditModal = (task) => {
     setIsEditMode(true);
     setEditingId(task._id);
+    setEditingTaskData(task);
+    if (task.isBulkTask && task.bulkStartDate && task.bulkEndDate) {
+      setBulkEditStartDate(formatDateToISO(new Date(task.bulkStartDate)));
+      setBulkEditEndDate(formatDateToISO(new Date(task.bulkEndDate)));
+    } else {
+      setBulkEditStartDate('');
+      setBulkEditEndDate('');
+    }
     setTitle(task.title);
     setDescription(task.description || '');
     if (DEFAULT_CATEGORIES.includes(task.category)) {
@@ -294,8 +434,9 @@ const Tasks = () => {
     setAssignedTo(task.assignedTo?._id || '');
     setDueDate(formatDateToISO(new Date(task.dueDate)));
     setPriority(task.priority || 'Medium');
-    setStatus(task.status || 'Pending');
+    setstatus(task.status || 'Pending');
     setMessage('');
+    setSelectedChecklist(task.checklistTemplate || '');
     setShowModal(true);
   };
 
@@ -325,7 +466,31 @@ const Tasks = () => {
 
       const finalCategory = category === 'Other' ? (customCategory.trim() || 'General') : category;
 
-      const basePayload = {
+      let checklistItems = [];
+      if (!isEditMode && selectedChecklist) {
+        const template = checklistTemplates.find(t => t._id === selectedChecklist);
+        if (template && template.items) {
+          checklistItems = template.items.map(item => ({ text: item.text, isCompleted: false }));
+        }
+      }
+
+      let bulkDueDates = [];
+        if (isEditMode && editingTaskData?.isBulkTask) {
+          if (!bulkEditStartDate || !bulkEditEndDate || bulkEditStartDate === bulkEditEndDate) {
+            setMessage('For Bulk Tasks, please select a valid Date Range with two different dates.');
+            return;
+          }
+          let current = new Date(bulkEditStartDate);
+          const end = new Date(bulkEditEndDate);
+          while (current <= end) {
+            bulkDueDates.push(formatDateToISO(current));
+            current.setDate(current.getDate() + 1);
+          }
+        }
+
+        const basePayload = {
+        checklistTemplate: selectedChecklist || undefined,
+        checklistItems: !isEditMode ? checklistItems : undefined,
         title: title.trim(),
         description: description.trim(),
         category: finalCategory,
@@ -365,6 +530,7 @@ const Tasks = () => {
       }
 
       fetchTasks();
+    fetchChecklistTemplates();
       if (dueDate) {
         setSelectedCalendarDate(dueDate);
       }
@@ -382,7 +548,40 @@ const Tasks = () => {
     }
   };
 
+  const toggleChecklistItem = async (task, itemIndex) => {
+    try {
+      const updatedItems = [...task.checklistItems];
+      updatedItems[itemIndex].isCompleted = !updatedItems[itemIndex].isCompleted;
+      
+      const token = localStorage.getItem('token');
+      await axios.put(
+        `${import.meta.env.VITE_API_BASE_URL}/tasks/${task._id}`,
+        { checklistItems: updatedItems },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      const updatedTask = { ...task, checklistItems: updatedItems };
+      if (viewingTask && viewingTask._id === task._id) {
+        setViewingTask(updatedTask);
+      }
+      setTasks(tasks.map(t => t._id === task._id ? updatedTask : t));
+    } catch (error) {
+      console.error('Error updating checklist item:', error);
+      alert('Failed to update checklist item');
+    }
+  };
+
   const handleStatusChange = async (taskId, newStatus) => {
+    if (newStatus === 'Completed' || newStatus === 'Done') {
+      const taskToUpdate = tasks.find(t => t._id === taskId);
+      if (taskToUpdate && taskToUpdate.checklistItems && taskToUpdate.checklistItems.length > 0) {
+        const hasUnticked = taskToUpdate.checklistItems.some(item => !item.isCompleted);
+        if (hasUnticked) {
+          alert('You must complete all checklist items before marking this task as ' + newStatus);
+          return;
+        }
+      }
+    }
     try {
       const token = localStorage.getItem('token');
       await axios.patch(
@@ -405,6 +604,7 @@ const Tasks = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchTasks();
+    fetchChecklistTemplates();
     } catch (error) {
       console.error('Error deleting task:', error);
       alert('Error deleting task: ' + (error.response?.data?.message || error.message));
@@ -415,7 +615,7 @@ const Tasks = () => {
     setSearchQuery('');
     setSelectedYear('');
     setSelectedMonth('');
-    setSelectedStatus('all');
+    setSelectedstatus('all');
     setSelectedAssignee('all');
     setSelectedCalendarDate(formatDateToISO(new Date()));
   };
@@ -491,6 +691,24 @@ const Tasks = () => {
   ];
 
   const modalAssigneeOptions = useMemo(() => {
+    if (isEditMode) {
+      const opts = [];
+      opts.push({ value: currentUserId, label: `${currentUser.name || 'Myself'} (Myself)` });
+      if (isSuperadmin) {
+        adminAssignees.forEach(u => {
+          if (u._id !== currentUserId) opts.push({ value: u._id, label: `${u.name} (Admin)` });
+        });
+        teamAssignees.forEach(u => {
+          if (u._id !== currentUserId) opts.push({ value: u._id, label: `${u.name} (Team)` });
+        });
+      } else if (isAdmin) {
+        teamAssignees.forEach(u => {
+          if (u._id !== currentUserId) opts.push({ value: u._id, label: `${u.name} (Team)` });
+        });
+      }
+      return opts;
+    }
+
     if (activeTab === 'team') {
       const opts = [];
       if (teamAssignees.length > 1) {
@@ -534,9 +752,24 @@ const Tasks = () => {
         label: u._id === currentUserId ? `${u.name} (Myself)` : u.name
       }))
     ];
-  }, [activeTab, teamAssignees, adminAssignees, currentTabAssignees, currentUserId]);
+  }, [activeTab, teamAssignees, adminAssignees, currentTabAssignees, currentUserId, isEditMode, isSuperadmin, isAdmin, currentUser.name]);
 
-  const modalStatusOptions = [
+  const bulkAssigneeOptions = useMemo(() => {
+    const opts = [];
+    opts.push({ value: currentUserId, label: 'Assigned to Self' });
+    if (isSuperadmin) {
+      if (adminAssignees.length > 0) opts.push({ value: 'ALL_ADMIN', label: 'All Admins' });
+      if (teamAssignees.length > 0) opts.push({ value: 'ALL_TEAM', label: 'All Team Members' });
+      adminAssignees.forEach(u => opts.push({ value: u._id, label: `${u.name} (Admin)` }));
+      teamAssignees.forEach(u => opts.push({ value: u._id, label: `${u.name} (Team)` }));
+    } else if (isAdmin) {
+      if (teamAssignees.length > 0) opts.push({ value: 'ALL_TEAM', label: 'All Team Members' });
+      teamAssignees.forEach(u => opts.push({ value: u._id, label: `${u.name} (Team)` }));
+    }
+    return opts;
+  }, [isSuperadmin, isAdmin, adminAssignees, teamAssignees, currentUserId]);
+
+  const modalstatusOptions = [
     { value: 'Pending', label: 'Pending' },
     { value: 'In Progress', label: 'In Progress' },
     { value: 'Done', label: 'Done' },
@@ -546,30 +779,73 @@ const Tasks = () => {
   const isAnyFilterActive = Boolean(
     selectedYear ||
     selectedMonth ||
-    selectedStatus !== 'all' ||
+    selectedstatus !== 'all' ||
     selectedAssignee !== 'all' ||
     searchQuery.trim() ||
     (selectedCalendarDate && selectedCalendarDate !== formatDateToISO(new Date()))
   );
 
-  return (
-    <div className="task-page-container">
-      {/* Top Page Header */}
-      <div className="task-page-header">
-        <div className="task-header-left">
-          <div className="task-header-icon-badge">
-            <CheckSquareIcon size={24} />
-          </div>
-          <div>
-            <h1 className="task-page-title">Task Management</h1>
+  const renderMetricsCard = (customStyle = {}) => (
+    <div className="task-metrics-card" style={customStyle}>
+      <div className="task-metrics-header">
+        <span className="task-metrics-title">TASKS OVERVIEW</span>
+        <span className="task-metrics-badge">
+          {selectedCalendarDate ? formatLongDate(selectedCalendarDate) : 'All Dates'}
+        </span>
+      </div>
+      <div className="task-metrics-grid" style={customStyle.gridStyle ? customStyle.gridStyle : {}}>
+        <div className="task-metric-box total">
+          <div className="metric-icon-wrap"><CheckSquareIcon size={16} /></div>
+          <div className="metric-info">
+            <span className="metric-label">TOTAL</span>
+            <strong className="metric-val">{metrics.total}</strong>
           </div>
         </div>
+        <div className="task-metric-box done">
+          <div className="metric-icon-wrap"><CheckCircleIcon size={16} /></div>
+          <div className="metric-info">
+            <span className="metric-label">DONE</span>
+            <strong className="metric-val">{metrics.done}</strong>
+          </div>
+        </div>
+        <div className="task-metric-box pending">
+          <div className="metric-icon-wrap"><ClockIcon size={16} /></div>
+          <div className="metric-info">
+            <span className="metric-label">PENDING</span>
+            <strong className="metric-val">{metrics.pending}</strong>
+          </div>
+        </div>
+        <div className="task-metric-box overdue">
+          <div className="metric-icon-wrap"><AlertTriangleIcon size={16} /></div>
+          <div className="metric-info">
+            <span className="metric-label">OVERDUE</span>
+            <strong className="metric-val">{metrics.overdue}</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
+  return (
+    <div className="task-page-container" style={isEmbedded ? { padding: 0 } : {}}>
+      {/* Top Page Header */}
+      {!isEmbedded && (
+      <div className="page-header" style={{ marginBottom: '16px' }}>
+        <h2>Task Management</h2>
         {!isTeam && (
-          <div className="task-header-actions">
+          <div style={{ display: 'flex', gap: '10px' }}>
             <button
               type="button"
-              className="task-primary-btn"
+              className="crm-btn crm-btn-secondary"
+              style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+              onClick={openBulkModal}
+            >
+              Bulk Add
+            </button>
+            <button
+              type="button"
+              className="crm-btn crm-btn-primary"
+              style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
               onClick={openCreateModal}
             >
               <PlusIcon size={16} /> {addButtonLabel}
@@ -577,9 +853,10 @@ const Tasks = () => {
           </div>
         )}
       </div>
+      )}
 
       {/* Role Navigation Tabs */}
-      <div className="task-tabs-row">
+      <div className="task-tabs-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', flexWrap: 'wrap', gap: '15px' }}>
         <div className="custom-pill-tabs">
           {availableTabs.map(tab => (
             <button
@@ -595,6 +872,42 @@ const Tasks = () => {
             </button>
           ))}
         </div>
+
+        {isTeam && (
+          <div style={{ display: 'flex', gap: '15px', alignItems: 'center', marginLeft: '10px' }}>
+            <div className="task-metric-box total" style={{ padding: '8px 12px', minHeight: 'auto', minWidth: '130px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div className="metric-icon-wrap" style={{ width: '32px', height: '32px' }}><CheckSquareIcon size={16} /></div>
+              <div className="metric-info">
+                <span className="metric-label" style={{ fontSize: '11px' }}>TOTAL</span>
+                <strong className="metric-val" style={{ fontSize: '18px' }}>{metrics.total}</strong>
+              </div>
+            </div>
+            
+            <div className="task-metric-box done" style={{ padding: '8px 12px', minHeight: 'auto', minWidth: '130px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div className="metric-icon-wrap" style={{ width: '32px', height: '32px' }}><CheckCircleIcon size={16} /></div>
+              <div className="metric-info">
+                <span className="metric-label" style={{ fontSize: '11px' }}>DONE</span>
+                <strong className="metric-val" style={{ fontSize: '18px' }}>{metrics.done}</strong>
+              </div>
+            </div>
+
+            <div className="task-metric-box pending" style={{ padding: '8px 12px', minHeight: 'auto', minWidth: '130px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div className="metric-icon-wrap" style={{ width: '32px', height: '32px' }}><ClockIcon size={16} /></div>
+              <div className="metric-info">
+                <span className="metric-label" style={{ fontSize: '11px' }}>PENDING</span>
+                <strong className="metric-val" style={{ fontSize: '18px' }}>{metrics.pending}</strong>
+              </div>
+            </div>
+
+            <div className="task-metric-box overdue" style={{ padding: '8px 12px', minHeight: 'auto', minWidth: '130px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div className="metric-icon-wrap" style={{ width: '32px', height: '32px' }}><AlertTriangleIcon size={16} /></div>
+              <div className="metric-info">
+                <span className="metric-label" style={{ fontSize: '11px' }}>OVERDUE</span>
+                <strong className="metric-val" style={{ fontSize: '18px' }}>{metrics.overdue}</strong>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 2-Column Split Layout */}
@@ -657,8 +970,8 @@ const Tasks = () => {
               {/* Status Filter */}
               <div className="filter-item-wrapper" style={{ minWidth: '130px', flex: '1 1 120px' }}>
                 <CustomSelect
-                  value={selectedStatus}
-                  onChange={setSelectedStatus}
+                  value={selectedstatus}
+                  onChange={setSelectedstatus}
                   options={statusFilterOptions}
                   placeholder="All Status"
                 />
@@ -727,9 +1040,7 @@ const Tasks = () => {
           {/* Tasks Table */}
           <div className="custom-task-table-wrap">
             {loading ? (
-              <div style={{ padding: '48px', textAlign: 'center', color: '#64748b' }}>
-                Loading tasks...
-              </div>
+              <div style={{ padding: '48px', textAlign: 'center', color: '#64748b' }}><div className="global-loader-container"><div className="global-spinner"></div><div>Loading tasks...</div></div></div>
             ) : displayedTasks.length === 0 ? (
               <div className="task-empty-state">
                 <div className="task-empty-icon-wrap">
@@ -830,7 +1141,7 @@ const Tasks = () => {
                               >
                                 <EyeIcon size={16} />
                               </button>
-                              <button
+                              {!isTeam && ( <><button
                                 type="button"
                                 className="action-btn edit tbl-icon-btn"
                                 title="Edit Task"
@@ -847,7 +1158,7 @@ const Tasks = () => {
                                 onClick={() => handleDelete(task._id)}
                               >
                                 <TrashIcon size={16} />
-                              </button>
+                              </button></> )}
                             </div>
                           </td>
                         </tr>
@@ -916,7 +1227,7 @@ const Tasks = () => {
                             >
                               <EyeIcon size={14} />
                             </button>
-                            <button
+                            {!isTeam && ( <><button
                               type="button"
                               className="action-btn edit tbl-icon-btn"
                               title="Edit Task"
@@ -931,7 +1242,7 @@ const Tasks = () => {
                               onClick={() => handleDelete(task._id)}
                             >
                               <TrashIcon size={14} />
-                            </button>
+                            </button></> )}
                           </div>
                         </div>
                       </div>
@@ -958,56 +1269,7 @@ const Tasks = () => {
         {/* Right Sidebar Column */}
         <div className="task-side-column">
           {/* Modern 2x2 Overview Metrics Grid */}
-          <div className="task-metrics-card">
-            <div className="task-metrics-header">
-              <span className="task-metrics-title">TASKS OVERVIEW</span>
-              <span className="task-metrics-badge">
-                {selectedCalendarDate ? formatLongDate(selectedCalendarDate) : 'All Dates'}
-              </span>
-            </div>
-
-            <div className="task-metrics-grid">
-              <div className="task-metric-box total">
-                <div className="metric-icon-wrap">
-                  <CheckSquareIcon size={16} />
-                </div>
-                <div className="metric-info">
-                  <span className="metric-label">TOTAL</span>
-                  <strong className="metric-val">{metrics.total}</strong>
-                </div>
-              </div>
-
-              <div className="task-metric-box done">
-                <div className="metric-icon-wrap">
-                  <CheckCircleIcon size={16} />
-                </div>
-                <div className="metric-info">
-                  <span className="metric-label">DONE</span>
-                  <strong className="metric-val">{metrics.done}</strong>
-                </div>
-              </div>
-
-              <div className="task-metric-box pending">
-                <div className="metric-icon-wrap">
-                  <ClockIcon size={16} />
-                </div>
-                <div className="metric-info">
-                  <span className="metric-label">PENDING</span>
-                  <strong className="metric-val">{metrics.pending}</strong>
-                </div>
-              </div>
-
-              <div className="task-metric-box overdue">
-                <div className="metric-icon-wrap">
-                  <AlertTriangleIcon size={16} />
-                </div>
-                <div className="metric-info">
-                  <span className="metric-label">OVERDUE</span>
-                  <strong className="metric-val">{metrics.overdue}</strong>
-                </div>
-              </div>
-            </div>
-          </div>
+          {!isTeam && renderMetricsCard()}
 
           {/* Embedded CALENDAR Widget */}
           <SidebarCalendar
@@ -1069,9 +1331,10 @@ const Tasks = () => {
                 fontSize: '13.5px',
                 lineHeight: 1.6,
                 whiteSpace: 'pre-wrap',
-                minHeight: '100px',
-                maxHeight: '320px',
-                overflowY: 'auto'
+                minHeight: '50px',
+                maxHeight: '200px',
+                overflowY: 'auto',
+                marginBottom: viewingTask.checklistItems && viewingTask.checklistItems.length > 0 ? '14px' : '0'
               }}
             >
               {viewingTask.description && viewingTask.description.trim() ? (
@@ -1083,6 +1346,43 @@ const Tasks = () => {
               )}
             </div>
 
+            {viewingTask.checklistItems && viewingTask.checklistItems.length > 0 && (
+              <div style={{ marginTop: '16px' }}>
+                <label className="compact-field-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  Checklist
+                  <span style={{ fontSize: '11px', fontWeight: 500, color: '#64748b', background: '#f1f5f9', padding: '2px 8px', borderRadius: '10px' }}>
+                    {viewingTask.checklistItems.filter(i => i.isCompleted).length} / {viewingTask.checklistItems.length} Completed
+                  </span>
+                </label>
+                <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px', background: '#fff' }}>
+                  {viewingTask.checklistItems.map((item, idx) => (
+                    <div 
+                      key={idx} 
+                      onClick={() => toggleChecklistItem(viewingTask, idx)}
+                      style={{ 
+                        display: 'flex', alignItems: 'flex-start', gap: '10px', 
+                        padding: '8px 0', borderBottom: idx < viewingTask.checklistItems.length - 1 ? '1px solid #f1f5f9' : 'none',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <div style={{ marginTop: '2px', color: item.isCompleted ? '#10b981' : '#cbd5e1' }}>
+                        {item.isCompleted ? <CheckSquareIcon size={16} /> : <div style={{ width: '14px', height: '14px', border: '1.5px solid #cbd5e1', borderRadius: '3px' }}></div>}
+                      </div>
+                      <div style={{ 
+                        fontSize: '13.5px', 
+                        color: item.isCompleted ? '#94a3b8' : '#334155',
+                        textDecoration: item.isCompleted ? 'line-through' : 'none',
+                        lineHeight: 1.4,
+                        userSelect: 'none'
+                      }}>
+                        {item.text}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="modal-footer" style={{ marginTop: '16px' }}>
               <button
                 type="button"
@@ -1092,6 +1392,167 @@ const Tasks = () => {
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Add Modal */}
+      {showBulkModal && (
+        <div className="modal-overlay" onClick={() => setShowBulkModal(false)}>
+          <div
+            className="modal-content task-modal-compact"
+            onClick={e => e.stopPropagation()}
+            style={{ maxWidth: '520px' }}
+          >
+            <div className="modal-header">
+              <h3 className="modal-title">Bulk Add Task</h3>
+              <button
+                className="modal-close"
+                title="Close"
+                onClick={() => setShowBulkModal(false)}
+              >
+                <XIcon size={20} />
+              </button>
+            </div>
+
+            {message && (
+              <div className="error-message" style={{ margin: '0 20px 15px', padding: '10px', backgroundColor: '#fee2e2', color: '#b91c1c', borderRadius: '4px', fontSize: '13px' }}>
+                {message}
+              </div>
+            )}
+
+            <form onSubmit={handleBulkSubmit}>
+              <div style={{ marginBottom: '10px' }}>
+                <FormInput
+                  label="Task Title"
+                  placeholder="Enter task title"
+                  value={title}
+                  onChange={e => setTitle(e.target.value)}
+                  required
+                />
+              </div>
+
+              {/* Description (Optional) */}
+              <div style={{ marginBottom: '10px' }}>
+                <label className="compact-field-label">Description (Optional)</label>
+                <textarea
+                  className="modal-textarea-input"
+                  rows="2"
+                  placeholder="Enter task details..."
+                  value={description}
+                  onChange={e => setDescription(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    borderRadius: '4px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '14px',
+                    resize: 'vertical'
+                  }}
+                />
+              </div>
+
+              <div className="task-modal-grid">
+                <div>
+                  <label className="compact-field-label">Assign To</label>
+                  <CustomSelect
+                    value={assignedTo}
+                    onChange={setAssignedTo}
+                    options={bulkAssigneeOptions}
+                    placeholder="Select Assignee"
+                    searchable={true}
+                  />
+                </div>
+
+                <div>
+                  <label className="compact-field-label">Priority</label>
+                  <CustomSelect
+                    value={priority}
+                    onChange={setPriority}
+                    options={[
+                      { value: 'Low', label: 'Low' },
+                      { value: 'Medium', label: 'Medium' },
+                      { value: 'High', label: 'High' }
+                    ]}
+                  />
+                </div>
+              </div>
+
+              {/* Date Range Selection */}
+              <div style={{ marginTop: '10px' }}>
+                <label className="compact-field-label">Date Range (Click twice on same date for a single day)</label>
+                <DateRangePicker
+                  startDate={bulkStartDate}
+                  endDate={bulkEndDate}
+                  onChange={({ start, end }) => {
+                    setBulkStartDate(start);
+                    setBulkEndDate(end);
+                  }}
+                  openUp={true}
+                />
+              </div>
+
+              {/* Category & Checklist */}
+              <div className="task-modal-grid" style={{ marginTop: '10px' }}>
+                <div>
+                  <label className="compact-field-label">Category</label>
+                  <CustomSelect
+                    value={category}
+                    onChange={setCategory}
+                    options={[
+                      ...DEFAULT_CATEGORIES.map(c => ({ value: c, label: c })),
+                      { value: 'Checklist', label: 'Checklist' },
+                      { value: 'Custom', label: 'Custom...' }
+                    ]}
+                  />
+                  {category === 'Custom' && (
+                    <div style={{ marginTop: '8px' }}>
+                      <FormInput
+                        placeholder="Enter custom category"
+                        value={customCategory}
+                        onChange={e => setCustomCategory(e.target.value)}
+                        required
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {category === 'Checklist' && (
+                  <div>
+                    <label className="compact-field-label">Checklist Template</label>
+                    <CustomSelect
+                      value={selectedChecklist}
+                      onChange={setSelectedChecklist}
+                      options={[
+                        { value: '', label: 'Select Template' },
+                        ...checklistTemplates.map(t => ({
+                          value: t._id,
+                          label: t.name
+                        }))
+                      ]}
+                      searchable={true}
+                      placeholder="Select Template"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="modal-footer" style={{ marginTop: '20px' }}>
+                <button
+                  type="button"
+                  className="crm-btn crm-btn-secondary"
+                  onClick={() => setShowBulkModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="crm-btn crm-btn-primary"
+                >
+                  Create Bulk Tasks
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -1227,7 +1688,7 @@ const Tasks = () => {
                       : 'Assign To'}
                   </label>
 
-                  {activeTab === 'my' ? (
+                  {activeTab === 'my' && !isEditMode ? (
                     <div className="self-assign-badge">
                       {currentUser.name || 'Myself'} (Myself)
                     </div>
@@ -1260,26 +1721,54 @@ const Tasks = () => {
 
                 <div>
                   <label className="compact-field-label">Due Date</label>
-                  <CalendarPicker
-                    selectedDate={dueDate}
-                    onChange={d => setDueDate(d)}
-                    placeholder="Select Due Date"
-                    allowClear={false}
-                    openUp={true}
-                    disablePastDates={true}
-                    className="w-100"
-                  />
+                  {editingTaskData?.isBulkTask ? (
+                      <DateRangePicker
+                        startDate={bulkEditStartDate}
+                        endDate={bulkEditEndDate}
+                        onChange={({ start, end }) => {
+                          setBulkEditStartDate(start);
+                          setBulkEditEndDate(end);
+                        }}
+                        openUp={true}
+                      />
+                    ) : (
+                      <CalendarPicker
+                        selectedDate={dueDate}
+                        onChange={d => setDueDate(d)}
+                        placeholder="Select Due Date"
+                        allowClear={false}
+                        openUp={true}
+                        disablePastDates={true}
+                        className="w-100"
+                      />
+                    )}
                 </div>
               </div>
 
+              
+              {/* Row: Checklist Template */}
+              <div style={{ marginBottom: '10px' }}>
+                <label className="compact-field-label">Checklist Template (Optional)</label>
+                <CustomSelect
+                  value={selectedChecklist}
+                  onChange={setSelectedChecklist}
+                  options={[
+                    { value: '', label: 'No Checklist' },
+                    ...checklistTemplates.map(t => ({ value: t._id, label: t.title }))
+                  ]}
+                  disabled={isEditMode}
+                />
+                {isEditMode && <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>Checklist cannot be changed once task is created.</p>}
+              </div>
+              
               {/* Status if edit mode */}
               {isEditMode && (
                 <div style={{ marginBottom: '14px' }}>
                   <label className="compact-field-label">Status</label>
                   <CustomSelect
                     value={status}
-                    onChange={setStatus}
-                    options={modalStatusOptions}
+                    onChange={setstatus}
+                    options={modalstatusOptions}
                     placeholder="Select Status"
                   />
                 </div>
@@ -1309,3 +1798,28 @@ const Tasks = () => {
 };
 
 export default Tasks;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
