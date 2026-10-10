@@ -559,26 +559,20 @@ const PatientManagement = () => {
     alert('Message copied to clipboard!');
   };
 
-  const handleWhatsApp = (p) => {
-    if (!p.dateOfBirth) {
-      alert(`Alert: Patient's Date of Birth (DOB) is not added in the system! Please add it first.`);
-      return;
-    }
-    const dob = new Date(p.dateOfBirth);
-    const today = new Date();
-    const isBirthdayToday = dob.getMonth() === today.getMonth() && dob.getDate() === today.getDate();
-    if (!isBirthdayToday) {
-      alert(`Alert: Today is not ${p.fullName}'s birthday! Birthday wish can only be sent on their actual birthday.`);
-      return;
-    }
-    const patientName = p.fullName;
-    const mobileNumber = p.mobileNumber;
-    const msg = generateMessage(patientName);
+    const handleBirthdayWhatsApp = (p) => {
+    if (!p.mobileNumber) return;
+    let phone = p.mobileNumber.replace(/\D/g, '');
+    if (phone.length === 10) phone = '91' + phone; 
+    const msg = generateMessage(p.fullName);
     const encoded = encodeURIComponent(msg);
-    // Remove any non-digit characters from the mobile number and prefix with country code if missing
-    let phone = mobileNumber.replace(/\D/g, '');
-    if (phone.length === 10) phone = '91' + phone; // assuming India by default
     window.open(`https://wa.me/${phone}?text=${encoded}`, '_blank');
+  };
+
+  const handleWhatsApp = (p) => {
+    if (!p.mobileNumber) return;
+    let phone = p.mobileNumber.replace(/\D/g, '');
+    if (phone.length === 10) phone = '91' + phone; 
+    window.open(`https://wa.me/${phone}`, '_blank');
   };
 
   const [historyModal, setHistoryModal] = useState({ show: false, patient: null, appointments: [], loading: false });
@@ -646,20 +640,26 @@ const PatientManagement = () => {
         </div>
         <div className="patient-filter-selects" style={{ display: 'flex', flexWrap: 'nowrap', gap: '10px', alignItems: 'center', flexShrink: 0 }}>
             <button 
-              type="button"
-              onClick={() => setShowOnlyBirthdays(!showOnlyBirthdays)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '6px',
-                padding: '0 12px', height: '36px', borderRadius: '6px',
-                border: showOnlyBirthdays ? '1px solid #0284c7' : '1px solid #e2e8f0',
-                background: showOnlyBirthdays ? '#e0f2fe' : '#ffffff',
-                color: showOnlyBirthdays ? '#0284c7' : '#475569',
-                fontWeight: 600, fontSize: '13px', cursor: 'pointer',
-                transition: 'all 0.2s', whiteSpace: 'nowrap'
-              }}
-            >
-              Today's Birthdays
-            </button>
+                type="button"
+                className="btn-primary"
+                onClick={() => {
+                  if (todayBirthdays.length > 0) {
+                    setShowBirthdayModal(true);
+                  } else {
+                    alert('No birthdays today!');
+                  }
+                }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  padding: '0 12px', height: '36px', borderRadius: '6px',
+                  background: '#25d366', borderColor: '#25d366',
+                  color: '#ffffff',
+                  fontWeight: 600, fontSize: '13px', cursor: 'pointer',
+                  transition: 'all 0.2s', whiteSpace: 'nowrap'
+                }}
+              >
+                + Msg Today Birthdays
+              </button>
             <div style={{ minWidth: '140px' }}>
              <CustomSelect
                value={dateFilterMode}
@@ -1299,9 +1299,9 @@ const PatientManagement = () => {
                     </button>
                     {p.mobileNumber && (
                       <button 
-                        onClick={() => handleWhatsApp(p)}
-                        style={{ 
-                          display: 'flex', alignItems: 'center', gap: '6px',
+                        onClick={() => handleBirthdayWhatsApp(p)}
+                          style={{ 
+                            display: 'flex', alignItems: 'center', gap: '6px',
                           background: '#25D366', border: 'none', color: '#ffffff', 
                           padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', 
                           fontSize: '13px', fontWeight: 600, boxShadow: '0 2px 4px rgba(37, 211, 102, 0.2)',

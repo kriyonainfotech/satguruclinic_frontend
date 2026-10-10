@@ -1,3 +1,4 @@
+import axios from 'axios';
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { CheckSquareIcon,
@@ -30,6 +31,22 @@ const Layout = ({ children }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarHidden, setIsSidebarHidden] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [myPerfScore, setMyPerfScore] = useState(null);
+
+  useEffect(() => {
+    if (user.role === 'team') {
+        const token = localStorage.getItem('token');
+        axios.get(`${import.meta.env.VITE_API_BASE_URL}/auth/users/team`, { headers: { Authorization: `Bearer ${token}` } })
+            .then(res => {
+                const me = res.data.find(u => u._id === user.userId || u._id === user._id || u.email === user.email);
+                if (me && me.performanceScore !== undefined) {
+                    setMyPerfScore(me.performanceScore);
+                }
+            })
+            .catch(err => console.log(err));
+    }
+  }, []);
+
   const mainContentRef = useRef(null);
 
   const profileMenuRef = useRef(null);
@@ -55,6 +72,10 @@ const Layout = ({ children }) => {
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
   }, [location.pathname, location.search]);
+
+  
+  const perfColor = myPerfScore === null || myPerfScore === undefined ? 'transparent' : (myPerfScore <= 80 ? '#ef4444' : myPerfScore <= 90 ? '#eab308' : '#22c55e');
+  const borderStyle = { border: `3px solid ${perfColor}` };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -267,6 +288,15 @@ const Layout = ({ children }) => {
               </Link>
             </li>
           )}
+
+          {user.role === 'superadmin' && (
+            <li className={location.pathname === '/superadmin/home-expense' ? 'active' : ''} onClick={closeMobileMenu}>
+              <Link to="/superadmin/home-expense">
+                <BanknoteIcon size={14} />
+                <span>Home Expense</span>
+              </Link>
+            </li>
+          )}
           
           {user.role === 'superadmin' && (
             <li className={location.pathname === '/website-settings' ? 'active' : ''} onClick={closeMobileMenu}>
@@ -281,7 +311,7 @@ const Layout = ({ children }) => {
         {/* Niche logout button ke sath team ya admin member ka name */}
         <div className="sidebar-footer">
           <div className="sidebar-user-card">
-            <div className="sidebar-avatar">
+            <div className="sidebar-avatar" style={borderStyle}>
               {(user.name || user.role || 'U').charAt(0).toUpperCase()}
             </div>
             <div className="sidebar-user-details">
@@ -309,7 +339,7 @@ const Layout = ({ children }) => {
           </div>
           <div className="topbar-right">
             <div className="profile-menu-container" ref={profileMenuRef}>
-              <div className="profile-avatar-btn" onClick={() => setIsProfileOpen(!isProfileOpen)}>
+              <div className="profile-avatar-btn" onClick={() => setIsProfileOpen(!isProfileOpen)} style={borderStyle}>
                 {(user.name || user.role || 'U').charAt(0).toUpperCase()}
               </div>
               {isProfileOpen && (

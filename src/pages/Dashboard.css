@@ -3,7 +3,7 @@
    ========================================================================== */
 
 .dashboard-page-container {
-  padding: 24px;
+  padding: 16px;
   background: #f8fafc;
   min-height: calc(100vh - 64px);
   box-sizing: border-box;
@@ -31,8 +31,7 @@
 }
 
 .dashboard-welcome-avatar {
-  width: 48px;
-  height: 48px;
+  width: 38px; height: 38px;
   border-radius: 12px;
   background: linear-gradient(135deg, #144b79 0%, #1e3a8a 100%);
   color: #ffffff;
@@ -670,74 +669,35 @@
   gap: 20px;
 }
 
-.sa-financials-row {
-  display: flex;
-  gap: 20px;
-}
+
 
 @media (max-width: 768px) {
-  .sa-financials-row {
-    flex-direction: column;
-  }
+  
 }
 
-.sa-fin-card {
-  flex: 1;
-  background: white;
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-  border: 1px solid #eef2f6;
-}
 
-.sa-fin-card h3 {
-  font-size: 0.95rem;
-  color: #64748b;
-  margin: 0 0 10px 0;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
 
-.sa-fin-card p {
-  font-size: 1.8rem;
-  font-weight: 700;
-  color: #1e293b;
-  margin: 0;
-}
 
-.sa-stats-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-}
+
+
+
+
 
 @media (max-width: 768px) {
-  .sa-stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
+  
 }
 
-.sa-stat-card {
-  background: white;
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-  border: 1px solid #eef2f6;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
+
 
 .sa-stat-val {
-  font-size: 2rem;
+  font-size: 1.5rem;
   font-weight: 700;
   color: var(--primary-color, #144b79);
   margin-bottom: 5px;
 }
 
 .sa-stat-label {
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   color: #64748b;
   text-transform: uppercase;
 }
@@ -758,42 +718,272 @@
   padding-bottom: 10px;
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.sa-graph-wrapper {
+  width: 100%;
+  height: 300px;
+  margin-top: 20px;
+}
+
+.sa-main-content {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sa-sidebar {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+
+
+@media (max-width: 768px) {
+  
+}
+
+
+
+
+
+
+
+
+
+@media (max-width: 768px) {
+  
+}
+
+
+
+.sa-stat-val {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--primary-color, #144b79);
+  margin-bottom: 5px;
+}
+
+.sa-stat-label {
+  font-size: 0.8rem;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.sa-rituals-card, .sa-graph-card {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  border: 1px solid #eef2f6;
+}
+
+.sa-rituals-card h3, .sa-graph-card h3 {
+  margin: 0 0 15px 0;
+  font-size: 1.1rem;
+  color: #1e293b;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 10px;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.sa-graph-wrapper {
+  margin-top: 15px;
+}
+
+
 .sa-rituals-list {
   list-style: none;
   padding: 0;
   margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
-
 .sa-rituals-list li {
   display: flex;
   justify-content: space-between;
-  padding: 12px 0;
-  border-bottom: 1px solid #f1f5f9;
+  align-items: center;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  transition: all 0.2s;
+  border-left: 4px solid #3b82f6; /* default blue */
 }
-
-.sa-rituals-list li:last-child {
-  border-bottom: none;
+.sa-rituals-list li:hover {
+  background: white;
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.02);
 }
-
+.sa-rituals-list li.pending {
+  border-left-color: #f59e0b; /* Orange for pending */
+}
+.sa-rituals-list li.completed {
+  border-left-color: #10b981; /* Green for completed */
+  opacity: 0.8;
+}
 .sa-rituals-list li.completed .ritual-name {
-  color: #10b981;
+  color: #64748b;
   text-decoration: line-through;
 }
-
 .sa-rituals-list li.pending .ritual-name {
-  color: #f59e0b;
+  color: #1e293b;
 }
-
 .ritual-name {
-  font-weight: 500;
-  color: #334155;
+  font-weight: 600;
+  font-size: 14px;
+  color: #1e293b;
+  flex: 1;
 }
-
 .ritual-time {
-  font-size: 0.85rem;
-  color: #94a3b8;
+  font-size: 12px;
+  color: #475569;
+  background: #e2e8f0;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  margin-left: 10px;
 }
 
-.sa-graph-wrapper {
-  margin-top: 15px;
+
+.sa-financials-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  margin-bottom: 25px;
+}
+
+.sa-fin-card {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  border-radius: 16px;
+  background: white;
+  border: 1px solid #f1f5f9;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.sa-fin-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+  border-color: #cbd5e1;
+}
+
+.fin-card-icon {
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 20px;
+}
+
+.fin-icon-blue { background: #eff6ff; color: #3b82f6; }
+.fin-icon-orange { background: #fffbeb; color: #f59e0b; }
+.fin-icon-green { background: #f0fdf4; color: #10b981; }
+.fin-icon-purple { background: #f5f3ff; color: #8b5cf6; }
+
+.fin-card-content h3 {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 8px 0;
+  color: #64748b;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.fin-card-content p {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.1;
+  color: #1e293b;
+}
+
+.sa-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-bottom: 25px;
+}
+
+.sa-stat-card {
+  background: white;
+  padding: 16px 12px;
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  border: 1px solid #f1f5f9;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.sa-stat-card:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+  border-color: #cbd5e1;
+}
+
+.stat-icon-wrapper {
+  background: #f8fafc;
+  width: 38px; height: 38px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.sa-stat-val {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.sa-stat-label {
+  font-size: 0.8rem;
+  color: #64748b;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }

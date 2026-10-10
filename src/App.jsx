@@ -26,6 +26,7 @@ import HolidaysEvents from './pages/HolidaysEvents';
 import Payments from './pages/Payments';
 import PaymentQR from './pages/PaymentQR';
 import ScheduleManagement from './pages/ScheduleManagement';
+import HomeExpense from './pages/HomeExpense';
 import Layout from './components/Layout';
 import './App.css';
 
@@ -36,7 +37,7 @@ function ScrollToTop() {
     window.scrollTo(0, 0);
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
-    const mainEl = document.querySelector('.main-content');
+    const mainEl = document.querySelector('.page-content-wrapper');
     if (mainEl) {
       mainEl.scrollTop = 0;
       mainEl.scrollLeft = 0;
@@ -191,6 +192,7 @@ function App() {
           ) : <Navigate to="/login" />
         } />
         <Route path="/holidays" element={isAuthenticated ? <Layout><HolidaysEvents /></Layout> : <Navigate to="/login" />} />
+        <Route path="/superadmin/home-expense" element={isAuthenticated ? (user.role === 'superadmin' ? <Layout><HomeExpense /></Layout> : <Navigate to="/" replace />) : <Navigate to="/login" />} />
       </Routes>
     </Router>
   );

@@ -279,7 +279,7 @@ const TeamManagement = () => {
                     <tr key={member._id}>
                       <td>
                         <div className="tbl-user-cell">
-                          <div className="tbl-user-avatar">
+                          <div className="tbl-user-avatar" style={{ border: `3px solid ${member.performanceScore !== undefined ? (member.performanceScore <= 80 ? '#ef4444' : member.performanceScore <= 90 ? '#eab308' : '#22c55e') : 'transparent'}` }}>
                             {member.name ? member.name.charAt(0).toUpperCase() : 'U'}
                           </div>
                           <div className="tbl-user-info">
@@ -359,7 +359,7 @@ const TeamManagement = () => {
                 {/* Top: Avatar + Name + Role */}
                 <div className="tm-card-top">
                   <div className="tm-card-user-row">
-                    <div className="tm-avatar">{member.name.charAt(0).toUpperCase()}</div>
+                    <div className="tm-avatar" style={{ border: `3px solid ${member.performanceScore !== undefined ? (member.performanceScore <= 80 ? '#ef4444' : member.performanceScore <= 90 ? '#eab308' : '#22c55e') : 'transparent'}` }}>{member.name.charAt(0).toUpperCase()}</div>
                     <div className="tm-card-info">
                       <span className="tm-name">{member.name}</span>
                       {member.category && (
@@ -623,5 +623,6 @@ const TeamManagement = () => {
 };
 
 export default TeamManagement;
+
 
 

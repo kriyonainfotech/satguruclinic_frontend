@@ -21,11 +21,16 @@ const Leads = () => {
   const [loading, setLoading] = useState(true);
   const [editingLeadId, setEditingLeadId] = useState(null);
   const [selectedLeadForFollowup, setSelectedLeadForFollowup] = useState(null);
+  const [showBirthdayModal, setShowBirthdayModal] = useState(false);
+  const [todayBirthdayList, setTodayBirthdayList] = useState([]);
 
   const initialFormState = {
+    date: moment().format('YYYY-MM-DD'),
+    nextFollowUp: '',
     fullName: '',
     email: '',
     mobile: '',
+    birthdate: '',
     status: 'New',
     source: 'Reference',
     assignedTo: ''
@@ -34,6 +39,7 @@ const Leads = () => {
   const initialFollowupState = {
     type: 'Phone',
     date: moment().format('YYYY-MM-DD'),
+    nextFollowUp: '',
     time: moment().format('HH:mm'),
     nextFollowUpDate: '',
     remarks: ''
@@ -104,12 +110,27 @@ const Leads = () => {
     setIsModalOpen(true);
   };
 
+  
+  const handleMessageTodayBirthdays = () => {
+    const today = moment().format('MM-DD');
+    const bdays = leads.filter(lead => lead.birthdate && moment(lead.birthdate).format('MM-DD') === today);
+    if (bdays.length === 0) {
+      alert("No birthdays today.");
+      return;
+    }
+    setTodayBirthdayList(bdays);
+    setShowBirthdayModal(true);
+  };
+
   const handleEdit = (lead) => {
     setEditingLeadId(lead._id);
     setFormData({
+      date: lead.date ? moment(lead.date).format('YYYY-MM-DD') : moment(lead.date || lead.createdAt).format('YYYY-MM-DD'),
+      nextFollowUp: lead.nextFollowUp ? moment(lead.nextFollowUp).format('YYYY-MM-DD') : '',
       fullName: lead.fullName || '',
       email: lead.email || '',
       mobile: lead.mobile || '',
+        birthdate: lead.birthdate ? moment(lead.birthdate).format('YYYY-MM-DD') : '',
       status: lead.status || 'New',
       source: lead.source || 'Reference',
       assignedTo: lead.assignedTo?._id || ''
@@ -152,6 +173,8 @@ const Leads = () => {
     }
     try {
       const payload = { ...formData };
+      if (!payload.nextFollowUp) { payload.nextFollowUp = null; }
+        if (!payload.birthdate) { payload.birthdate = null; }
       if (!payload.assignedTo) {
         payload.assignedTo = null;
       }
@@ -217,7 +240,7 @@ const Leads = () => {
     
     let matchDate = true;
     if (dateFilter) {
-      matchDate = moment(lead.createdAt).format('YYYY-MM-DD') === dateFilter;
+      matchDate = moment(lead.date || lead.createdAt).format('YYYY-MM-DD') === dateFilter;
     }
     
     return matchesSearch && matchesStatus && matchDate;
@@ -387,6 +410,15 @@ const Leads = () => {
                 placeholder="Filter by Date"
               />
             </div>
+          <button 
+            type="button" 
+            onClick={handleMessageTodayBirthdays} 
+            className="btn-primary" 
+            style={{ marginLeft: '10px', background: '#25d366', borderColor: '#25d366' }}
+            title="Message Today's Birthdays"
+          >
+            <SparkleIcon size={14} /> Msg Today Birthdays
+          </button>
           </div>
       </div>
 
@@ -459,7 +491,7 @@ const Leads = () => {
                   <td data-label="ASSIGNED BY">
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       <span style={{ fontSize: '13px', color: '#0f172a', fontWeight: '500' }}>{lead.createdBy?.name || 'System'}</span>
-                      <span style={{ fontSize: '11px', color: '#64748b' }}>{moment(lead.createdAt).format('DD/MM/YYYY')}</span>
+                      <span style={{ fontSize: '11px', color: '#64748b' }}>{moment(lead.date || lead.createdAt).format('DD/MM/YYYY')}</span>
                     </div>
                   </td>
                   <td data-label="NEXT FOLLOW-UP">
@@ -476,7 +508,12 @@ const Leads = () => {
                       <button className="icon-btn" onClick={() => handleEdit(lead)} title="Edit">
                         <EditIcon size={16} />
                       </button>
-                      <button className="icon-btn" style={{ color: '#ef4444' }} onClick={() => handleDelete(lead._id)} title="Delete">
+                      <button className="icon-btn" style={{ color: '#10b981' }} onClick={() => {
+                          window.open(`https://wa.me/91${lead.mobile}`, '_blank');
+                        }} title="Send WhatsApp Message">
+                          <PhoneIcon size={16} />
+                        </button>
+                        <button className="icon-btn" style={{ color: '#ef4444' }} onClick={() => handleDelete(lead._id)} title="Delete">
                         <TrashIcon size={16} />
                       </button>
                       <button className="btn-followup" onClick={() => openFollowupModal(lead)}>
@@ -494,39 +531,59 @@ const Leads = () => {
             )}
           </tbody>
         </table>
-        </div>
-        {totalPages > 1 && (
-          <div className="pagination-container">
-            <span className="pagination-info">Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredLeads.length)} of {filteredLeads.length} leads</span>
-            <div className="pagination-controls">
-              <button 
-                className="page-btn" 
-                disabled={currentPage === 1} 
-                onClick={() => setCurrentPage(prev => prev - 1)}
-              >
-                Previous
-              </button>
-              <span className="page-current">{currentPage}</span>
-              <button 
-                className="page-btn" 
-                disabled={currentPage === totalPages} 
-                onClick={() => setCurrentPage(prev => prev + 1)}
-              >
-                Next
-              </button>
+          {filteredLeads.length > 0 && (
+            <div className="pagination-container">
+              <span className="pagination-info">Showing {indexOfFirstItem + 1} - {Math.min(indexOfLastItem, filteredLeads.length)} of {filteredLeads.length} leads</span>
+              <div className="pagination-controls">
+                <button 
+                  className="page-btn" 
+                  disabled={currentPage === 1} 
+                  onClick={() => setCurrentPage(prev => prev - 1)}
+                >
+                  &lt;
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(num => (
+                  <button 
+                    key={num} 
+                    className={`page-num-btn ${currentPage === num ? 'active' : ''}`}
+                    onClick={() => setCurrentPage(num)}
+                  >
+                    {num}
+                  </button>
+                ))}
+                <button 
+                  className="page-btn" 
+                  disabled={currentPage === totalPages || totalPages === 0} 
+                  onClick={() => setCurrentPage(prev => prev + 1)}
+                >
+                  &gt;
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
+
+        
 
 
       {isModalOpen && (
         <div className="modal-overlay">
-          <div className="modal-content">
+          <div className="modal-content" style={{ maxWidth: '600px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <h2 style={{ color: '#0f172a', margin: 0, fontSize: '20px' }}>{editingLeadId ? 'Edit Lead' : 'Create New Lead'}</h2>
               <button className="icon-btn" onClick={() => setIsModalOpen(false)}>✕</button>
             </div>
             <form onSubmit={handleSubmit}>
+              <div style={{ display: "flex", gap: "16px", marginBottom: "16px" }}>
+                <div className="form-group" style={{ flex: 1, margin: 0 }}>
+                  <label>Date *</label>
+                  <CalendarPicker selectedDate={formData.date} onChange={(val) => setFormData({ ...formData, date: val })} placeholder="Select Date" />
+                </div>
+                <div className="form-group" style={{ flex: 1, margin: 0 }}>
+                  <label>Next Follow-Up Date</label>
+                  <CalendarPicker selectedDate={formData.nextFollowUp} onChange={(val) => setFormData({ ...formData, nextFollowUp: val })} placeholder="Select Next Follow-Up Date" />
+                </div>
+              </div>
               <div className="form-group">
                 <label>Full Name *</label>
                 <input 
@@ -543,6 +600,11 @@ const Leads = () => {
                   placeholder="Enter email"
                 />
               </div>
+              
+              <div className="form-group">
+                <label>Birth Date</label>
+                <CalendarPicker selectedDate={formData.birthdate} onChange={(val) => setFormData({ ...formData, birthdate: val })} placeholder="Select Birth Date" />
+              </div>
               <div className="form-group">
                 <label>Mobile Number *</label>
                 <input 
@@ -552,6 +614,7 @@ const Leads = () => {
                   placeholder="Enter 10-digit mobile number"
                 />
               </div>
+              
               <div className="form-group">
                 <label>Status</label>
                 <CustomSelect
@@ -652,9 +715,44 @@ const Leads = () => {
           </div>
         </div>
       )}
+
+      {showBirthdayModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '500px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ color: '#0f172a', margin: 0, fontSize: '20px' }}>Today's Birthdays</h2>
+              <button className="icon-btn" onClick={() => setShowBirthdayModal(false)}>✕</button>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', maxHeight: '400px', overflowY: 'auto' }}>
+              {todayBirthdayList.map(lead => (
+                <div key={lead._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <div>
+                    <div style={{ fontWeight: '600', color: '#1e293b' }}>{lead.fullName}</div>
+                    <div style={{ fontSize: '13px', color: '#64748b' }}>{lead.mobile}</div>
+                  </div>
+                  <button 
+                    className="btn-primary" 
+                    style={{ background: '#25d366', borderColor: '#25d366', padding: '6px 12px', fontSize: '13px' }}
+                    onClick={() => {
+                      const message = encodeURIComponent(`Dear ${lead.fullName},\n\nWishing you a very Happy Birthday! \uD83C\uDF89\uD83C\uDF82\n\nOn your special day, we pray for your excellent health, boundless energy, and lifelong happiness. May this coming year bring you peace of mind and a fit, healthy body. \n\nWarmest regards,\nThe Team at Satguru Clinic \uD83C\uDFE5\u2728`);
+                      window.open(`https://wa.me/91${lead.mobile}?text=${message}`, '_blank');
+                    }}
+                  >
+                    <PhoneIcon size={14} style={{ marginRight: '4px' }} /> Send Wish
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 export default Leads;
+
+
+
 

@@ -297,7 +297,7 @@ const Payroll = () => {
                             {/* Employee Info */}
                             <td>
                               <div className="emp-info-wrap">
-                                <div className="emp-avatar-badge">
+                                <div className="emp-avatar-badge" style={{ border: `3px solid ${record.user.performanceScore !== undefined ? (record.user.performanceScore <= 80 ? '#ef4444' : record.user.performanceScore <= 90 ? '#eab308' : '#22c55e') : 'transparent'}` }}>
                                   {record.user.name.trim().charAt(0).toUpperCase()}
                                 </div>
                                 <div>
@@ -397,7 +397,7 @@ const Payroll = () => {
                   {groupedData[group].map((record) => (
                     <div key={record.user._id} className="payroll-mobile-card">
                       <div className="payroll-mobile-header">
-                        <div className="emp-avatar-badge">
+                        <div className="emp-avatar-badge" style={{ border: `3px solid ${record.user.performanceScore !== undefined ? (record.user.performanceScore <= 80 ? '#ef4444' : record.user.performanceScore <= 90 ? '#eab308' : '#22c55e') : 'transparent'}` }}>
                           {record.user.name.trim().charAt(0).toUpperCase()}
                         </div>
                         <div style={{ minWidth: 0, flex: 1 }}>
