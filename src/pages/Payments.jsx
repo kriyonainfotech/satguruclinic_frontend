@@ -154,9 +154,28 @@ const Payments = () => {
         if (!token) return;
         const config = { headers: { Authorization: `Bearer ${token}` } };
         
-        // Fetch patients
-        const patientsRes = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/patients`, config);
-        // Map to standard format for our UI
+        
+        // --- START PARALLEL FETCH ---
+        const [
+          patientsRes,
+          servicesRes,
+          packagesRes,
+          medsRes,
+          settingsRes,
+          invoicesRes,
+          collectionsRes,
+          expensesRes
+        ] = await Promise.all([
+          axios.get(`${import.meta.env.VITE_API_BASE_URL}/patients`, config),
+          axios.get(`${import.meta.env.VITE_API_BASE_URL}/services`, config),
+          axios.get(`${import.meta.env.VITE_API_BASE_URL}/packages`, config),
+          axios.get(`${import.meta.env.VITE_API_BASE_URL}/medicines`, config),
+          axios.get(`${import.meta.env.VITE_API_BASE_URL}/settings`, config),
+          axios.get(`${import.meta.env.VITE_API_BASE_URL}/invoices`, config),
+          axios.get(`${import.meta.env.VITE_API_BASE_URL}/collections`, config),
+          axios.get(`${import.meta.env.VITE_API_BASE_URL}/expenses`, config)
+        ]);
+
         const loadedPatients = (patientsRes.data || []).map(p => ({
           id: p._id,
           mobile: p.mobileNumber || '',
@@ -164,25 +183,17 @@ const Payments = () => {
         }));
         setPatientsList(loadedPatients);
 
-        // Fetch services & packages
-        const servicesRes = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/services`, config);
-        const packagesRes = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/packages`, config);
-        
         const loadedServices = (servicesRes.data || []).map(s => ({ id: s._id, name: s.name || '', price: s.price || 0 }));
         setServicesList(loadedServices);
         
         const loadedPackages = (packagesRes.data || []).map(p => ({ id: p._id, name: p.name || '', price: p.totalPrice || 0 }));
         setAllPackages(loadedPackages);
         
-        const medsRes = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/medicines`, config);
         const loadedMedicines = (medsRes.data || []).map(m => ({ id: m._id, name: m.name || '', price: m.price || 0 }));
         setAllMedicines(loadedMedicines);
         
-        const settingsRes = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/settings`, config);
         setConsultationFeeAmount(settingsRes.data?.consultationFee || 0);
 
-        // Fetch Invoices
-        const invoicesRes = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/invoices`, config);
         const mappedInvoices = (invoicesRes.data || []).map(inv => ({
           id: inv._id,
           date: inv.date,
@@ -196,13 +207,10 @@ const Payments = () => {
         }));
         setInvoices(mappedInvoices);
 
-        // Fetch Collections
-        const collectionsRes = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/collections`, config);
         setCollections(collectionsRes.data || []);
-
-        // Fetch Expenses
-        const expensesRes = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/expenses`, config);
         setExpenses(expensesRes.data || []);
+        // --- END PARALLEL FETCH ---
+
 
       } catch (err) {
         console.error("Error fetching data for payments:", err);
