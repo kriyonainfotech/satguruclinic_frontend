@@ -43,14 +43,10 @@ const ScheduleManagement = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       setIsSynced(res.data.isSynced);
-      if (res.data.isSynced) {
-        fetchEvents();
-      } else {
-        setLoading(false);
-      }
+      fetchEvents();
     } catch (err) {
       console.error(err);
-      setLoading(false);
+      fetchEvents();
     }
   };
 
