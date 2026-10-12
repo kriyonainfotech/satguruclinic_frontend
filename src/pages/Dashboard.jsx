@@ -10,16 +10,18 @@ import {
   PhoneCallIcon, 
   ClipboardListIcon, 
   BookmarkIcon, 
-  HeartPulseIcon,
-  CheckCircleIcon,
-  BanknoteIcon,
-  WalletIcon,
-  CreditCardIcon,
-  PackageIcon,
-  UsersIcon,
-  UserCheckIcon,
-  ShieldCheckIcon
+  HeartPulseIcon, 
+  CheckCircleIcon, 
+  BanknoteIcon, 
+  WalletIcon, 
+  CreditCardIcon, 
+  PackageIcon, 
+  UsersIcon, 
+  UserCheckIcon, 
+  ShieldCheckIcon,
+  CameraIcon
 } from '../components/Icons';
+import ClockInCameraModal from '../components/ClockInCameraModal';
 import './Dashboard.css';
 
 const formatTime12HourStr = (time24) => {
@@ -40,6 +42,11 @@ const Dashboard = () => {
   const [todayBirthdays, setTodayBirthdays] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [saData, setSaData] = useState(null);
+
+  // Camera modal state for live photo verification during clock-in
+  const [cameraModal, setCameraModal] = useState({ isOpen: false, shiftIndex: 0, shiftName: '' });
+  const [isSubmittingClockIn, setIsSubmittingClockIn] = useState(false);
+  const [previewPhoto, setPreviewPhoto] = useState(null);
 
   useEffect(() => {
     if (user.role === 'superadmin') {
@@ -138,18 +145,61 @@ const Dashboard = () => {
     }
   };
 
-  const handleClockIn = async (shiftIndex = 0) => {
+  // Helper to detect if user is on mobile
+  const isMobileDevice = () => {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+  };
+
+  // Clock in handler - opens camera modal on mobile, or clocks in directly on computer/desktop
+  const handleClockInClick = async (shiftIndex = 0, shiftLabel = 'Duty') => {
+    if (isMobileDevice()) {
+      // On mobile devices, require live photo capture
+      setCameraModal({
+        isOpen: true,
+        shiftIndex,
+        shiftName: shiftLabel
+      });
+    } else {
+      // On computer / desktop, clock in directly without photo
+      setLoadingAction(true);
+      try {
+        const token = localStorage.getItem('token');
+        await axios.post(`${import.meta.env.VITE_API_BASE_URL}/attendance/clock-in`, {
+          shiftIndex,
+          isMobile: false
+        }, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        fetchTodayAttendance();
+      } catch (error) {
+        alert(error.response?.data?.message || 'Error clocking in');
+      } finally {
+        setLoadingAction(false);
+      }
+    }
+  };
+
+  // Submits clock-in with live captured photo (for mobile)
+  const handleClockInWithPhoto = async (photo) => {
+    setIsSubmittingClockIn(true);
     setLoadingAction(true);
     try {
       const token = localStorage.getItem('token');
-      await axios.post(`${import.meta.env.VITE_API_BASE_URL}/attendance/clock-in`, { shiftIndex }, {
+      await axios.post(`${import.meta.env.VITE_API_BASE_URL}/attendance/clock-in`, {
+        shiftIndex: cameraModal.shiftIndex,
+        photo,
+        isMobile: true
+      }, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      setCameraModal({ isOpen: false, shiftIndex: 0, shiftName: '' });
       fetchTodayAttendance();
     } catch (error) {
       alert(error.response?.data?.message || 'Error clocking in');
+    } finally {
+      setIsSubmittingClockIn(false);
+      setLoadingAction(false);
     }
-    setLoadingAction(false);
   };
 
   const handleClockOut = async (shiftIndex = 0) => {
@@ -412,7 +462,7 @@ const Dashboard = () => {
                 ) : userShifts.map((shift, idx) => {
                   const shiftRecord = attendance?.shifts?.find(s => s.shiftIndex === idx) || 
                     (idx === 0 && (!attendance?.shifts || attendance?.shifts?.length === 0) && attendance?.clockIn 
-                      ? { clockIn: attendance.clockIn, clockOut: attendance.clockOut } 
+                      ? { clockIn: attendance.clockIn, clockOut: attendance.clockOut, photo: attendance.photo } 
                       : null);
                   
                   const isShiftClockedIn = shiftRecord && shiftRecord.clockIn && !shiftRecord.clockOut;
@@ -509,6 +559,32 @@ const Dashboard = () => {
                             {lockNotice}
                           </p>
                         )}
+
+                        {/* Verified Live Clock-in Photo badge */}
+                        {shiftRecord?.photo && (
+                          <div 
+                            onClick={() => setPreviewPhoto(shiftRecord.photo)}
+                            title="Click to view verified clock-in selfie"
+                            style={{ 
+                              display: 'inline-flex', 
+                              alignItems: 'center', 
+                              gap: '6px', 
+                              cursor: 'pointer', 
+                              marginTop: '6px',
+                              background: '#ecfdf5',
+                              padding: '2px 8px',
+                              borderRadius: '20px',
+                              border: '1px solid #a7f3d0'
+                            }}
+                          >
+                            <img 
+                              src={shiftRecord.photo} 
+                              alt="Selfie" 
+                              style={{ width: '18px', height: '18px', borderRadius: '50%', objectFit: 'cover' }} 
+                            />
+                            <span style={{ fontSize: '11px', color: '#059669', fontWeight: 600 }}>Verified Photo</span>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -516,12 +592,12 @@ const Dashboard = () => {
                       {!isShiftClockedIn && !hasShiftClockedOut && (
                         <button 
                           type="button"
-                          onClick={() => handleClockIn(idx)} 
+                          onClick={() => handleClockInClick(idx, shiftLabel)} 
                           disabled={loadingAction || !canClockIn} 
                           className="btn-clock-in"
-                          title={hasShiftEnded ? endNotice : (!canClockIn ? lockNotice : 'Clock In for this shift')}
+                          title={hasShiftEnded ? endNotice : (!canClockIn ? lockNotice : 'Click to take live photo and Clock In')}
                         >
-                          <ClockIcon size={14} />
+                          <CameraIcon size={14} />
                           <span>{hasShiftEnded ? 'Shift Ended' : (canClockIn ? 'Clock In' : 'Opens 5m before')}</span>
                         </button>
                       )}
@@ -641,38 +717,102 @@ const Dashboard = () => {
         </div>
       </div>
     )}
-{/* My 6 Month Performance Graph */}
-        {user.role === 'team' && (
-          <div className="dashboard-section" style={{ marginTop: '20px' }}>
-            <div className="section-title-wrap">
-              <h2 className="section-heading">My 6-Month Performance</h2>
+
+    {/* My 6 Month Performance Graph */}
+    {user.role === 'team' && (
+      <div className="dashboard-section" style={{ marginTop: '20px' }}>
+        <div className="section-title-wrap">
+          <h2 className="section-heading">My 6-Month Performance</h2>
+        </div>
+        <div className="sa-graph-wrapper" style={{ background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', marginTop: '10px' }}>
+          {teamPerfData && teamPerfData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={teamPerfData} barSize={10} barGap={4}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="attendance" name="Attendance (%)" fill="#4285F4" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="punctuality" name="Punctuality (%)" fill="#9b59b6" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="tasks" name="Tasks Completed (%)" fill="#0f9d58" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: '#94a3b8' }}>
+              Loading graph...
             </div>
-            <div className="sa-graph-wrapper" style={{ background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', marginTop: '10px' }}>
-              {teamPerfData && teamPerfData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={teamPerfData} barSize={10} barGap={4}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="attendance" name="Attendance (%)" fill="#4285F4" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="punctuality" name="Punctuality (%)" fill="#9b59b6" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="tasks" name="Tasks Completed (%)" fill="#0f9d58" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: '#94a3b8' }}>
-                  Loading graph...
-                </div>
-              )}
-            </div>
+          )}
+        </div>
+      </div>
+    )}
+
+    {/* Live Photo Verification Camera Modal */}
+    <ClockInCameraModal 
+      isOpen={cameraModal.isOpen}
+      shiftName={cameraModal.shiftName}
+      isSubmitting={isSubmittingClockIn}
+      onClose={() => setCameraModal({ isOpen: false, shiftIndex: 0, shiftName: '' })}
+      onConfirm={handleClockInWithPhoto}
+    />
+
+    {/* Verified Photo Preview Modal */}
+    {previewPhoto && (
+      <div 
+        style={{ 
+          position: 'fixed', 
+          inset: 0, 
+          background: 'rgba(15, 23, 42, 0.75)', 
+          backdropFilter: 'blur(4px)',
+          zIndex: 99999, 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          padding: '16px' 
+        }}
+        onClick={() => setPreviewPhoto(null)}
+      >
+        <div 
+          style={{ 
+            background: '#fff', 
+            borderRadius: '16px', 
+            overflow: 'hidden', 
+            maxWidth: '440px', 
+            width: '100%', 
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)' 
+          }} 
+          onClick={e => e.stopPropagation()}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #e2e8f0' }}>
+            <h4 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>Verified Clock-In Selfie</h4>
+            <button 
+              onClick={() => setPreviewPhoto(null)} 
+              style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#64748b' }}
+            >
+              ✕
+            </button>
           </div>
-        )}
+          <div style={{ padding: '16px', display: 'flex', justifyContent: 'center', background: '#0f172a' }}>
+            <img 
+              src={previewPhoto} 
+              alt="Clock-In Selfie" 
+              style={{ maxWidth: '100%', maxHeight: '420px', borderRadius: '10px', objectFit: 'contain' }} 
+            />
+          </div>
+          <div style={{ padding: '14px 20px', textAlign: 'right', background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
+            <button 
+              onClick={() => setPreviewPhoto(null)} 
+              style={{ padding: '9px 20px', background: '#144b79', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
 
   </div>
   );
 };
 
 export default Dashboard;
-

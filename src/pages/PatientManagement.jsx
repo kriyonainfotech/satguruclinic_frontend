@@ -629,14 +629,50 @@ const PatientManagement = () => {
       </div>
 
       <div className="patient-filter-bar" style={{ display: 'flex', flexWrap: 'nowrap', gap: '12px', alignItems: 'center', width: '100%', overflowX: 'auto', paddingBottom: '4px' }}>
-        <div className="patient-search-input-box" style={{ flex: '1 1 auto', minWidth: '150px' }}>
-          <SearchIcon size={16} color="#94a3b8" />
+        <div 
+          className="patient-search-input-box" 
+          style={{ 
+            flex: '1 1 320px', 
+            minWidth: '260px',
+            maxWidth: '440px',
+            display: 'flex', 
+            alignItems: 'center', 
+            background: '#ffffff', 
+            border: '1.5px solid #e2e8f0', 
+            borderRadius: '8px', 
+            padding: '0 12px',
+            height: '38px',
+            boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)',
+            transition: 'all 0.2s ease'
+          }}
+        >
+          <SearchIcon size={16} color="#64748b" style={{ flexShrink: 0 }} />
           <input 
             type="text" 
             placeholder="Search by name, ID, or mobile..." 
             value={searchQuery} 
             onChange={e => setSearchQuery(e.target.value)} 
+            style={{ 
+              border: 'none', 
+              background: 'transparent', 
+              padding: '0 10px', 
+              width: '100%', 
+              outline: 'none', 
+              fontSize: '13.5px',
+              color: '#0f172a',
+              fontWeight: '500'
+            }}
           />
+          {searchQuery && (
+            <button 
+              type="button" 
+              onClick={() => setSearchQuery('')} 
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center', color: '#94a3b8' }}
+              title="Clear search"
+            >
+              <XIcon size={14} />
+            </button>
+          )}
         </div>
         <div className="patient-filter-selects" style={{ display: 'flex', flexWrap: 'nowrap', gap: '10px', alignItems: 'center', flexShrink: 0 }}>
             <button 

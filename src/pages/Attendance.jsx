@@ -10,7 +10,8 @@ import {
   CalendarIcon,
   ClockIcon,
   CalendarCheckIcon,
-  InfoIcon
+  InfoIcon,
+  CameraIcon
 } from '../components/Icons';
 import './Attendance.css';
 
@@ -137,6 +138,7 @@ const Attendance = () => {
   }, [currentDate]);
 
   // Edit modal states
+  const [previewPhoto, setPreviewPhoto] = useState(null);
   const [editingRecord, setEditingRecord] = useState(null);
   const [editClockIn, setEditClockIn] = useState('');
   const [editClockOut, setEditClockOut] = useState('');
@@ -229,7 +231,7 @@ const Attendance = () => {
       {/* Role Tabs */}
       {user.role !== 'admin' && (
         <div className="attendance-tabs-wrap">
-          {['superadmins', 'admins', 'team', 'leaves'].map(tab => (
+          {['admins', 'team', 'leaves'].map(tab => (
             <button 
               key={tab}
               type="button"
@@ -470,9 +472,20 @@ const Attendance = () => {
                       )}
                       <td>
                         <div className="att-user-cell">
-                          <div className="att-user-avatar">
-                            {record.user.name.substring(0, 2).toUpperCase()}
-                          </div>
+                          {record.photo ? (
+                            <div 
+                              className="att-user-avatar" 
+                              style={{ padding: 0, overflow: 'hidden', cursor: 'pointer', border: '2px solid #10b981' }}
+                              onClick={() => setPreviewPhoto(record.photo)}
+                              title="Click to view live clock-in selfie"
+                            >
+                              <img src={record.photo} alt="Selfie" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            </div>
+                          ) : (
+                            <div className="att-user-avatar">
+                              {record.user.name.substring(0, 2).toUpperCase()}
+                            </div>
+                          )}
                           <div className="att-user-info">
                             <span className="att-user-name">{record.user.name}</span>
                             <span className="att-user-sub">
@@ -513,6 +526,16 @@ const Attendance = () => {
                                       </span>
                                     </div>
                                   </div>
+                                  {shiftRec?.photo && (
+                                    <button 
+                                      type="button"
+                                      onClick={() => setPreviewPhoto(shiftRec.photo)}
+                                      title="View shift clock-in selfie"
+                                      style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', color: '#059669', borderRadius: '4px', padding: '1px 6px', fontSize: '10px', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '3px', marginTop: '3px' }}
+                                    >
+                                      <CameraIcon size={11} /> Photo
+                                    </button>
+                                  )}
                                 </div>
                               );
                             })}
@@ -529,6 +552,16 @@ const Attendance = () => {
                                 <span className="timing-val">{record.clockOut ? moment(record.clockOut).format('hh:mm A') : '--:--'}</span>
                               </div>
                             </div>
+                            {record.photo && (
+                              <button 
+                                type="button"
+                                onClick={() => setPreviewPhoto(record.photo)}
+                                title="View clock-in selfie"
+                                style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', color: '#059669', borderRadius: '4px', padding: '1px 6px', fontSize: '10px', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '3px', marginTop: '3px' }}
+                              >
+                                <CameraIcon size={11} /> Photo
+                              </button>
+                            )}
                             {formatScheduleText(record.user?.timings) && (
                               <div className="timing-expected">
                                 Expected: {formatScheduleText(record.user?.timings)}
@@ -594,9 +627,20 @@ const Attendance = () => {
                   {/* Card Header: Avatar + User Info + Status Badge */}
                   <div className="att-card-top">
                     <div className="att-card-user">
-                      <div className="att-user-avatar">
-                        {record.user.name.substring(0, 2).toUpperCase()}
-                      </div>
+                      {record.photo ? (
+                        <div 
+                          className="att-user-avatar" 
+                          style={{ padding: 0, overflow: 'hidden', cursor: 'pointer', border: '2px solid #10b981' }}
+                          onClick={() => setPreviewPhoto(record.photo)}
+                          title="Click to view live clock-in selfie"
+                        >
+                          <img src={record.photo} alt="Selfie" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        </div>
+                      ) : (
+                        <div className="att-user-avatar">
+                          {record.user.name.substring(0, 2).toUpperCase()}
+                        </div>
+                      )}
                       <div className="att-card-user-info">
                         <span className="att-card-user-name" title={record.user.name}>
                           {record.user.name}
@@ -815,6 +859,61 @@ const Attendance = () => {
                 disabled={savingEdit}
               >
                 {savingEdit ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Verified Photo Preview Modal */}
+      {previewPhoto && (
+        <div 
+          style={{ 
+            position: 'fixed', 
+            inset: 0, 
+            background: 'rgba(15, 23, 42, 0.75)', 
+            backdropFilter: 'blur(4px)',
+            zIndex: 99999, 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            padding: '16px' 
+          }}
+          onClick={() => setPreviewPhoto(null)}
+        >
+          <div 
+            style={{ 
+              background: '#fff', 
+              borderRadius: '16px', 
+              overflow: 'hidden', 
+              maxWidth: '440px', 
+              width: '100%', 
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)' 
+            }} 
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #e2e8f0' }}>
+              <h4 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>Verified Clock-In Selfie</h4>
+              <button 
+                onClick={() => setPreviewPhoto(null)} 
+                style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#64748b' }}
+              >
+                ✕
+              </button>
+            </div>
+            <div style={{ padding: '16px', display: 'flex', justifyContent: 'center', background: '#0f172a' }}>
+              <img 
+                src={previewPhoto} 
+                alt="Clock-In Selfie" 
+                style={{ maxWidth: '100%', maxHeight: '420px', borderRadius: '10px', objectFit: 'contain' }} 
+              />
+            </div>
+            <div style={{ padding: '14px 20px', textAlign: 'right', background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
+              <button 
+                onClick={() => setPreviewPhoto(null)} 
+                style={{ padding: '9px 20px', background: '#144b79', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}
+              >
+                Close
               </button>
             </div>
           </div>

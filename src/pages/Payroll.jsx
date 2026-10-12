@@ -14,6 +14,7 @@ import {
   ClockIcon, 
   CheckCircleIcon 
 } from '../components/Icons';
+import CustomSelect from '../components/CustomSelect';
 import './Payroll.css';
 
 const Payroll = () => {
@@ -24,6 +25,51 @@ const Payroll = () => {
   const [activeTab, setActiveTab] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLogsForUser, setSelectedLogsForUser] = useState(null);
+  
+  // Pay Now Modal State
+  const [payModalUser, setPayModalUser] = useState(null);
+  const [payAmount, setPayAmount] = useState('');
+  const [payAccount, setPayAccount] = useState('Company Bank');
+  const [payNotes, setPayNotes] = useState('');
+  const [isSubmittingPay, setIsSubmittingPay] = useState(false);
+
+  const handleOpenPayModal = (record) => {
+    setPayModalUser(record);
+    // Default to the pending amount or earned live balance
+    const defaultAmount = record.pendingAmount !== undefined ? record.pendingAmount : record.earned;
+    setPayAmount(defaultAmount > 0 ? String(defaultAmount) : String(record.earned || 0));
+    setPayAccount('Company Bank');
+    setPayNotes(`Salary payment for ${currentMonth.format('MMMM YYYY')}`);
+  };
+
+  const handleConfirmDisburse = async (e) => {
+    e.preventDefault();
+    if (!payModalUser || !payAmount || Number(payAmount) <= 0) {
+      alert('Please enter a valid salary amount');
+      return;
+    }
+    setIsSubmittingPay(true);
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${import.meta.env.VITE_API_BASE_URL}/payroll/disburse`, {
+        employeeId: payModalUser.user._id,
+        amount: Number(payAmount),
+        month: currentMonth.format('MM'),
+        year: currentMonth.format('YYYY'),
+        account: payAccount,
+        notes: payNotes
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      alert(`Salary payment of ₹${Number(payAmount).toLocaleString()} for ${payModalUser.user.name} recorded in Expenses successfully!`);
+      setPayModalUser(null);
+      fetchPayroll();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Error processing salary payment');
+    } finally {
+      setIsSubmittingPay(false);
+    }
+  };
 
   const fetchPayroll = async () => {
     setLoading(true);
@@ -378,6 +424,7 @@ const Payroll = () => {
                                 </button>
                                 <button 
                                   type="button"
+                                  onClick={() => handleOpenPayModal(record)}
                                   className="payroll-btn-pay"
                                   title="Disburse payment"
                                 >
@@ -479,6 +526,7 @@ const Payroll = () => {
                           </button>
                           <button 
                             type="button"
+                            onClick={() => handleOpenPayModal(record)}
                             className="payroll-btn-pay"
                             style={{ padding: '6px 12px' }}
                           >
@@ -759,6 +807,143 @@ const Payroll = () => {
             </div>
           </div>
         </>
+      )}
+      {/* Pay Now / Salary Disbursal Modal */}
+      {payModalUser && (
+        <div className="modal-overlay" style={{ zIndex: 1100 }}>
+          <div className="modal-content" style={{ maxWidth: '480px', width: '92%', borderRadius: '12px', padding: 0, overflow: 'visible' }}>
+            <div style={{ background: '#144b79', color: '#fff', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTopLeftRadius: '12px', borderTopRightRadius: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <WalletIcon size={20} color="#fff" />
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#fff' }}>Disburse Salary</h3>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setPayModalUser(null)} 
+                style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '20px', lineHeight: 1 }}
+              >
+                &times;
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmDisburse} style={{ padding: '20px' }}>
+              {/* Employee Summary Card */}
+              <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px 16px', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>{payModalUser.user.name}</span>
+                  <span style={{ fontSize: '11px', background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '10px', fontWeight: 600 }}>
+                    {currentMonth.format('MMMM YYYY')}
+                  </span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '12px', color: '#64748b' }}>
+                  <div>Total Salary: <strong style={{ color: '#0f172a' }}>₹{(payModalUser.salary || 0).toLocaleString()}</strong></div>
+                  <div>Live Balance: <strong style={{ color: '#10b981' }}>₹{(payModalUser.earned || 0).toLocaleString()}</strong></div>
+                  {payModalUser.paid > 0 && (
+                    <div>Already Paid: <strong style={{ color: '#3b82f6' }}>₹{(payModalUser.paid || 0).toLocaleString()}</strong></div>
+                  )}
+                  {payModalUser.pendingAmount !== undefined && (
+                    <div>Pending: <strong style={{ color: '#ef4444' }}>₹{(payModalUser.pendingAmount || 0).toLocaleString()}</strong></div>
+                  )}
+                </div>
+              </div>
+
+              {/* Amount Input */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px', textTransform: 'uppercase' }}>
+                  Disburse Amount (₹) *
+                </label>
+                <input 
+                  type="number" 
+                  className="form-control" 
+                  value={payAmount} 
+                  onChange={e => setPayAmount(e.target.value)} 
+                  placeholder="Enter amount" 
+                  required 
+                  min="1"
+                  style={{ width: '100%', padding: '10px 12px', fontSize: '15px', fontWeight: 600, border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              {/* Payment Account */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px', textTransform: 'uppercase' }}>
+                  Payment Account *
+                </label>
+                <CustomSelect 
+                  value={payAccount} 
+                  onChange={val => setPayAccount(val)}
+                  options={[
+                    { value: 'Company Bank', label: 'Company Bank' },
+                    { value: 'Cash', label: 'Cash' },
+                    { value: 'Personal Bank', label: 'Personal Bank' }
+                  ]}
+                  placeholder="Select Account"
+                />
+                <span style={{ fontSize: '11px', color: '#64748b', marginTop: '6px', display: 'block' }}>
+                  Yeh entry Expenses me category <strong>Salary</strong> ke under automatically add ho jayegi.
+                </span>
+              </div>
+
+              {/* Notes */}
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px', textTransform: 'uppercase' }}>
+                  Notes / Reference (Optional)
+                </label>
+                <input 
+                  type="text" 
+                  className="form-control" 
+                  value={payNotes} 
+                  onChange={e => setPayNotes(e.target.value)} 
+                  placeholder="e.g. Bank transfer, UTR number..."
+                  style={{ width: '100%', padding: '10px 12px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              {/* Footer Actions */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px', marginTop: '8px' }}>
+                <button 
+                  type="button" 
+                  onClick={() => setPayModalUser(null)} 
+                  style={{ 
+                    padding: '9px 18px', 
+                    borderRadius: '7px', 
+                    cursor: 'pointer', 
+                    border: '1px solid #cbd5e1', 
+                    background: '#f8fafc', 
+                    color: '#475569', 
+                    fontSize: '13.5px', 
+                    fontWeight: 600,
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#e2e8f0'; e.currentTarget.style.color = '#1e293b'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.color = '#475569'; }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={isSubmittingPay} 
+                  style={{ 
+                    padding: '9px 20px', 
+                    borderRadius: '7px', 
+                    cursor: isSubmittingPay ? 'not-allowed' : 'pointer', 
+                    background: '#144b79', 
+                    color: '#ffffff', 
+                    border: 'none', 
+                    fontSize: '13.5px', 
+                    fontWeight: 600,
+                    boxShadow: '0 2px 4px rgba(20, 75, 121, 0.25)',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={e => { if(!isSubmittingPay) e.currentTarget.style.background = '#0f395c'; }}
+                  onMouseLeave={e => { if(!isSubmittingPay) e.currentTarget.style.background = '#144b79'; }}
+                >
+                  {isSubmittingPay ? 'Processing...' : 'Confirm & Add to Expense'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

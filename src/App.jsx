@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import axios from 'axios';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -27,6 +28,7 @@ import Payments from './pages/Payments';
 import PaymentQR from './pages/PaymentQR';
 import ScheduleManagement from './pages/ScheduleManagement';
 import HomeExpense from './pages/HomeExpense';
+import DailyReport from './pages/DailyReport';
 import Layout from './components/Layout';
 import './App.css';
 
@@ -51,6 +53,37 @@ function ScrollToTop() {
 function App() {
   const isAuthenticated = !!localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    const API_URL = import.meta.env.VITE_API_BASE_URL;
+    const verifySession = async () => {
+      try {
+        await axios.get(`${API_URL}/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      } catch (err) {
+        if (err.response && (err.response.status === 401 || err.response.status === 404)) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          if (!window.location.pathname.includes('/login')) {
+            window.location.href = '/login';
+          }
+        }
+      }
+    };
+
+    verifySession();
+    const interval = setInterval(verifySession, 15000);
+    window.addEventListener('focus', verifySession);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', verifySession);
+    };
+  }, []);
 
   return (
     <Router>
@@ -192,6 +225,7 @@ function App() {
           ) : <Navigate to="/login" />
         } />
         <Route path="/holidays" element={isAuthenticated ? <Layout><HolidaysEvents /></Layout> : <Navigate to="/login" />} />
+        <Route path="/daily-reports" element={isAuthenticated ? <Layout><DailyReport /></Layout> : <Navigate to="/login" />} />
         <Route path="/superadmin/home-expense" element={isAuthenticated ? (user.role === 'superadmin' ? <Layout><HomeExpense /></Layout> : <Navigate to="/" replace />) : <Navigate to="/login" />} />
       </Routes>
     </Router>

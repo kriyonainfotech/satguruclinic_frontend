@@ -91,6 +91,16 @@ export default function HomeExpense() {
         setExpensePurpose('');
     };
 
+    const handleDeleteMember = (memberId, memberName, e) => {
+        if (e) e.stopPropagation();
+        if (window.confirm(`Are you sure you want to delete member "${memberName}"?`)) {
+            setMembers(prev => prev.filter(m => m.id !== memberId));
+            if (activeMember === memberId) {
+                setActiveMember('All');
+            }
+        }
+    };
+
     const handleDeleteExpense = (id) => {
         if (window.confirm("Delete this expense?")) {
             setExpenses(expenses.filter(e => e.id !== id));
@@ -99,12 +109,17 @@ export default function HomeExpense() {
 
     const YEAR_OPTIONS = React.useMemo(() => {
         const years = new Set();
-        years.add(currentYearStr);
+        const currentY = new Date().getFullYear();
+        // Add a standard dynamic range: previous 5 years to next 5 years (e.g. 2021 to 2031)
+        for (let y = currentY - 5; y <= currentY + 5; y++) {
+            years.add(y.toString());
+        }
+        // Also add any years present in expenses data
         expenses.forEach(e => {
             if (e.date) years.add(e.date.substring(0, 4));
         });
         return Array.from(years).sort().reverse();
-    }, [expenses, currentYearStr]);
+    }, [expenses]);
 
     const dateFilteredExpenses = expenses.filter(e => {
         if (selectedDate) {
@@ -189,12 +204,14 @@ export default function HomeExpense() {
                     All Members
                 </button>
                 {members.map(m => (
-                    <button 
+                    <div 
                         key={m.id}
-                        type="button"
                         onClick={() => setActiveMember(m.id)}
                         style={{ 
-                            padding: '8px 20px', 
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            padding: '8px 16px', 
                             borderRadius: '20px', 
                             border: '1px solid #cbd5e1', 
                             background: activeMember === m.id ? '#1e293b' : '#fff', 
@@ -203,11 +220,42 @@ export default function HomeExpense() {
                             fontSize: '14px', 
                             cursor: 'pointer', 
                             whiteSpace: 'nowrap',
-                            transition: 'all 0.2s'
+                            transition: 'all 0.2s',
+                            userSelect: 'none'
                         }}
                     >
-                        {m.name}
-                    </button>
+                        <span>{m.name}</span>
+                        <span 
+                            role="button"
+                            title={`Delete ${m.name}`}
+                            onClick={(e) => handleDeleteMember(m.id, m.name, e)}
+                            style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                width: '18px',
+                                height: '18px',
+                                borderRadius: '50%',
+                                background: activeMember === m.id ? 'rgba(255,255,255,0.2)' : '#fee2e2',
+                                color: activeMember === m.id ? '#fff' : '#ef4444',
+                                fontSize: '13px',
+                                fontWeight: 'bold',
+                                lineHeight: 1,
+                                cursor: 'pointer',
+                                transition: 'all 0.2s'
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.background = '#ef4444';
+                                e.currentTarget.style.color = '#fff';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.background = activeMember === m.id ? 'rgba(255,255,255,0.2)' : '#fee2e2';
+                                e.currentTarget.style.color = activeMember === m.id ? '#fff' : '#ef4444';
+                            }}
+                        >
+                            &times;
+                        </span>
+                    </div>
                 ))}
                 <button 
                     type="button"
@@ -403,28 +451,52 @@ export default function HomeExpense() {
             {showMemberModal && (
                 <>
                     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000 }} onClick={() => setShowMemberModal(false)}></div>
-                    <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: '#fff', padding: '24px', borderRadius: '12px', width: '90%', maxWidth: '400px', zIndex: 1001, boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
+                    <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: '#fff', padding: '24px', borderRadius: '12px', width: '90%', maxWidth: '440px', zIndex: 1001, boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                            <h3 style={{ margin: 0, fontSize: '18px', color: '#1e293b' }}>Add New Member</h3>
+                            <h3 style={{ margin: 0, fontSize: '18px', color: '#1e293b' }}>Manage Members</h3>
                             <button onClick={() => setShowMemberModal(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: '20px' }}>&times;</button>
                         </div>
                         <form onSubmit={handleAddMember}>
                             <div style={{ marginBottom: '16px' }}>
-                                <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', color: '#1e293b', marginBottom: '6px' }}>Member Name *</label>
-                                <input 
-                                    type="text" 
-                                    value={newMemberName} 
-                                    onChange={(e) => setNewMemberName(e.target.value)} 
-                                    required 
-                                    autoFocus
-                                    style={{ width: '100%', padding: '10px', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', boxSizing: 'border-box' }}
-                                />
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
-                                <button type="button" onClick={() => setShowMemberModal(false)} style={{ padding: '8px 16px', background: '#f1f5f9', border: 'none', borderRadius: '6px', color: '#475569', cursor: 'pointer', fontWeight: 600 }}>Cancel</button>
-                                <button type="submit" className="payments-btn-primary" style={{ border: 'none' }}>Add Member</button>
+                                <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', color: '#1e293b', marginBottom: '6px' }}>Add New Member</label>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    <input 
+                                        type="text" 
+                                        value={newMemberName} 
+                                        onChange={(e) => setNewMemberName(e.target.value)} 
+                                        placeholder="Enter name"
+                                        required 
+                                        autoFocus
+                                        style={{ flex: 1, padding: '10px', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', boxSizing: 'border-box' }}
+                                    />
+                                    <button type="submit" className="payments-btn-primary" style={{ border: 'none', whiteSpace: 'nowrap' }}>Add</button>
+                                </div>
                             </div>
                         </form>
+
+                        {members.length > 0 && (
+                            <div style={{ marginTop: '20px', borderTop: '1px solid #f1f5f9', paddingTop: '16px' }}>
+                                <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', color: '#64748b', marginBottom: '10px' }}>Existing Members ({members.length})</label>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '180px', overflowY: 'auto' }}>
+                                    {members.map(m => (
+                                        <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                                            <span style={{ fontWeight: 600, color: '#334155', fontSize: '14px' }}>{m.name}</span>
+                                            <button 
+                                                type="button" 
+                                                onClick={(e) => handleDeleteMember(m.id, m.name, e)}
+                                                style={{ background: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: 600 }}
+                                                title={`Delete ${m.name}`}
+                                            >
+                                                <TrashIcon size={12} /> Delete
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
+                            <button type="button" onClick={() => setShowMemberModal(false)} style={{ padding: '8px 16px', background: '#f1f5f9', border: 'none', borderRadius: '6px', color: '#475569', cursor: 'pointer', fontWeight: 600 }}>Close</button>
+                        </div>
                     </div>
                 </>
             )}

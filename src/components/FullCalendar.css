@@ -92,12 +92,47 @@
 
 .fc-event {
     font-size: 11px;
-    padding: 4px 6px;
+    padding: 3px 6px;
     border-radius: 4px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.fc-event-actions {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    opacity: 0.85;
+}
+
+.fc-event:hover .fc-event-actions {
+    opacity: 1;
+}
+
+.fc-event-action-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 2px 3px;
+    border-radius: 3px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: inherit;
+    line-height: 1;
+    transition: all 0.15s ease;
+}
+
+.fc-event-action-btn:hover {
+    background: rgba(0, 0, 0, 0.12);
+}
+
+.fc-event-delete-btn:hover {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.18);
 }
 
 .fc-day-selected {

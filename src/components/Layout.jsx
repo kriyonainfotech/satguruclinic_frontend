@@ -243,6 +243,13 @@ const Layout = ({ children }) => {
               <span>Services & Packages</span>
             </Link>
           </li>
+
+          <li className={location.pathname === '/daily-reports' ? 'active' : ''} onClick={closeMobileMenu}>
+            <Link to="/daily-reports">
+              <CheckSquareIcon size={14} />
+              <span>Daily Team Report</span>
+            </Link>
+          </li>
           
           {(user.role === 'superadmin' || user.role === 'admin') && (
             <li className={location.pathname === '/checklist-templates' ? 'active' : ''}  onClick={closeMobileMenu}>

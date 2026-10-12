@@ -1091,11 +1091,18 @@ const Tasks = ({ isEmbedded }) => {
                           <td>
                             <div className="task-title-cell">
                               <span className="task-title-text">{task.title}</span>
-                              {task.category && (
-                                <span className="task-category-badge">
-                                  #{task.category}
-                                </span>
-                              )}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                {task.category && (
+                                  <span className="task-category-badge">
+                                    #{task.category}
+                                  </span>
+                                )}
+                                {task.priority && (
+                                  <span className={`task-priority-badge priority-${task.priority.toLowerCase()}`}>
+                                    {task.priority} Priority
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </td>
                           <td>
@@ -1195,6 +1202,9 @@ const Tasks = ({ isEmbedded }) => {
                               <div className="task-mobile-title-row2">
                                 {task.category && (
                                   <span className="task-category-badge">#{task.category}</span>
+                                )}
+                                {task.priority && (
+                                  <span className={`task-priority-badge priority-${task.priority.toLowerCase()}`}>{task.priority}</span>
                                 )}
                                 <StatusDropdown
                                   value={task.status}
@@ -1310,6 +1320,9 @@ const Tasks = ({ isEmbedded }) => {
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 {viewingTask.category && (
                   <span className="task-category-badge">#{viewingTask.category}</span>
+                )}
+                {viewingTask.priority && (
+                  <span className={`task-priority-badge priority-${viewingTask.priority.toLowerCase()}`}>{viewingTask.priority} Priority</span>
                 )}
                 <span style={{ fontSize: '12px', color: '#64748b' }}>
                   Due: <strong>{formatShortDate(viewingTask.dueDate)}</strong>

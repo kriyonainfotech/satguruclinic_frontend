@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import FullCalendar from '../components/FullCalendar';
 import CustomSelect from '../components/CustomSelect';
+import CustomTimePicker from '../components/CustomTimePicker';
+import CalendarPicker from '../components/CalendarPicker';
 import { CalendarIcon, UsersIcon, ClipboardListIcon, VideoIcon, PlusIcon, EditIcon, TrashIcon } from '../components/Icons';
 import axios from 'axios';
 import './ScheduleManagement.css';
@@ -31,8 +33,8 @@ const ScheduleManagement = () => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [eventDate, setEventDate] = useState('');
-  const [startTime, setStartTime] = useState('09:00');
-  const [endTime, setEndTime] = useState('10:00');
+  const [startTime, setStartTime] = useState('09:00 AM');
+  const [endTime, setEndTime] = useState('10:00 AM');
 
   const fetchSyncStatus = async () => {
     try {
@@ -116,16 +118,45 @@ const ScheduleManagement = () => {
         }
     };
     
-    const handleEditEvent = (ev) => {
+  // Helper to convert 12-hour or 24-hour time string to "HH:mm" 24-hour format
+  const to24HourTime = (timeStr) => {
+    if (!timeStr) return '09:00';
+    const str = String(timeStr).trim().toUpperCase();
+    const isPM = str.includes('PM');
+    const isAM = str.includes('AM');
+    const clean = str.replace(/AM|PM/g, '').trim();
+    const parts = clean.split(':');
+    let h = parseInt(parts[0], 10);
+    let m = parseInt(parts[1] || '0', 10);
+    if (isNaN(h)) h = 9;
+    if (isNaN(m)) m = 0;
+    if (isPM && h < 12) h += 12;
+    if (isAM && h === 12) h = 0;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  };
+
+  const handleEditEvent = (ev) => {
         setEditEventId(ev.id);
         setTitle(ev.summary ? ev.summary.replace(/\[(Meeting|Task|Event)\]\s*/, '') : '');
-        setEventDate(selectedDateView);
+        const evStart = ev.start?.dateTime || ev.start?.date;
+        setEventDate(evStart ? evStart.substring(0, 10) : selectedDateView);
         if(ev.start?.dateTime) {
-            setStartTime(new Date(ev.start.dateTime).toTimeString().substring(0, 5));
-            setEndTime(ev.end?.dateTime ? new Date(ev.end.dateTime).toTimeString().substring(0, 5) : '10:00');
+            const startD = new Date(ev.start.dateTime);
+            const endD = ev.end?.dateTime ? new Date(ev.end.dateTime) : new Date(startD.getTime() + 60 * 60 * 1000);
+            
+            // Format to 12h for CustomTimePicker: "HH:MM AM/PM"
+            const format12h = (d) => {
+              let hours = d.getHours();
+              const minutes = String(d.getMinutes()).padStart(2, '0');
+              const period = hours >= 12 ? 'PM' : 'AM';
+              hours = hours % 12 || 12;
+              return `${String(hours).padStart(2, '0')}:${minutes} ${period}`;
+            };
+            setStartTime(format12h(startD));
+            setEndTime(format12h(endD));
         } else {
-            setStartTime('09:00');
-            setEndTime('10:00');
+            setStartTime('09:00 AM');
+            setEndTime('10:00 AM');
         }
         
         let tab = 'meetings';
@@ -145,11 +176,13 @@ const ScheduleManagement = () => {
     try {
       const token = localStorage.getItem('token');
       const typeMap = { all: 'Meeting', meetings: 'Meeting', tasks: 'Task', events: 'Event' };
-              const payload = {
+      const formattedStartTime = to24HourTime(startTime);
+      const formattedEndTime = to24HourTime(endTime);
+      const payload = {
             summary: `[${typeMap[activeTab]}] ${title}`,
             description,
-            startDateTime: new Date(`${eventDate}T${startTime}`).toISOString(),
-            endDateTime: new Date(`${eventDate}T${endTime}`).toISOString(),
+            startDateTime: new Date(`${eventDate}T${formattedStartTime}:00`).toISOString(),
+            endDateTime: new Date(`${eventDate}T${formattedEndTime}:00`).toISOString(),
             type: typeMap[activeTab]
         };
         if (editEventId) {
@@ -162,8 +195,8 @@ const ScheduleManagement = () => {
       setTitle('');
       setDescription('');
       setEventDate('');
-      setStartTime('09:00');
-      setEndTime('10:00');
+      setStartTime('09:00 AM');
+      setEndTime('10:00 AM');
       fetchEvents();
     } catch (err) {
       alert('Error saving to Calendar: ' + (err.response?.data?.error || err.message));
@@ -189,7 +222,7 @@ const ScheduleManagement = () => {
               <span>Disconnect Google Calendar</span>
             </button>
           )}
-          <button className="crm-btn crm-btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => { setEditEventId(null); setTitle(''); setEventDate(''); setShowModal(true); }}>
+          <button className="crm-btn crm-btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => { setEditEventId(null); setTitle(''); setDescription(''); setEventDate(selectedDateView || new Date().toISOString().substring(0, 10)); setStartTime('09:00 AM'); setEndTime('10:00 AM'); setShowModal(true); }}>
             <PlusIcon size={16} />
             <span>Add New {(activeTab === 'meetings' || activeTab === 'all') ? 'Meeting' : activeTab === 'tasks' ? 'Task' : 'Event'}</span>
           </button>
@@ -248,13 +281,15 @@ const ScheduleManagement = () => {
           )}
           <FullCalendar
             events={filteredEvents}
-              onDateClick={(date) => {
-                setSelectedDateView(date);
-                setTimeout(() => detailsRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-              }}
-              selectedDate={selectedDateView}
+            onDateClick={(date) => {
+              setSelectedDateView(date);
+              setTimeout(() => detailsRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+            }}
+            onEditEvent={(ev) => handleEditEvent(ev)}
+            onDeleteEvent={(id) => handleDeleteEvent(id)}
+            selectedDate={selectedDateView}
             currentMonth={currentMonth}
-              currentYear={currentYear}
+            currentYear={currentYear}
           />
 
           {selectedDateView && (
@@ -312,18 +347,31 @@ const ScheduleManagement = () => {
               
               <div className="form-group" style={{ marginBottom: '16px' }}>
                 <label>Date</label>
-                <input type="date" className="form-control" value={eventDate} onChange={e => setEventDate(e.target.value)} required />
+                <CalendarPicker 
+                  selectedDate={eventDate} 
+                  onChange={date => setEventDate(date)} 
+                  placeholder="Select Date"
+                  allowClear={false}
+                />
               </div>
 
               {activeTab !== 'tasks' && (
               <div className="form-two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                   <div className="form-group" style={{ marginBottom: 0 }}>
                     <label>Start Time</label>
-                    <input type="time" className="form-control" value={startTime} onChange={e => setStartTime(e.target.value)} required />
+                    <CustomTimePicker 
+                      value={startTime} 
+                      onChange={val => setStartTime(val)} 
+                      placeholder="Start Time"
+                    />
                   </div>
                   <div className="form-group" style={{ marginBottom: 0 }}>
                     <label>End Time</label>
-                    <input type="time" className="form-control" value={endTime} onChange={e => setEndTime(e.target.value)} required />
+                    <CustomTimePicker 
+                      value={endTime} 
+                      onChange={val => setEndTime(val)} 
+                      placeholder="End Time"
+                    />
                   </div>
               </div>
               )}
@@ -382,7 +430,25 @@ const ScheduleManagement = () => {
                 </div>
               )}
             </div>
-            <div className="modal-footer" style={{ marginTop: '20px' }}>
+            <div className="modal-footer" style={{ marginTop: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button 
+                  type="button" 
+                  className="sch-action-btn" 
+                  onClick={() => { setShowDetailModal(false); handleEditEvent(selectedEvent); }} 
+                  style={{ padding: '6px 14px', background: '#fff', border: '1px solid #cbd5e1', borderRadius: '4px', cursor: 'pointer', fontSize: '13px', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <EditIcon size={14} /> <span>Edit</span>
+                </button>
+                <button 
+                  type="button" 
+                  className="sch-action-btn" 
+                  onClick={() => { setShowDetailModal(false); handleDeleteEvent(selectedEvent.id); }} 
+                  style={{ padding: '6px 14px', background: '#fee2e2', border: '1px solid #f87171', borderRadius: '4px', cursor: 'pointer', fontSize: '13px', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <TrashIcon size={14} /> <span>Delete</span>
+                </button>
+              </div>
               <button type="button" className="crm-btn crm-btn-outline" onClick={() => setShowDetailModal(false)}>Close</button>
             </div>
           </div>

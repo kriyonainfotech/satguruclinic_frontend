@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import moment from 'moment';
+import { EditIcon, TrashIcon } from './Icons';
 import './FullCalendar.css';
 
-const FullCalendar = ({ events = [], currentMonth, currentYear, onEventClick, onDateClick, selectedDate }) => {
+const FullCalendar = ({ events = [], currentMonth, currentYear, onEventClick, onDateClick, onEditEvent, onDeleteEvent, selectedDate }) => {
   const [calendarGrid, setCalendarGrid] = useState([]);
 
   useEffect(() => {
@@ -94,10 +95,40 @@ const FullCalendar = ({ events = [], currentMonth, currentYear, onEventClick, on
                   <div className="fc-day-num">{dayData.day}</div>
                   <div className="fc-day-events">
                     {dayData.events.map((ev, eIdx) => (
-                      <div className="fc-event" key={eIdx} style={{...getEventStyle(ev), cursor: 'pointer'}} title={ev.summary} >
-                         {moment(ev.start?.dateTime).isValid() ? moment(ev.start?.dateTime).format('HH:mm') + ' ' : ''}
-                         {cleanSummary(ev.summary)}
+                      <div className="fc-event" key={eIdx} style={{...getEventStyle(ev), cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px'}} title={ev.summary} >
+                         <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, display: 'flex', alignItems: 'center', gap: '2px' }}>
+                           <span>{moment(ev.start?.dateTime).isValid() ? moment(ev.start?.dateTime).format('HH:mm') + ' ' : ''}</span>
+                           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cleanSummary(ev.summary)}</span>
                            {(!ev.summary?.includes('[Meeting]') && !ev.summary?.includes('[Task]') && !ev.summary?.includes('[Event]')) && <span style={{ marginLeft: '4px', background: '#4285f4', color: 'white', borderRadius: '50%', width: '12px', height: '12px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '8px', fontWeight: 'bold' }}>G</span>}
+                         </div>
+                         <div className="fc-event-actions" style={{ display: 'flex', alignItems: 'center', gap: '2px', flexShrink: 0 }}>
+                           {onEditEvent && (
+                             <button
+                               type="button"
+                               className="fc-event-action-btn fc-event-edit-btn"
+                               title="Edit"
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 onEditEvent(ev);
+                               }}
+                             >
+                               <EditIcon size={11} />
+                             </button>
+                           )}
+                           {onDeleteEvent && (
+                             <button
+                               type="button"
+                               className="fc-event-action-btn fc-event-delete-btn"
+                               title="Delete"
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 onDeleteEvent(ev.id);
+                               }}
+                             >
+                               <TrashIcon size={11} />
+                             </button>
+                           )}
+                         </div>
                       </div>
                     ))}
                   </div>
