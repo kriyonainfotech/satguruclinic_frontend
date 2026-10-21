@@ -17,6 +17,15 @@ import {
 import CustomSelect from '../components/CustomSelect';
 import './Payroll.css';
 
+// Minutes ko "9 hr 15 min" format me dikhata hai
+const formatHrMin = (totalMinutes) => {
+  const mins = Math.max(0, Math.round(totalMinutes || 0));
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  if (h === 0) return `${m} min`;
+  return m === 0 ? `${h} hr` : `${h} hr ${m} min`;
+};
+
 const Payroll = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const [payrollData, setPayrollData] = useState({ summary: {}, details: [] });
@@ -32,6 +41,31 @@ const Payroll = () => {
   const [payAccount, setPayAccount] = useState('Company Bank');
   const [payNotes, setPayNotes] = useState('');
   const [isSubmittingPay, setIsSubmittingPay] = useState(false);
+
+  // Sales Commission Modal State
+  const [salesModalUserId, setSalesModalUserId] = useState(null);
+  const [commissionUpdatingId, setCommissionUpdatingId] = useState(null);
+  const salesModalRecord = (payrollData.details || []).find(d => d.user._id === salesModalUserId);
+
+  // Lead Bonus Modal State
+  const [leadsModalUserId, setLeadsModalUserId] = useState(null);
+  const leadsModalRecord = (payrollData.details || []).find(d => d.user._id === leadsModalUserId);
+
+  // endpoint: 'commission' for sales, 'lead-bonus' for leads
+  const handleToggleCommission = async (item, add, endpoint = 'commission') => {
+    setCommissionUpdatingId(item._id);
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${import.meta.env.VITE_API_BASE_URL}/payroll/${endpoint}/${item._id}`, { add }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      await fetchPayroll(false);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Error updating commission');
+    } finally {
+      setCommissionUpdatingId(null);
+    }
+  };
 
   const handleOpenPayModal = (record) => {
     setPayModalUser(record);
@@ -71,8 +105,124 @@ const Payroll = () => {
     }
   };
 
-  const fetchPayroll = async () => {
-    setLoading(true);
+  const handleAddAllCommission = async (pendingItems, endpoint = 'commission') => {
+    if (pendingItems.length === 0) return;
+    setCommissionUpdatingId('all');
+    try {
+      const token = localStorage.getItem('token');
+      await Promise.all(pendingItems.map(item =>
+        axios.post(`${import.meta.env.VITE_API_BASE_URL}/payroll/${endpoint}/${item._id}`, { add: true }, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+      ));
+    } catch (err) {
+      alert(err.response?.data?.message || 'Error adding commission');
+    } finally {
+      await fetchPayroll(false);
+      setCommissionUpdatingId(null);
+    }
+  };
+
+  // Splits an invoice "work" string like "Consultation (₹300), Facial (₹1500)" into items with price
+  const parseSaleItems = (work) => {
+    if (!work) return [];
+    const parts = [];
+    let depth = 0;
+    let current = '';
+    for (const ch of work) {
+      if (ch === '(' || ch === '[') depth++;
+      if (ch === ')' || ch === ']') depth = Math.max(0, depth - 1);
+      if (ch === ',' && depth === 0) {
+        parts.push(current);
+        current = '';
+      } else {
+        current += ch;
+      }
+    }
+    parts.push(current);
+    return parts.map(p => p.trim()).filter(Boolean).map(part => {
+      const priceMatches = [...part.matchAll(/(?:₹|Rs\.?)\s*([\d,.]+)/g)];
+      const lastPrice = priceMatches.length ? priceMatches[priceMatches.length - 1] : null;
+      const price = lastPrice ? Number(lastPrice[1].replace(/,/g, '')) : null;
+      const parenIndex = part.indexOf(' (');
+      const name = parenIndex > 0 ? part.slice(0, parenIndex) : part;
+      return { name, price: Number.isFinite(price) ? price : null };
+    });
+  };
+
+  // Sales commission + lead bonus summary with Add buttons (used in table and mobile cards)
+  const renderIncentives = (record) => {
+    const sales = record.salesSummary || {};
+    const leads = record.leadsSummary || {};
+    const rows = [
+      {
+        key: 'sales',
+        label: 'Sales',
+        rate: '5%',
+        value: `₹${(sales.totalSales || 0).toLocaleString()}`,
+        count: `${sales.sales?.length || 0} bills`,
+        added: sales.commissionAdded || 0,
+        pending: sales.commissionPending || 0,
+        onAdd: () => setSalesModalUserId(record.user._id),
+        icon: (
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" />
+            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+          </svg>
+        )
+      },
+      // Lead conversion bonus sirf telecaller ke liye
+      record.isTelecaller && {
+        key: 'leads',
+        label: 'Converted Leads',
+        rate: '₹25',
+        value: `${leads.totalLeads || 0}`,
+        count: 'converted',
+        added: leads.bonusAdded || 0,
+        pending: leads.bonusPending || 0,
+        onAdd: () => setLeadsModalUserId(record.user._id),
+        icon: (
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="8.5" cy="7" r="4" />
+            <line x1="20" y1="8" x2="20" y2="14" /><line x1="23" y1="11" x2="17" y2="11" />
+          </svg>
+        )
+      }
+    ].filter(Boolean);
+
+    return (
+      <div className="incentive-stack">
+        {rows.map(row => (
+          <div key={row.key} className={`incentive-row incentive-${row.key}`}>
+            <div className="incentive-icon">{row.icon}</div>
+            <div className="incentive-body">
+              <div className="incentive-label">
+                {row.label} <span className="incentive-rate">{row.rate}</span>
+              </div>
+              <div className="incentive-value">
+                {row.value} <span className="incentive-count">{row.count}</span>
+              </div>
+              <div className="incentive-earned">
+                +₹{row.added.toLocaleString()} added
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={row.onAdd}
+              className={`incentive-add-btn ${row.pending > 0 ? 'has-pending' : ''}`}
+              title={row.pending > 0 ? `₹${row.pending.toLocaleString()} pending - click to add` : 'View details'}
+            >
+              <span className="incentive-add-main">+ Add</span>
+              {row.pending > 0 && <span className="incentive-add-due">₹{row.pending.toLocaleString()} due</span>}
+            </button>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const fetchPayroll = async (showLoader = true) => {
+    if (showLoader) setLoading(true);
     try {
       const token = localStorage.getItem('token');
       const month = currentMonth.format('MM');
@@ -333,6 +483,7 @@ const Payroll = () => {
                           <th>SHIFT & TIME</th>
                           <th>MONTH STATS</th>
                           <th>TOTAL DAYS</th>
+                          <th>INCENTIVES</th>
                           <th>LIVE BALANCE</th>
                           <th className="text-right">ACTIONS</th>
                         </tr>
@@ -401,6 +552,9 @@ const Payroll = () => {
                                 {typeof record.totalDays === 'number' ? Number(record.totalDays.toFixed(2)) : record.totalDays} <span className="total-days-sub">/ {record.daysInMonth} DAYS</span>
                               </div>
                             </td>
+
+                            {/* Sales Commission & Lead Bonus */}
+                            <td>{renderIncentives(record)}</td>
 
                             {/* Live Balance */}
                             <td>
@@ -511,6 +665,8 @@ const Payroll = () => {
                         </div>
                       </div>
 
+                      <div className="incentive-mobile-wrap">{renderIncentives(record)}</div>
+
                       <div className="payroll-mobile-footer">
                         <div className="total-days-badge">
                           {typeof record.totalDays === 'number' ? Number(record.totalDays.toFixed(2)) : record.totalDays} <span className="total-days-sub">/ {record.daysInMonth} DAYS</span>
@@ -609,7 +765,7 @@ const Payroll = () => {
                            const diffMins = moment(log.clockIn).diff(shiftStartMom, 'minutes');
                            if (diffMins > 0) {
                               isLate = true;
-                              lateMinStr = `${diffMins} min`;
+                              lateMinStr = formatHrMin(diffMins);
                               totalLateDays++;
                               totalLateMins += diffMins;
                            }
@@ -618,7 +774,7 @@ const Payroll = () => {
                       
                       if (log.clockOut) {
                         clockOutStr = moment(log.clockOut).format('hh:mm A');
-                        hoursWorked = moment(log.clockOut).diff(moment(log.clockIn), 'hours', true).toFixed(2) + ' h';
+                        hoursWorked = formatHrMin(moment(log.clockOut).diff(moment(log.clockIn), 'minutes'));
                       } else {
                         clockOutStr = 'Missed Out';
                       }
@@ -664,7 +820,7 @@ const Payroll = () => {
                   doc.text(`Present: ${presentCount}`, 14, 68);
                   doc.text(`Half Days: ${halfCount}`, 60, 68);
                   doc.text(`Leaves: ${leaveCount}`, 110, 68);
-                  doc.text(`Late Days: ${totalLateDays} (${totalLateMins} min total)`, 155, 68);
+                  doc.text(`Late Days: ${totalLateDays} (${formatHrMin(totalLateMins)} total)`, 155, 68);
 
                   // Financial Summary
                   doc.setFontSize(13);
@@ -752,8 +908,7 @@ const Payroll = () => {
                   // calc hours if clockOut is there
                   let hoursWorked = '-';
                   if (log.clockIn && log.clockOut) {
-                    const diff = moment(log.clockOut).diff(moment(log.clockIn), 'hours', true);
-                    hoursWorked = diff.toFixed(2) + 'h';
+                    hoursWorked = formatHrMin(moment(log.clockOut).diff(moment(log.clockIn), 'minutes'));
                   }
                   
                   let timeRange = 'No time logged';
@@ -808,6 +963,217 @@ const Payroll = () => {
           </div>
         </>
       )}
+      {/* Sales & Commission Modal */}
+      {salesModalRecord && (
+        <div className="modal-overlay" style={{ zIndex: 1100 }} onClick={() => setSalesModalUserId(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '620px', width: '94%', borderRadius: '12px', padding: 0, overflow: 'hidden' }}>
+            <div style={{ background: '#144b79', color: '#fff', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#fff' }}>Sales Commission - {salesModalRecord.user.name}</h3>
+                <div style={{ fontSize: '12px', opacity: 0.85 }}>{currentMonth.format('MMMM YYYY')} · 5% of total sale</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSalesModalUserId(null)}
+                style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '20px', lineHeight: 1 }}
+              >
+                &times;
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', padding: '16px 20px 8px' }}>
+              <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px' }}>
+                <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 700 }}>TOTAL SALES</div>
+                <div style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>₹{(salesModalRecord.salesSummary?.totalSales || 0).toLocaleString()}</div>
+              </div>
+              <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '8px', padding: '10px' }}>
+                <div style={{ fontSize: '11px', color: '#047857', fontWeight: 700 }}>ADDED TO SALARY</div>
+                <div style={{ fontSize: '16px', fontWeight: 700, color: '#047857' }}>₹{(salesModalRecord.salesSummary?.commissionAdded || 0).toLocaleString()}</div>
+              </div>
+              <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', padding: '10px' }}>
+                <div style={{ fontSize: '11px', color: '#b45309', fontWeight: 700 }}>PENDING</div>
+                <div style={{ fontSize: '16px', fontWeight: 700, color: '#b45309' }}>₹{(salesModalRecord.salesSummary?.commissionPending || 0).toLocaleString()}</div>
+              </div>
+            </div>
+
+            <div style={{ padding: '8px 20px', fontSize: '12px', color: '#64748b' }}>
+              Attendance Salary: <strong style={{ color: '#0f172a' }}>₹{(salesModalRecord.attendanceEarned || 0).toLocaleString()}</strong>
+              {' + '}Commission: <strong style={{ color: '#10b981' }}>₹{(salesModalRecord.salesSummary?.commissionAdded || 0).toLocaleString()}</strong>
+              {salesModalRecord.isTelecaller && (<>{' + '}Lead Bonus: <strong style={{ color: '#10b981' }}>₹{(salesModalRecord.leadsSummary?.bonusAdded || 0).toLocaleString()}</strong></>)}
+              {' = '}Live Balance: <strong style={{ color: '#144b79' }}>₹{(salesModalRecord.earned || 0).toLocaleString()}</strong>
+            </div>
+
+            {(salesModalRecord.salesSummary?.commissionPending || 0) > 0 && (
+              <div style={{ padding: '4px 20px 8px' }}>
+                <button
+                  type="button"
+                  disabled={!!commissionUpdatingId}
+                  onClick={() => handleAddAllCommission(salesModalRecord.salesSummary.sales.filter(s => !s.commissionAdded))}
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: 'none', background: '#10b981', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: commissionUpdatingId ? 'not-allowed' : 'pointer' }}
+                >
+                  {commissionUpdatingId === 'all' ? 'Adding...' : `+ Add All ₹${salesModalRecord.salesSummary.commissionPending.toLocaleString()} to Live Balance`}
+                </button>
+              </div>
+            )}
+
+            <div style={{ maxHeight: '50vh', overflowY: 'auto', padding: '4px 20px 20px' }}>
+              {(salesModalRecord.salesSummary?.sales || []).length === 0 ? (
+                <div style={{ textAlign: 'center', color: '#94a3b8', padding: '30px 0' }}>
+                  No sales this month.
+                </div>
+              ) : (
+                salesModalRecord.salesSummary.sales.map(sale => (
+                  <div key={sale._id} style={{ padding: '10px 12px', border: '1px solid #e2e8f0', borderRadius: '8px', marginBottom: '10px', background: sale.commissionAdded ? '#f0fdf4' : '#fff' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', marginBottom: '6px' }}>
+                      {sale.client} <span style={{ fontSize: '11px', fontWeight: 500, color: '#64748b' }}>· {sale.date}</span>
+                    </div>
+
+                    {/* Services / packages / medicines in this sale with price */}
+                    <div style={{ border: '1px solid #f1f5f9', borderRadius: '6px', marginBottom: '8px' }}>
+                      {parseSaleItems(sale.work).map((item, i) => (
+                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', padding: '5px 8px', fontSize: '12px', color: '#334155', borderBottom: '1px solid #f1f5f9' }}>
+                          <span>{item.name}</span>
+                          <span style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{item.price !== null ? `₹${item.price.toLocaleString()}` : '-'}</span>
+                        </div>
+                      ))}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 8px', fontSize: '12px', fontWeight: 700, color: '#0f172a', background: '#f8fafc' }}>
+                        <span>Sale Total</span>
+                        <span>₹{sale.saleAmount.toLocaleString()}</span>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+                      <div style={{ fontSize: '12px', color: '#334155' }}>
+                        5% of ₹{sale.saleAmount.toLocaleString()} = <strong style={{ color: '#10b981' }}>₹{sale.commission.toLocaleString()}</strong>
+                      </div>
+                    {sale.commissionAdded ? (
+                      <button
+                        type="button"
+                        disabled={commissionUpdatingId === sale._id}
+                        onClick={() => handleToggleCommission(sale, false)}
+                        title="Remove this commission from salary"
+                        style={{ padding: '7px 12px', borderRadius: '7px', border: '1px solid #a7f3d0', background: '#ecfdf5', color: '#047857', fontSize: '12px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                      >
+                        {commissionUpdatingId === sale._id ? '...' : '✓ Added (Undo)'}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={commissionUpdatingId === sale._id}
+                        onClick={() => handleToggleCommission(sale, true)}
+                        title="Add this commission to total salary"
+                        style={{ padding: '7px 12px', borderRadius: '7px', border: 'none', background: '#144b79', color: '#fff', fontSize: '12px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                      >
+                        {commissionUpdatingId === sale._id ? '...' : `+ Add ₹${sale.commission.toLocaleString()}`}
+                      </button>
+                    )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Lead Bonus Modal */}
+      {leadsModalRecord && (
+        <div className="modal-overlay" style={{ zIndex: 1100 }} onClick={() => setLeadsModalUserId(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '620px', width: '94%', borderRadius: '12px', padding: 0, overflow: 'hidden' }}>
+            <div style={{ background: '#144b79', color: '#fff', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#fff' }}>Lead Bonus - {leadsModalRecord.user.name}</h3>
+                <div style={{ fontSize: '12px', opacity: 0.85 }}>{currentMonth.format('MMMM YYYY')} · ₹25 per converted lead</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setLeadsModalUserId(null)}
+                style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '20px', lineHeight: 1 }}
+              >
+                &times;
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', padding: '16px 20px 8px' }}>
+              <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px' }}>
+                <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 700 }}>CONVERTED LEADS</div>
+                <div style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>{leadsModalRecord.leadsSummary?.totalLeads || 0}</div>
+              </div>
+              <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '8px', padding: '10px' }}>
+                <div style={{ fontSize: '11px', color: '#047857', fontWeight: 700 }}>ADDED TO SALARY</div>
+                <div style={{ fontSize: '16px', fontWeight: 700, color: '#047857' }}>₹{(leadsModalRecord.leadsSummary?.bonusAdded || 0).toLocaleString()}</div>
+              </div>
+              <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', padding: '10px' }}>
+                <div style={{ fontSize: '11px', color: '#b45309', fontWeight: 700 }}>PENDING</div>
+                <div style={{ fontSize: '16px', fontWeight: 700, color: '#b45309' }}>₹{(leadsModalRecord.leadsSummary?.bonusPending || 0).toLocaleString()}</div>
+              </div>
+            </div>
+
+            <div style={{ padding: '8px 20px', fontSize: '12px', color: '#64748b' }}>
+              Attendance Salary: <strong style={{ color: '#0f172a' }}>₹{(leadsModalRecord.attendanceEarned || 0).toLocaleString()}</strong>
+              {' + '}Commission: <strong style={{ color: '#10b981' }}>₹{(leadsModalRecord.salesSummary?.commissionAdded || 0).toLocaleString()}</strong>
+              {' + '}Lead Bonus: <strong style={{ color: '#10b981' }}>₹{(leadsModalRecord.leadsSummary?.bonusAdded || 0).toLocaleString()}</strong>
+              {' = '}Live Balance: <strong style={{ color: '#144b79' }}>₹{(leadsModalRecord.earned || 0).toLocaleString()}</strong>
+            </div>
+
+            {(leadsModalRecord.leadsSummary?.bonusPending || 0) > 0 && (
+              <div style={{ padding: '4px 20px 8px' }}>
+                <button
+                  type="button"
+                  disabled={!!commissionUpdatingId}
+                  onClick={() => handleAddAllCommission(leadsModalRecord.leadsSummary.leads.filter(l => !l.bonusAdded), 'lead-bonus')}
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: 'none', background: '#10b981', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: commissionUpdatingId ? 'not-allowed' : 'pointer' }}
+                >
+                  {commissionUpdatingId === 'all' ? 'Adding...' : `+ Add All ₹${leadsModalRecord.leadsSummary.bonusPending.toLocaleString()} to Live Balance`}
+                </button>
+              </div>
+            )}
+
+            <div style={{ maxHeight: '50vh', overflowY: 'auto', padding: '4px 20px 20px' }}>
+              {(leadsModalRecord.leadsSummary?.leads || []).length === 0 ? (
+                <div style={{ textAlign: 'center', color: '#94a3b8', padding: '30px 0' }}>
+                  No leads converted this month.
+                </div>
+              ) : (
+                leadsModalRecord.leadsSummary.leads.map(lead => (
+                  <div key={lead._id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', border: '1px solid #e2e8f0', borderRadius: '8px', marginBottom: '8px', background: lead.bonusAdded ? '#f0fdf4' : '#fff' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>
+                        {lead.fullName} <span style={{ fontSize: '11px', fontWeight: 500, color: '#64748b' }}>· {lead.date}</span>
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#64748b' }}>
+                        {lead.mobile}{lead.source ? ` · ${lead.source}` : ''}{lead.status ? ` · ${lead.status}` : ''}
+                      </div>
+                    </div>
+                    {lead.bonusAdded ? (
+                      <button
+                        type="button"
+                        disabled={commissionUpdatingId === lead._id}
+                        onClick={() => handleToggleCommission(lead, false, 'lead-bonus')}
+                        title="Remove this lead bonus from salary"
+                        style={{ padding: '7px 12px', borderRadius: '7px', border: '1px solid #a7f3d0', background: '#ecfdf5', color: '#047857', fontSize: '12px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                      >
+                        {commissionUpdatingId === lead._id ? '...' : '✓ Added (Undo)'}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={commissionUpdatingId === lead._id}
+                        onClick={() => handleToggleCommission(lead, true, 'lead-bonus')}
+                        title="Add this lead bonus to total salary"
+                        style={{ padding: '7px 12px', borderRadius: '7px', border: 'none', background: '#144b79', color: '#fff', fontSize: '12px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                      >
+                        {commissionUpdatingId === lead._id ? '...' : `+ Add ₹${lead.bonus}`}
+                      </button>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Pay Now / Salary Disbursal Modal */}
       {payModalUser && (
         <div className="modal-overlay" style={{ zIndex: 1100 }}>
@@ -838,6 +1204,12 @@ const Payroll = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '12px', color: '#64748b' }}>
                   <div>Total Salary: <strong style={{ color: '#0f172a' }}>₹{(payModalUser.salary || 0).toLocaleString()}</strong></div>
                   <div>Live Balance: <strong style={{ color: '#10b981' }}>₹{(payModalUser.earned || 0).toLocaleString()}</strong></div>
+                  {(payModalUser.salesSummary?.commissionAdded || 0) > 0 && (
+                    <div>Sales Commission: <strong style={{ color: '#10b981' }}>₹{payModalUser.salesSummary.commissionAdded.toLocaleString()}</strong></div>
+                  )}
+                  {(payModalUser.leadsSummary?.bonusAdded || 0) > 0 && (
+                    <div>Lead Bonus: <strong style={{ color: '#10b981' }}>₹{payModalUser.leadsSummary.bonusAdded.toLocaleString()}</strong></div>
+                  )}
                   {payModalUser.paid > 0 && (
                     <div>Already Paid: <strong style={{ color: '#3b82f6' }}>₹{(payModalUser.paid || 0).toLocaleString()}</strong></div>
                   )}

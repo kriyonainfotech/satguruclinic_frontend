@@ -38,10 +38,34 @@ const formatScheduleText = (timings) => {
 const STATUS_SELECT_OPTIONS = [
   { value: 'present', label: 'Full Day (Present)' },
   { value: 'half-day', label: 'Half Day' },
+  { value: 'short-time', label: 'Short Time' },
   { value: 'leave', label: 'Leave' },
   { value: 'holiday', label: 'Paid Holiday' },
   { value: 'unpaid-holiday', label: 'Unpaid Holiday' }
 ];
+
+// Clock in / out time se status (backend jaisa rule: >= 75% full day, >= 30% half day, warna short time)
+const getStatusFromTimes = (inTime, outTime, timings) => {
+  if (!inTime || !outTime) return null;
+  const timeFormats = ['HH:mm', 'hh:mm A', 'h:mm A', 'hh:mm a', 'h:mm a'];
+  let scheduled = 0;
+  (timings || []).forEach(t => {
+    if (t.startTime && t.endTime) {
+      const start = moment(t.startTime, timeFormats);
+      const end = moment(t.endTime, timeFormats);
+      if (end.isBefore(start)) end.add(1, 'days');
+      scheduled += end.diff(start, 'minutes');
+    }
+  });
+  if (scheduled <= 0) scheduled = 480;
+  const start = moment(inTime, 'HH:mm');
+  const end = moment(outTime, 'HH:mm');
+  if (end.isBefore(start)) end.add(1, 'days');
+  const worked = end.diff(start, 'minutes');
+  if (worked >= scheduled * 0.75) return 'present';
+  if (worked >= scheduled * 0.3) return 'half-day';
+  return 'short-time';
+};
 
 const Attendance = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -147,9 +171,21 @@ const Attendance = () => {
 
   const openEditModal = (record) => {
     setEditingRecord(record);
-    setEditClockIn(record.clockIn ? moment(record.clockIn).format('HH:mm') : '');
-    setEditClockOut(record.clockOut ? moment(record.clockOut).format('HH:mm') : '');
-    setEditStatus(record.status === 'none' ? 'present' : record.status);
+    const inTime = record.clockIn ? moment(record.clockIn).format('HH:mm') : '';
+    const outTime = record.clockOut ? moment(record.clockOut).format('HH:mm') : '';
+    setEditClockIn(inTime);
+    setEditClockOut(outTime);
+    // Time hai par status leave/none hai to time ke hisaab se status dikhao
+    const autoStatus = ['leave', 'none'].includes(record.status) ? getStatusFromTimes(inTime, outTime, record.user?.timings) : null;
+    setEditStatus(autoStatus || (record.status === 'none' ? 'present' : record.status));
+  };
+
+  // Time badalte hi status auto calculate (admin chahe to baad me change kar sakta hai)
+  const handleEditTimeChange = (inTime, outTime) => {
+    setEditClockIn(inTime);
+    setEditClockOut(outTime);
+    const autoStatus = getStatusFromTimes(inTime, outTime, editingRecord?.user?.timings);
+    if (autoStatus) setEditStatus(autoStatus);
   };
 
   const handleSaveEdit = async () => {
@@ -794,7 +830,7 @@ const Attendance = () => {
                 <input 
                   type="time" 
                   value={editClockIn} 
-                  onChange={(e) => setEditClockIn(e.target.value)}
+                  onChange={(e) => handleEditTimeChange(e.target.value, editClockOut)}
                   style={{
                     width: '100%',
                     padding: '8px 12px',
@@ -816,7 +852,7 @@ const Attendance = () => {
                 <input 
                   type="time" 
                   value={editClockOut} 
-                  onChange={(e) => setEditClockOut(e.target.value)}
+                  onChange={(e) => handleEditTimeChange(editClockIn, e.target.value)}
                   style={{
                     width: '100%',
                     padding: '8px 12px',

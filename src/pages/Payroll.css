@@ -999,3 +999,142 @@
     width: 100%;
   }
 }
+
+/* ===== Incentives (Sales Commission & Lead Bonus) ===== */
+.incentive-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 250px;
+}
+
+.incentive-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px 7px 7px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #ffffff;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.incentive-row:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.05);
+}
+
+.incentive-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.incentive-sales .incentive-icon {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.incentive-leads .incentive-icon {
+  background: #f5f3ff;
+  color: #7c3aed;
+}
+
+.incentive-body {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.incentive-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.incentive-rate {
+  margin-left: 2px;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 9.5px;
+  letter-spacing: 0;
+}
+
+.incentive-value {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+}
+
+.incentive-count {
+  font-size: 11px;
+  font-weight: 500;
+  color: #94a3b8;
+}
+
+.incentive-earned {
+  font-size: 11px;
+  font-weight: 600;
+  color: #10b981;
+}
+
+.incentive-add-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 64px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #475569;
+  cursor: pointer;
+  line-height: 1.2;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.incentive-add-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.incentive-add-btn.has-pending {
+  border-color: var(--primary-color, #144b79);
+  background: var(--primary-color, #144b79);
+  color: #ffffff;
+  box-shadow: 0 2px 5px rgba(20, 75, 121, 0.25);
+}
+
+.incentive-add-btn.has-pending:hover {
+  background: #0f395c;
+}
+
+.incentive-add-main {
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.incentive-add-due {
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #fde68a;
+}
+
+.incentive-mobile-wrap {
+  margin: 10px 0;
+}
+
+.incentive-mobile-wrap .incentive-stack {
+  min-width: 0;
+}

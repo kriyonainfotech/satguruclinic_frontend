@@ -62,6 +62,16 @@ const Tasks = ({ isEmbedded }) => {
   const isSuperadmin = userRole === 'superadmin';
   const isAdmin = userRole === 'admin';
 
+  const [assignableUsers, setAssignableUsers] = useState([]);
+  const currentUserId = currentUser.id || currentUser._id;
+
+  // Senior team member ke juniors (assignable-users API se aate hain)
+  const juniorAssignees = useMemo(() => {
+    if (!isTeam) return [];
+    return assignableUsers.filter(u => (u.role || '').toLowerCase() === 'team' && (u._id || u.id) !== currentUserId);
+  }, [assignableUsers, isTeam, currentUserId]);
+  const isSenior = juniorAssignees.length > 0;
+
   // Available Tabs based on user role
   const availableTabs = useMemo(() => {
     if (isSuperadmin) {
@@ -79,14 +89,22 @@ const Tasks = ({ isEmbedded }) => {
         { id: 'team', label: 'Team Tasks' }
       ];
     }
+    if (isSenior) {
+      return [
+        { id: 'my', label: 'My Tasks' },
+        { id: 'team', label: 'My Juniors Tasks' }
+      ];
+    }
     return [
       { id: 'my', label: 'My Tasks' }
     ];
-  }, [isSuperadmin, isAdmin]);
+  }, [isSuperadmin, isAdmin, isSenior]);
 
   const [activeTab, setActiveTab] = useState('my');
+
+  // Senior apne juniors ke tasks add / edit / delete kar sakta hai
+  const canManageTasks = !isTeam || (isSenior && activeTab === 'team');
   const [tasks, setTasks] = useState([]);
-  const [assignableUsers, setAssignableUsers] = useState([]);
   const [loading, setLoading] = useState(false);
 
   // Filters
@@ -135,15 +153,14 @@ const Tasks = ({ isEmbedded }) => {
     }
   }, [activeTab, searchQuery, selectedYear, selectedMonth, selectedstatus, selectedAssignee]);
 
-  const currentUserId = currentUser.id || currentUser._id;
-
   // Filter assignees based on role
   const teamAssignees = useMemo(() => {
     if (isTeam) {
+      if (isSenior) return juniorAssignees;
       return assignableUsers.filter(u => (u._id || u.id) === currentUserId);
     }
     return assignableUsers.filter(u => (u.role || '').toLowerCase() === 'team');
-  }, [assignableUsers, isTeam, currentUserId]);
+  }, [assignableUsers, isTeam, isSenior, juniorAssignees, currentUserId]);
 
   const adminAssignees = useMemo(() => {
     return assignableUsers.filter(u => (u.role || '').toLowerCase() === 'admin');
@@ -267,11 +284,11 @@ const Tasks = ({ isEmbedded }) => {
 
   // Dynamic Add Button Text
   const addButtonLabel = useMemo(() => {
-    if (activeTab === 'team') return '+ Add Team Task';
+    if (activeTab === 'team') return isTeam ? '+ Add Junior Task' : '+ Add Team Task';
     if (activeTab === 'admin') return '+ Add Admin Task';
     if (activeTab === 'superadmin') return '+ Add Superadmin Task';
     return 'Add Task';
-  }, [activeTab]);
+  }, [activeTab, isTeam]);
 
   const openBulkModal = () => {
     fetchChecklistTemplates();
@@ -705,6 +722,8 @@ const Tasks = ({ isEmbedded }) => {
         teamAssignees.forEach(u => {
           if (u._id !== currentUserId) opts.push({ value: u._id, label: `${u.name} (Team)` });
         });
+      } else if (isSenior) {
+        juniorAssignees.forEach(u => opts.push({ value: u._id, label: `${u.name} (Junior)` }));
       }
       return opts;
     }
@@ -714,7 +733,7 @@ const Tasks = ({ isEmbedded }) => {
       if (teamAssignees.length > 1) {
         opts.push({
           value: 'ALL_TEAM',
-          label: `All Team Members (${teamAssignees.length} Members)`
+          label: isTeam ? `All My Juniors (${teamAssignees.length} Members)` : `All Team Members (${teamAssignees.length} Members)`
         });
       }
       teamAssignees.forEach(u => {
@@ -752,7 +771,7 @@ const Tasks = ({ isEmbedded }) => {
         label: u._id === currentUserId ? `${u.name} (Myself)` : u.name
       }))
     ];
-  }, [activeTab, teamAssignees, adminAssignees, currentTabAssignees, currentUserId, isEditMode, isSuperadmin, isAdmin, currentUser.name]);
+  }, [activeTab, teamAssignees, adminAssignees, juniorAssignees, currentTabAssignees, currentUserId, isEditMode, isSuperadmin, isAdmin, isSenior, currentUser.name]);
 
   const bulkAssigneeOptions = useMemo(() => {
     const opts = [];
@@ -765,9 +784,12 @@ const Tasks = ({ isEmbedded }) => {
     } else if (isAdmin) {
       if (teamAssignees.length > 0) opts.push({ value: 'ALL_TEAM', label: 'All Team Members' });
       teamAssignees.forEach(u => opts.push({ value: u._id, label: `${u.name} (Team)` }));
+    } else if (isSenior) {
+      if (juniorAssignees.length > 1) opts.push({ value: 'ALL_TEAM', label: 'All My Juniors' });
+      juniorAssignees.forEach(u => opts.push({ value: u._id, label: `${u.name} (Junior)` }));
     }
     return opts;
-  }, [isSuperadmin, isAdmin, adminAssignees, teamAssignees, currentUserId]);
+  }, [isSuperadmin, isAdmin, isSenior, adminAssignees, teamAssignees, juniorAssignees, currentUserId]);
 
   const modalstatusOptions = [
     { value: 'Pending', label: 'Pending' },
@@ -832,7 +854,7 @@ const Tasks = ({ isEmbedded }) => {
       {!isEmbedded && (
       <div className="page-header" style={{ marginBottom: '16px' }}>
         <h2>Task Management</h2>
-        {!isTeam && (
+        {canManageTasks && (
           <div style={{ display: 'flex', gap: '10px' }}>
             <button
               type="button"
@@ -1056,7 +1078,7 @@ const Tasks = ({ isEmbedded }) => {
                     ? 'Pick another date on the calendar to view tasks or schedule a new task for this day.'
                     : 'Try clearing your search query or adjusting your status filters.'}
                 </p>
-                {!isTeam && (
+                {canManageTasks && (
                   <button
                     type="button"
                     className="task-empty-btn"
@@ -1148,7 +1170,7 @@ const Tasks = ({ isEmbedded }) => {
                               >
                                 <EyeIcon size={16} />
                               </button>
-                              {!isTeam && ( <><button
+                              {canManageTasks && ( <><button
                                 type="button"
                                 className="action-btn edit tbl-icon-btn"
                                 title="Edit Task"
@@ -1237,7 +1259,7 @@ const Tasks = ({ isEmbedded }) => {
                             >
                               <EyeIcon size={14} />
                             </button>
-                            {!isTeam && ( <><button
+                            {canManageTasks && ( <><button
                               type="button"
                               className="action-btn edit tbl-icon-btn"
                               title="Edit Task"
@@ -1693,7 +1715,7 @@ const Tasks = ({ isEmbedded }) => {
                 <div>
                   <label className="compact-field-label">
                     {activeTab === 'team'
-                      ? 'Assign To Team'
+                      ? (isTeam ? 'Assign To Junior' : 'Assign To Team')
                       : activeTab === 'admin'
                       ? 'Assign To Admin'
                       : activeTab === 'superadmin'

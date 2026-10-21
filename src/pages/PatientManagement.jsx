@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { PlusIcon, TrashIcon, EditIcon, XIcon, UserIcon, SearchIcon, PhoneIcon, CalendarIcon } from '../components/Icons';
+import { PlusIcon, TrashIcon, EditIcon, XIcon, UserIcon, SearchIcon, PhoneIcon, CalendarIcon, EyeIcon } from '../components/Icons';
 import CalendarPicker from '../components/CalendarPicker';
 import StatusDropdown from '../components/StatusDropdown';
 import CustomSelect from '../components/CustomSelect';
@@ -225,6 +225,7 @@ const PatientManagement = () => {
   };
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [viewPatient, setViewPatient] = useState(null); // Patient detail view modal
   const [dobError, setDobError] = useState('');
     const [formData, setFormData] = useState({
     fullName: '',
@@ -628,126 +629,92 @@ const PatientManagement = () => {
         </div>
       </div>
 
-      <div className="patient-filter-bar" style={{ display: 'flex', flexWrap: 'nowrap', gap: '12px', alignItems: 'center', width: '100%', overflowX: 'auto', paddingBottom: '4px' }}>
-        <div 
-          className="patient-search-input-box" 
-          style={{ 
-            flex: '1 1 320px', 
-            minWidth: '260px',
-            maxWidth: '440px',
-            display: 'flex', 
-            alignItems: 'center', 
-            background: '#ffffff', 
-            border: '1.5px solid #e2e8f0', 
-            borderRadius: '8px', 
-            padding: '0 12px',
-            height: '38px',
-            boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)',
-            transition: 'all 0.2s ease'
-          }}
-        >
+      <div className="patient-filter-bar">
+        <div className="patient-search-input-box">
           <SearchIcon size={16} color="#64748b" style={{ flexShrink: 0 }} />
           <input 
             type="text" 
             placeholder="Search by name, ID, or mobile..." 
             value={searchQuery} 
             onChange={e => setSearchQuery(e.target.value)} 
-            style={{ 
-              border: 'none', 
-              background: 'transparent', 
-              padding: '0 10px', 
-              width: '100%', 
-              outline: 'none', 
-              fontSize: '13.5px',
-              color: '#0f172a',
-              fontWeight: '500'
-            }}
           />
           {searchQuery && (
             <button 
               type="button" 
+              className="patient-search-clear"
               onClick={() => setSearchQuery('')} 
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center', color: '#94a3b8' }}
               title="Clear search"
             >
               <XIcon size={14} />
             </button>
           )}
         </div>
-        <div className="patient-filter-selects" style={{ display: 'flex', flexWrap: 'nowrap', gap: '10px', alignItems: 'center', flexShrink: 0 }}>
-            <button 
-                type="button"
-                className="btn-primary"
-                onClick={() => {
-                  if (todayBirthdays.length > 0) {
-                    setShowBirthdayModal(true);
-                  } else {
-                    alert('No birthdays today!');
-                  }
-                }}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '6px',
-                  padding: '0 12px', height: '36px', borderRadius: '6px',
-                  background: '#25d366', borderColor: '#25d366',
-                  color: '#ffffff',
-                  fontWeight: 600, fontSize: '13px', cursor: 'pointer',
-                  transition: 'all 0.2s', whiteSpace: 'nowrap'
-                }}
-              >
-                + Msg Today Birthdays
-              </button>
-            <div style={{ minWidth: '140px' }}>
-             <CustomSelect
-               value={dateFilterMode}
-               options={[
-                 {value: 'All', label: 'All Dates'},
-                 {value: 'Single Date', label: 'Single Date'},
-                 {value: 'Date Range', label: 'Date Range'},
-                 {value: 'Month/Year', label: 'Month/Year'}
-               ]}
-               onChange={setDateFilterMode}
-             />
+        <div className="patient-filter-selects">
+          <button 
+            type="button"
+            className="patient-birthday-msg-btn"
+            onClick={() => {
+              if (todayBirthdays.length > 0) {
+                setShowBirthdayModal(true);
+              } else {
+                alert('No birthdays today!');
+              }
+            }}
+          >
+            + Msg Today Birthdays
+          </button>
+          <div className="patient-filter-item">
+            <CustomSelect
+              value={dateFilterMode}
+              options={[
+                {value: 'All', label: 'All Dates'},
+                {value: 'Single Date', label: 'Single Date'},
+                {value: 'Date Range', label: 'Date Range'},
+                {value: 'Month/Year', label: 'Month/Year'}
+              ]}
+              onChange={setDateFilterMode}
+            />
           </div>
 
           {dateFilterMode === 'Single Date' && (
-             <div style={{ minWidth: '150px' }}>
-               <CalendarPicker selectedDate={filterDate} onChange={setFilterDate} placeholder="Select Date" />
-             </div>
+            <div className="patient-filter-item">
+              <CalendarPicker selectedDate={filterDate} onChange={setFilterDate} placeholder="Select Date" />
+            </div>
           )}
 
           {dateFilterMode === 'Date Range' && (
-             <>
-               <div style={{ minWidth: '140px' }}>
-                 <CalendarPicker selectedDate={filterDateFrom} onChange={setFilterDateFrom} placeholder="From Date" />
-               </div>
-               <div style={{ minWidth: '140px' }}>
-                 <CalendarPicker selectedDate={filterDateTo} onChange={setFilterDateTo} placeholder="To Date" />
-               </div>
-             </>
+            <>
+              <div className="patient-filter-item">
+                <CalendarPicker selectedDate={filterDateFrom} onChange={setFilterDateFrom} placeholder="From Date" />
+              </div>
+              <div className="patient-filter-item">
+                <CalendarPicker selectedDate={filterDateTo} onChange={setFilterDateTo} placeholder="To Date" />
+              </div>
+            </>
           )}
 
           {dateFilterMode === 'Month/Year' && (
-             <>
-               <div style={{ minWidth: '120px' }}>
-                 <CustomSelect
-                   value={selectedYear}
-                   options={yearOptions}
-                   placeholder="All Years"
-                   onChange={val => setSelectedYear(val)}
-                 />
-               </div>
-               <div style={{ minWidth: '130px' }}>
-                 <CustomSelect
-                   value={selectedMonth}
-                   options={monthOptions}
-                   placeholder="All Months"
-                   onChange={val => setSelectedMonth(val)}
-                 />
-               </div>
-             </>
+            <>
+              <div className="patient-filter-item">
+                <CustomSelect
+                  value={selectedYear}
+                  options={yearOptions}
+                  placeholder="All Years"
+                  onChange={val => setSelectedYear(val)}
+                />
+              </div>
+              <div className="patient-filter-item">
+                <CustomSelect
+                  value={selectedMonth}
+                  options={monthOptions}
+                  placeholder="All Months"
+                  onChange={val => setSelectedMonth(val)}
+                />
+              </div>
+            </>
           )}
 
-          <div style={{ minWidth: '160px', marginLeft: 'auto' }}>
+          <div className="patient-filter-item">
             <CustomSelect
               value={filterCreatedBy}
               options={createdByOptions}
@@ -778,7 +745,7 @@ const PatientManagement = () => {
                 <th>APPOINTMENTS</th>
                 <th>CREATED BY</th>
                 <th>STATUS</th>
-                <th style={{ textAlign: 'center', width: '90px' }}>ACTIONS</th>
+                <th style={{ textAlign: 'center', width: '130px' }}>ACTIONS</th>
               </tr>
             </thead>
             <tbody>
@@ -867,6 +834,9 @@ const PatientManagement = () => {
                   </td>
                   <td style={{ textAlign: 'center' }}>
                     <div className="table-action-icons-wrap" style={{ justifyContent: 'center' }}>
+                        <button className="action-btn view tbl-icon-btn" onClick={() => setViewPatient(p)} title="View Details" aria-label="View Details">
+                          <EyeIcon size={15} />
+                        </button>
                         {p.mobileNumber && (
                           <button 
                             className="action-btn tbl-icon-btn" 
@@ -992,6 +962,15 @@ const PatientManagement = () => {
                   </button>
 
                   <div className="patient-actions-right">
+                    <button 
+                      type="button"
+                      className="action-btn view tbl-icon-btn" 
+                      onClick={() => setViewPatient(p)} 
+                      title="View Details" 
+                      aria-label="View Details"
+                    >
+                      <EyeIcon size={15} />
+                    </button>
                     {p.mobileNumber && (
                       <button 
                         type="button"
@@ -1356,6 +1335,91 @@ const PatientManagement = () => {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Patient Detail View Modal */}
+      {viewPatient && (
+        <div className="modal-overlay" onClick={() => setViewPatient(null)}>
+          <div className="modal-content patient-view-modal" onClick={e => e.stopPropagation()}>
+            <div className="patient-view-header">
+              <div className="patient-view-avatar">{(viewPatient.fullName || 'P').charAt(0).toUpperCase()}</div>
+              <div className="patient-view-title">
+                <h3>{viewPatient.fullName}</h3>
+                <div className="patient-view-sub">
+                  <span className="patient-id-badge">{viewPatient.patientId}</span>
+                  <span className={`patient-view-status ${viewPatient.status === 'Inactive' ? 'inactive' : ''}`}>{viewPatient.status || 'Active'}</span>
+                </div>
+              </div>
+              <button className="modal-close" title="Close" aria-label="Close" onClick={() => setViewPatient(null)}>
+                <XIcon size={16} />
+              </button>
+            </div>
+
+            <div className="patient-view-body">
+              {[
+                {
+                  title: 'Basic Details',
+                  rows: [
+                    ['Gender', viewPatient.gender],
+                    ['Date of Birth', viewPatient.dateOfBirth ? formatDate(viewPatient.dateOfBirth) : ''],
+                    ['Age', viewPatient.age ? `${viewPatient.age} Yrs` : ''],
+                    ['Mobile', viewPatient.mobileNumber],
+                    ['Email', viewPatient.email],
+                    ['Address', viewPatient.address, true]
+                  ]
+                },
+                {
+                  title: 'Medical Details',
+                  rows: [
+                    ['Blood Group', viewPatient.bloodGroup && viewPatient.bloodGroup !== 'Unknown' ? viewPatient.bloodGroup : ''],
+                    ['Allergies', viewPatient.allergies, true],
+                    ['Existing Conditions', viewPatient.existingConditions, true],
+                    ['Current Medicines', viewPatient.currentMedicines, true],
+                    ['Previous History', viewPatient.previousHistory, true]
+                  ]
+                },
+                {
+                  title: 'Emergency Contact',
+                  rows: [
+                    ['Name', viewPatient.emergencyContactName],
+                    ['Number', viewPatient.emergencyContactNumber],
+                    ['Relationship', viewPatient.relationship]
+                  ]
+                },
+                {
+                  title: 'Clinic Details',
+                  rows: [
+                    ['Registration Date', viewPatient.registrationDate ? formatDate(viewPatient.registrationDate) : ''],
+                    ['Assigned Team Member', viewPatient.assignedTeamMember?.name],
+                    ['Created By', viewPatient.createdBy?.name ? `${viewPatient.createdBy.name} (${viewPatient.createdBy.role || 'admin'})` : '']
+                  ]
+                }
+              ].map(section => (
+                <div key={section.title} className="patient-view-section">
+                  <h4 className="patient-view-section-title">{section.title}</h4>
+                  <div className="patient-view-grid">
+                    {section.rows.map(([label, value, full]) => (
+                      <div key={label} className={`patient-view-field ${full ? 'full' : ''}`}>
+                        <span className="patient-view-label">{label}</span>
+                        <span className="patient-view-value">{value || '—'}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="modal-footer">
+              <button type="button" className="crm-btn crm-btn-secondary" onClick={() => { const p = viewPatient; setViewPatient(null); openHistory(p); }}>
+                <CalendarIcon size={14} /> View Appointments
+              </button>
+              {isAdminOrTeam && (
+                <button type="button" className="crm-btn crm-btn-primary" onClick={() => { const p = viewPatient; setViewPatient(null); openEditModal(p); }}>
+                  <EditIcon size={14} /> Edit Patient
+                </button>
+              )}
             </div>
           </div>
         </div>

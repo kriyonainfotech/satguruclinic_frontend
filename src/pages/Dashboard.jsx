@@ -22,7 +22,10 @@ import {
   CameraIcon
 } from '../components/Icons';
 import ClockInCameraModal from '../components/ClockInCameraModal';
+import StatusDropdown from '../components/StatusDropdown';
 import './Dashboard.css';
+
+const isTaskDone = (status) => status === 'Done' || status === 'Completed';
 
 const formatTime12HourStr = (time24) => {
   if (!time24) return '';
@@ -94,12 +97,15 @@ const Dashboard = () => {
   const [walletData, setWalletData] = useState(null);
   const [upcomingHolidays, setUpcomingHolidays] = useState([]);
   const [teamPerfData, setTeamPerfData] = useState([]);
+  const [todayTasks, setTodayTasks] = useState(null);
+  const [juniorPendingCount, setJuniorPendingCount] = useState(0);
 
   useEffect(() => {
     fetchTodayAttendance();
     fetchUpcomingHolidays();
     if (user.role === 'team') {
       fetchWalletData();
+      fetchTodayTasks();
 
         const localToken = localStorage.getItem('token');
         axios.get(`${import.meta.env.VITE_API_BASE_URL}/dashboard/team-performance`, { headers: { Authorization: `Bearer ${localToken}` } })
@@ -118,6 +124,40 @@ const Dashboard = () => {
       setUpcomingHolidays(res.data || []);
     } catch (error) {
       console.error('Error fetching upcoming holidays', error);
+    }
+  };
+
+  // Aaj ke mere tasks + (senior ho to) juniors ke pending tasks ka count
+  const fetchTodayTasks = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const today = moment().format('YYYY-MM-DD');
+      const headers = { Authorization: `Bearer ${token}` };
+      const [myRes, juniorRes] = await Promise.all([
+        axios.get(`${import.meta.env.VITE_API_BASE_URL}/tasks?tab=my&date=${today}`, { headers }),
+        axios.get(`${import.meta.env.VITE_API_BASE_URL}/tasks?tab=team&date=${today}`, { headers }).catch(() => ({ data: [] }))
+      ]);
+      setTodayTasks(myRes.data || []);
+      setJuniorPendingCount((juniorRes.data || []).filter(t => !isTaskDone(t.status)).length);
+    } catch (error) {
+      console.error('Error fetching today tasks', error);
+      setTodayTasks([]);
+    }
+  };
+
+  const handleTaskStatusChange = async (task, newStatus) => {
+    if (isTaskDone(newStatus) && task.checklistItems?.some(item => !item.isCompleted)) {
+      alert('You must complete all checklist items before marking this task as ' + newStatus);
+      return;
+    }
+    try {
+      const token = localStorage.getItem('token');
+      await axios.patch(`${import.meta.env.VITE_API_BASE_URL}/tasks/${task._id}/status`, { status: newStatus }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setTodayTasks(prev => prev.map(t => t._id === task._id ? { ...t, status: newStatus } : t));
+    } catch (error) {
+      alert('Error updating status: ' + (error.response?.data?.message || error.message));
     }
   };
 
@@ -486,21 +526,9 @@ const Dashboard = () => {
                     }
                   }
 
-                  let canClockIn = true;
-                  let lockNotice = '';
-                  if (hasShiftEnded) {
-                    canClockIn = false;
-                    lockNotice = endNotice;
-                  } else if (shift.startTime) {
-                    const now = moment();
-                    const timeFormats = ['HH:mm', 'hh:mm A', 'h:mm A', 'hh:mm a', 'h:mm a'];
-                    const shiftStart = moment(shift.startTime, timeFormats);
-                    const allowedTime = shiftStart.clone().subtract(5, 'minutes');
-                    if (now.isBefore(allowedTime)) {
-                      canClockIn = false;
-                      lockNotice = `Clock In opens 5 mins before shift (from ${allowedTime.format('hh:mm A')})`;
-                    }
-                  }
+                  // Clock In kabhi bhi ho sakta hai - jaldi aane / late jaane ka time salary me judta hai
+                  const canClockIn = true;
+                  const lockNotice = hasShiftEnded ? endNotice : '';
 
                   const shiftLabel = isMultiShift ? `Shift ${idx + 1}` : 'General Duty';
                   const timingText = (shift.startTime && shift.endTime) 
@@ -595,10 +623,10 @@ const Dashboard = () => {
                           onClick={() => handleClockInClick(idx, shiftLabel)} 
                           disabled={loadingAction || !canClockIn} 
                           className="btn-clock-in"
-                          title={hasShiftEnded ? endNotice : (!canClockIn ? lockNotice : 'Click to take live photo and Clock In')}
+                          title="Click to take live photo and Clock In"
                         >
                           <CameraIcon size={14} />
-                          <span>{hasShiftEnded ? 'Shift Ended' : (canClockIn ? 'Clock In' : 'Opens 5m before')}</span>
+                          <span>Clock In</span>
                         </button>
                       )}
                       
@@ -623,6 +651,59 @@ const Dashboard = () => {
                   </div>
                 );
               })}
+            </div>
+
+            {/* Today's Tasks */}
+            <div className="dash-tasks-card">
+              <div className="dash-tasks-header">
+                <h2 className="section-heading">
+                  <ClipboardListIcon size={18} color="var(--primary-color, #144b79)" />
+                  <span>Today's Tasks</span>
+                </h2>
+                {todayTasks && todayTasks.length > 0 && (
+                  <span className="dash-tasks-count">
+                    {todayTasks.filter(t => isTaskDone(t.status)).length}/{todayTasks.length} Done
+                  </span>
+                )}
+              </div>
+
+              {todayTasks === null ? (
+                <div className="dash-tasks-empty">Loading tasks...</div>
+              ) : todayTasks.length === 0 ? (
+                <div className="dash-tasks-empty">
+                  <CheckCircleIcon size={18} color="#10b981" />
+                  <span>No tasks for today</span>
+                </div>
+              ) : (
+                <div className="dash-tasks-list">
+                  {todayTasks.map(task => (
+                    <div key={task._id} className={`dash-task-row ${isTaskDone(task.status) ? 'done' : ''}`}>
+                      <div className="dash-task-info">
+                        <span className="dash-task-title">{task.title}</span>
+                        <div className="dash-task-meta">
+                          {task.category && <span className="dash-task-tag">#{task.category}</span>}
+                          {task.priority && <span className={`dash-task-tag priority-${task.priority.toLowerCase()}`}>{task.priority}</span>}
+                          {task.checklistItems?.length > 0 && (
+                            <span className="dash-task-tag">
+                              ✓ {task.checklistItems.filter(i => i.isCompleted).length}/{task.checklistItems.length}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <StatusDropdown value={task.status} onChange={(newStatus) => handleTaskStatusChange(task, newStatus)} />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {juniorPendingCount > 0 && (
+                <Link to="/tasks" className="dash-tasks-junior-note">
+                  <UsersIcon size={14} />
+                  <span>{juniorPendingCount} {juniorPendingCount === 1 ? 'task is' : 'tasks are'} pending for your juniors today</span>
+                </Link>
+              )}
+
+              <Link to="/my-tasks" className="dash-tasks-view-all">View All Tasks →</Link>
             </div>
           </div>
           )}

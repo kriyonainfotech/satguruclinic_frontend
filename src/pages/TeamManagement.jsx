@@ -33,6 +33,8 @@ const TeamManagement = () => {
   const [timings, setTimings] = useState([{ startTime: '', endTime: '' }]);
   const [adminId, setAdminId] = useState('');
   const [admins, setAdmins] = useState([]);
+  const [teamLevel, setTeamLevel] = useState('');
+  const [seniorId, setSeniorId] = useState('');
   
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
   const isSuperadmin = currentUser.role === 'superadmin';
@@ -47,6 +49,16 @@ const TeamManagement = () => {
   const [passwordMessage, setPasswordMessage] = useState('');
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [teamCategories, setTeamCategories] = useState([]);
+
+  // Senior list (junior ke liye dropdown). Junior apne senior ke admin ke under hi rahega.
+  const seniorOptions = teamMembers.filter(m => m.teamLevel === 'senior' && m._id !== editingId);
+  const getAdminName = (id) => admins.find(a => a._id === id)?.name || '';
+  const handleSeniorChange = (val) => {
+    setSeniorId(val);
+    const senior = teamMembers.find(m => m._id === val);
+    if (isSuperadmin && senior?.adminId) setAdminId(senior.adminId);
+  };
+  const getMemberName = (id) => teamMembers.find(m => m._id === id)?.name || '';
 
   useEffect(() => {
     fetchTeamMembers();
@@ -142,6 +154,7 @@ const TeamManagement = () => {
     setEditingId(null);
     setName(''); setEmail(''); setPassword(''); setMobile(''); setBirthDate(''); setCategory(''); setSalary(''); 
     setTimingType('normal'); setTimings([{ startTime: '', endTime: '' }]); setAdminId('');
+    setTeamLevel(''); setSeniorId('');
     setMessage('');
     setShowModal(true);
   };
@@ -158,6 +171,8 @@ const TeamManagement = () => {
     setTimingType(member.timingType || 'normal');
     setTimings(member.timings && member.timings.length > 0 ? member.timings : [{ startTime: '', endTime: '' }]);
     setAdminId(member.adminId || '');
+    setTeamLevel(member.teamLevel || '');
+    setSeniorId(member.seniorId || '');
     setPassword(''); 
     setMessage('');
     setShowModal(true);
@@ -212,20 +227,25 @@ const TeamManagement = () => {
       setMessage('Please enter normal start and end time');
       return;
     }
+    if (teamLevel === 'junior' && !seniorId) {
+      setMessage('Please select the senior this junior will work under');
+      return;
+    }
+    const levelPayload = { teamLevel, seniorId: teamLevel === 'junior' ? seniorId : null };
 
     try {
       const token = localStorage.getItem('token');
       if (isEditMode) {
         await axios.put(`${import.meta.env.VITE_API_BASE_URL}/auth/users/${editingId}`, {
           name, email, mobile, category, salary: Number(salary) || 0, timingType, timings: validTimings
-        , adminId: isSuperadmin ? adminId : undefined}, {
+        , adminId: isSuperadmin ? adminId : undefined, ...levelPayload}, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setMessage('Team member updated successfully!');
       } else {
         await axios.post(`${import.meta.env.VITE_API_BASE_URL}/auth/register`, {
           name, email, password, mobile, role: 'team', category, salary: Number(salary) || 0, timingType, timings: validTimings
-        , adminId: isSuperadmin ? adminId : undefined}, {
+        , adminId: isSuperadmin ? adminId : undefined, ...levelPayload}, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setMessage('Team member created successfully!');
@@ -260,15 +280,16 @@ const TeamManagement = () => {
                 <th>Email Address</th>
                 <th>Mobile</th>
                 <th>Role / Category</th>
+                <th>Level</th>
                 <th>Timings</th>
                 {isSuperadmin && <th>Assign To</th>}
                 <th style={{ textAlign: 'right', paddingRight: '22px' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {loading ? ( <tr><td colSpan="6" style={{ textAlign: "center", padding: "36px 20px", color: "#94a3b8" }}><div className="global-loader-container"><div className="global-spinner"></div><div>Loading team members...</div></div></td></tr> ) : teamMembers.length === 0 ? (
+              {loading ? ( <tr><td colSpan={isSuperadmin ? 8 : 7} style={{ textAlign: "center", padding: "36px 20px", color: "#94a3b8" }}><div className="global-loader-container"><div className="global-spinner"></div><div>Loading team members...</div></div></td></tr> ) : teamMembers.length === 0 ? (
                 <tr>
-                  <td colSpan="6" style={{ textAlign: 'center', padding: '36px 20px', color: '#94a3b8' }}>
+                  <td colSpan={isSuperadmin ? 8 : 7} style={{ textAlign: 'center', padding: '36px 20px', color: '#94a3b8' }}>
                     No team members found.
                   </td>
                 </tr>
@@ -297,6 +318,23 @@ const TeamManagement = () => {
                         <span className={`tbl-role-badge ${roleClass}`}>
                           {member.role} {member.category ? `• ${member.category}` : ''}
                         </span>
+                      </td>
+                      <td>
+                        {member.teamLevel === 'senior' ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', alignItems: 'flex-start' }}>
+                            <span className="tbl-role-badge badge-admin">Senior</span>
+                            <span style={{ fontSize: '11.5px', color: '#64748b' }}>
+                              {teamMembers.filter(m => m.seniorId === member._id).length} Junior(s)
+                            </span>
+                          </div>
+                        ) : member.teamLevel === 'junior' ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', alignItems: 'flex-start' }}>
+                            <span className="tbl-role-badge badge-team">Junior</span>
+                            <span style={{ fontSize: '11.5px', color: '#64748b' }}>
+                              Under: {getMemberName(member.seniorId) || 'No senior'}
+                            </span>
+                          </div>
+                        ) : '—'}
                       </td>
                       <td>
                         {member.timingType === 'shift' ? (
@@ -364,6 +402,12 @@ const TeamManagement = () => {
                       <span className="tm-name">{member.name}</span>
                       {member.category && (
                         <span className="tm-category-sub">{member.category}</span>
+                      )}
+                      {member.teamLevel === 'senior' && (
+                        <span className="tm-category-sub">Senior • {teamMembers.filter(m => m.seniorId === member._id).length} Junior(s)</span>
+                      )}
+                      {member.teamLevel === 'junior' && (
+                        <span className="tm-category-sub">Junior • Under: {getMemberName(member.seniorId) || 'No senior'}</span>
                       )}
                     </div>
                   </div>
@@ -460,6 +504,41 @@ const TeamManagement = () => {
                     options={teamCategories.map(cat => ({ value: cat, label: cat }))}
                   />
                 </div>
+              </div>
+
+              {/* Senior / Junior */}
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <div className="crm-input-group" style={{ flex: 1 }}>
+                  <label className="crm-input-label">Level</label>
+                  <CustomSelect
+                    value={teamLevel}
+                    onChange={val => { setTeamLevel(val); if (val !== 'junior') setSeniorId(''); }}
+                    options={[
+                      { value: '', label: 'No Level' },
+                      { value: 'senior', label: 'Senior' },
+                      { value: 'junior', label: 'Junior' }
+                    ]}
+                  />
+                </div>
+                {teamLevel === 'junior' && (
+                  <div className="crm-input-group" style={{ flex: 1 }}>
+                    <label className="crm-input-label">Works Under (Senior)</label>
+                    <CustomSelect
+                      value={seniorId}
+                      onChange={handleSeniorChange}
+                      placeholder="Select Senior"
+                      options={[{ value: '', label: 'Select Senior' }, ...seniorOptions.map(m => ({
+                        value: m._id,
+                        label: isSuperadmin && getAdminName(m.adminId) ? `${m.name} (${getAdminName(m.adminId)})` : m.name
+                      }))]}
+                    />
+                    {seniorOptions.length === 0 && (
+                      <span style={{ fontSize: '11.5px', color: '#b91c1c', marginTop: '4px', display: 'block' }}>
+                        Pehle kisi team member ko Senior banaiye
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
               <div>
                 <FormInput type="number" label="Monthly Salary (₹)" placeholder="Enter monthly salary" value={salary} onChange={e => setSalary(e.target.value)} required />
