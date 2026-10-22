@@ -241,7 +241,8 @@ const PatientManagement = () => {
     previousHistory: '',
     emergencyContactName: '',
     emergencyContactNumber: '',
-    relationship: ''
+    relationship: '',
+    seatNumber: ''
   });
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -387,6 +388,8 @@ const PatientManagement = () => {
         } else {
           return alert('Invalid Date of Birth format. Use DD/MM/YY');
         }
+      } else {
+        payload.dateOfBirth = null;
       }
 
       if (isEditMode && editingId) {
@@ -402,7 +405,7 @@ const PatientManagement = () => {
       setFormData({
         fullName: '', gender: 'Male', dateOfBirth: '', mobileNumber: '', email: '', address: '',
         bloodGroup: 'Unknown', allergies: '', existingConditions: '', currentMedicines: '', previousHistory: '',
-        emergencyContactName: '', emergencyContactNumber: '', relationship: ''
+        emergencyContactName: '', emergencyContactNumber: '', relationship: '', seatNumber: ''
       });
       fetchPatients();
     } catch (err) {
@@ -516,7 +519,8 @@ const PatientManagement = () => {
       previousHistory: p.previousHistory || '',
       emergencyContactName: p.emergencyContactName || '',
       emergencyContactNumber: p.emergencyContactNumber || '',
-      relationship: p.relationship || ''
+      relationship: p.relationship || '',
+      seatNumber: p.seatNumber || ''
     });
     setShowModal(true);
   };
@@ -527,7 +531,7 @@ const PatientManagement = () => {
     setFormData({
       fullName: '', gender: 'Male', dateOfBirth: '', mobileNumber: '', email: '', address: '',
       bloodGroup: 'Unknown', allergies: '', existingConditions: '', currentMedicines: '', previousHistory: '',
-      emergencyContactName: '', emergencyContactNumber: '', relationship: ''
+      emergencyContactName: '', emergencyContactNumber: '', relationship: '', seatNumber: ''
     });
     setShowModal(true);
   };
@@ -582,11 +586,14 @@ const PatientManagement = () => {
     setHistoryModal({ show: true, patient, appointments: [], loading: true });
     try {
       const token = localStorage.getItem('token');
-      // Fetch all appointments for this patient
-      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/appointments?patientId=${patient._id}`, {
+      // Fetch appointments of all patients sharing this mobile number (sorted by date)
+      // patientId is kept as fallback for older backends that don't understand `mobile`
+      const query = patient.mobileNumber
+        ? `patientId=${patient._id}&mobile=${encodeURIComponent(patient.mobileNumber)}`
+        : `patientId=${patient._id}`;
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/appointments?${query}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      // The backend appointmentController might not support filtering by patientId. I need to make sure it does.
       setHistoryModal({ show: true, patient, appointments: res.data, loading: false });
     } catch (err) {
       console.error('Error fetching history', err);
@@ -1178,8 +1185,8 @@ const PatientManagement = () => {
                     <input type="text" name="mobileNumber" className="modal-text-input" placeholder="Enter 10-digit mobile" required pattern="[0-9]{10}" title="Please enter exactly 10 digits" value={formData.mobileNumber} onChange={handleInputChange} style={{ height: '36px', fontSize: '13px' }} />
                   </div>
                   <div>
-                    <label style={{ fontSize: '11px', fontWeight: 600, color: '#475569', marginBottom: '3px', display: 'block' }}>Date of Birth *</label>
-                    <input type="text" name="dateOfBirth" className="modal-text-input" placeholder="DD/MM/YYYY" value={formData.dateOfBirth} onChange={handleInputChange} required style={{ height: '36px', fontSize: '13px' }} />
+                    <label style={{ fontSize: '11px', fontWeight: 600, color: '#475569', marginBottom: '3px', display: 'block' }}>Date of Birth</label>
+                    <input type="text" name="dateOfBirth" className="modal-text-input" placeholder="DD/MM/YYYY" value={formData.dateOfBirth} onChange={handleInputChange} style={{ height: '36px', fontSize: '13px' }} />
                       {dobError && <div style={{color: 'red', fontSize: '11px', marginTop: '4px'}}>{dobError}</div>}
                     {!dobError && formData.dateOfBirth && <div style={{ fontSize: '10.5px', color: '#0284c7', marginTop: '2px', fontWeight: 500 }}>Age: {calculateAgePreview(formData.dateOfBirth)} yrs</div>}
                   </div>
@@ -1192,6 +1199,10 @@ const PatientManagement = () => {
                       onChange={(val) => setFormData({ ...formData, gender: val })} 
                       style={{ height: '36px' }}
                     />
+                  </div>
+                  <div style={{ gridColumn: 'span 2' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 600, color: '#475569', marginBottom: '3px', display: 'block' }}>Seat Number</label>
+                    <input type="text" name="seatNumber" className="modal-text-input" placeholder="Enter seat number" value={formData.seatNumber} onChange={handleInputChange} style={{ height: '36px', fontSize: '13px' }} />
                   </div>
                   <div style={{ gridColumn: 'span 2' }}>
                     <label style={{ fontSize: '11px', fontWeight: 600, color: '#475569', marginBottom: '3px', display: 'block' }}>Address</label>
@@ -1364,6 +1375,7 @@ const PatientManagement = () => {
                   rows: [
                     ['Gender', viewPatient.gender],
                     ['Date of Birth', viewPatient.dateOfBirth ? formatDate(viewPatient.dateOfBirth) : ''],
+                    ['Seat Number', viewPatient.seatNumber || ''],
                     ['Age', viewPatient.age ? `${viewPatient.age} Yrs` : ''],
                     ['Mobile', viewPatient.mobileNumber],
                     ['Email', viewPatient.email],
@@ -1445,6 +1457,12 @@ const PatientManagement = () => {
                       <div style={{ fontWeight: 600, color: '#1e293b', fontSize: '14px' }}>
                         {formatDate(app.appointmentDate)} at {app.timeSlot}
                       </div>
+                      {app.patientId?.fullName && (
+                        <div style={{ fontSize: '12px', color: app.patientId._id === historyModal.patient?._id ? '#0369a1' : '#7c3aed', fontWeight: 600, marginTop: '2px' }}>
+                          Patient: {app.patientId.fullName}{app.patientId.patientId ? ` (${app.patientId.patientId})` : ''}
+                        </div>
+                      )}
+                      {app.seatNumber && <div style={{ fontSize: '12px', color: '#475569', marginTop: '2px' }}>Seat: {app.seatNumber}</div>}
                       <div style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>Reason: {app.reason || 'Not specified'}</div>
                       {app.services && <div style={{ fontSize: '11px', color: '#475569', marginTop: '2px' }}>Services: {app.services}</div>}
                       {app.packages && <div style={{ fontSize: '11px', color: '#475569', marginTop: '2px' }}>Packages: {app.packages}</div>}

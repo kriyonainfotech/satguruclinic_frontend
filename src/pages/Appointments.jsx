@@ -75,6 +75,8 @@ const Appointments = () => {
   const [selectedMedicines, setSelectedMedicines] = useState([]);
   const [selectedPackages, setSelectedPackages] = useState([]);
   const [reason, setReason] = useState('General Consultation');
+  const [seatNumber, setSeatNumber] = useState('');
+  const [matchedPatients, setMatchedPatients] = useState([]);
     const [dobError, setDobError] = useState('');
     const [apptDateError, setApptDateError] = useState('');
     const [ageError, setAgeError] = useState('');
@@ -130,9 +132,11 @@ const Appointments = () => {
     setEditId(a._id);
     setMobile(a.patientId?.mobileNumber || '');
     setPatientData(a.patientId);
+    setMatchedPatients([]);
     setAppointmentDate(formatDate(a.appointmentDate));
     setTimeSlot(a.timeSlot || '10:00');
     setReason(a.reason || '');
+    setSeatNumber(a.seatNumber || '');
     setSelectedServices(a.services ? a.services.split(', ') : []);
     setSelectedPackages(a.packages ? a.packages.split(', ') : []);
     setSelectedMedicines(a.medicines ? a.medicines.split(', ').map(str => {
@@ -174,6 +178,7 @@ const Appointments = () => {
     setEditId(null);
     setMobile('');
     setPatientData(null);
+    setMatchedPatients([]);
     setIsNewPatient(false);
     setName('');
     setGender('Male');
@@ -187,6 +192,7 @@ const Appointments = () => {
     setSelectedServices([]);
     setSelectedPackages([]);
     setReason('General Consultation');
+    setSeatNumber('');
 
     const now = new Date();
     const dd = String(now.getDate()).padStart(2, '0');
@@ -264,16 +270,27 @@ const Appointments = () => {
     if (val.length === 10) {
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/patients/search?mobile=${val}`, {
+        const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/patients/search?mobile=${val}&all=1`, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        setPatientData(res.data);
-        setIsNewPatient(false);
+        // Older backend returns a single patient object instead of an array
+        const list = Array.isArray(res.data) ? res.data : (res.data && res.data._id ? [res.data] : []);
+        setMatchedPatients(list);
+        if (list.length === 0) {
+          setPatientData(null);
+          setIsNewPatient(true);
+        } else {
+          // Auto-select only when there is a single patient on this number
+          setPatientData(list.length === 1 ? list[0] : null);
+          setIsNewPatient(false);
+        }
       } catch (err) {
+        setMatchedPatients([]);
         setPatientData(null);
         setIsNewPatient(true);
       }
     } else {
+      setMatchedPatients([]);
       setPatientData(null);
       setIsNewPatient(false);
     }
@@ -403,7 +420,7 @@ const Appointments = () => {
       let pId;
       if (isNewPatient) {
         const pRes = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/patients`, {
-          fullName: name, mobileNumber: mobile, age: Number(age), gender, dateOfBirth: dobPayload,
+          fullName: name, mobileNumber: mobile, age: Number(age), gender, dateOfBirth: dobPayload, seatNumber,
           bloodGroup, allergies, existingConditions, emergencyContactName, emergencyContactNumber
         }, { headers: { Authorization: `Bearer ${token}` } });
         pId = pRes.data._id;
@@ -411,7 +428,7 @@ const Appointments = () => {
         pId = patientData._id;
       }
 
-      if (!pId) return alert('Patient missing');
+      if (!pId) return alert(matchedPatients.length > 1 ? 'Please select a patient' : 'Patient missing');
 
       const formatTime12Hour = (time24) => {
         return formatDisplayTime(time24);
@@ -424,7 +441,7 @@ const Appointments = () => {
           if (m.dosage) str += ` [${m.dosage}]`;
           return str;
       }).join(', ');
-      const payload = { patientId: pId, appointmentDate: apptPayload, timeSlot: formatTime12Hour(timeSlot), reason, services: servicesStr, packages: packagesStr, medicines: medicinesStr };
+      const payload = { patientId: pId, appointmentDate: apptPayload, timeSlot: formatTime12Hour(timeSlot), seatNumber, reason, services: servicesStr, packages: packagesStr, medicines: medicinesStr };
       if (editId) {
         await axios.put(`${import.meta.env.VITE_API_BASE_URL}/appointments/${editId}`, payload, { headers: { Authorization: `Bearer ${token}` } });
       } else {
@@ -539,11 +556,21 @@ const Appointments = () => {
 
   const creatorOptions = useMemo(() => {
     const options = [{ value: 'all', label: 'All Creators' }];
+    const seen = new Set();
     systemUsers.forEach(u => {
+      seen.add(u._id);
       options.push({ value: u._id, label: u.name || 'Unknown' });
     });
+    // Include creators from visible appointments (e.g. other teams' members)
+    appointments.forEach(a => {
+      const c = a.createdBy;
+      if (c?._id && !seen.has(c._id)) {
+        seen.add(c._id);
+        options.push({ value: c._id, label: c.name || 'Unknown' });
+      }
+    });
     return options;
-  }, [systemUsers]);
+  }, [systemUsers, appointments]);
 
     const isApptOverdue = (app) => {
     if (app.status === 'Completed' || app.status === 'Cancelled') return false;
@@ -749,6 +776,7 @@ const Appointments = () => {
                         <CalendarIcon size={12} color={isApptOverdue(a) ? "#ef4444" : "currentColor"} />
                           <span style={isApptOverdue(a) ? { color: '#ef4444', fontWeight: 'bold' } : {}}>{formatDate(a.appointmentDate)}</span>
                         <span style={{ color: '#0369a1', fontWeight: 600 }}>• {formatDisplayTime(a.timeSlot, a.appointmentDate)}</span>
+                        {a.seatNumber && <span style={{ color: '#475569', fontWeight: 600 }}>• Seat {a.seatNumber}</span>}
                       </div>
                     </td>
                     <td>
@@ -897,6 +925,11 @@ const Appointments = () => {
                     <ClockIcon size={13} color="#0284c7" />
                     <span>{formatDisplayTime(a.timeSlot, a.appointmentDate)}</span>
                   </div>
+                  {a.seatNumber && (
+                    <div className="appt-schedule-item">
+                      <span>Seat {a.seatNumber}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Meta details */}
@@ -1013,6 +1046,11 @@ const Appointments = () => {
                 <label className="modal-label">Patient Mobile Number *</label>
                 <div style={{ position: 'relative' }}>
                   <input autoFocus type="text" className="modal-text-input" placeholder="Enter 10-digit number" value={mobile} onChange={handleMobileChange} required />
+                  {mobile.length === 10 && !patientData && !isNewPatient && matchedPatients.length > 1 && (
+                    <span style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', color: '#16a34a', fontSize: '12px', fontWeight: 700, background: '#f0fdf4', padding: '2px 8px', borderRadius: '12px', border: '1px solid #bbf7d0' }}>
+                      ✓ {matchedPatients.length} Found
+                    </span>
+                  )}
                   {mobile.length === 10 && patientData && (
                     <span style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', color: '#16a34a', fontSize: '12px', fontWeight: 700, background: '#f0fdf4', padding: '2px 8px', borderRadius: '12px', border: '1px solid #bbf7d0' }}>
                       ✓ Found
@@ -1025,6 +1063,37 @@ const Appointments = () => {
                   )}
                 </div>
               </div>
+
+              {matchedPatients.length > 0 && (
+                <div>
+                  <label className="modal-label">Select Patient ({matchedPatients.length} on this number)</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {matchedPatients.map(p => {
+                      const selected = patientData?._id === p._id;
+                      return (
+                        <button
+                          type="button"
+                          key={p._id}
+                          onClick={() => { setPatientData(p); setIsNewPatient(false); }}
+                          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '8px', cursor: 'pointer', textAlign: 'left', fontSize: '13px', background: selected ? '#f0f9ff' : '#ffffff', border: selected ? '1.5px solid #0284c7' : '1px solid #e2e8f0' }}
+                        >
+                          <span style={{ fontWeight: 600, color: '#0f172a' }}>{p.fullName}</span>
+                          <span style={{ fontSize: '11.5px', color: '#64748b' }}>
+                            {[p.patientId, p.age ? `${p.age} Yrs` : null, p.gender, p.seatNumber ? `Seat ${p.seatNumber}` : null].filter(Boolean).join(' • ')}
+                          </span>
+                        </button>
+                      );
+                    })}
+                    <button
+                      type="button"
+                      onClick={() => { setPatientData(null); setIsNewPatient(true); }}
+                      style={{ padding: '8px 12px', borderRadius: '8px', cursor: 'pointer', fontSize: '12.5px', fontWeight: 600, color: '#0369a1', background: isNewPatient ? '#e0f2fe' : '#ffffff', border: '1px dashed #7dd3fc' }}
+                    >
+                      + Add new patient on this number
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {patientData && (
                 <div className="patient-identity-card">
@@ -1067,8 +1136,8 @@ const Appointments = () => {
                       <input type="text" className="modal-text-input" value={name} onChange={e => setName(e.target.value)} required />
                     </div>
                     <div>
-                      <label className="modal-label">Birth Date *</label>
-                      <input type="text" className="modal-text-input" placeholder="DD/MM/YYYY" value={dateOfBirth} onChange={handleDobChange} required />
+                      <label className="modal-label">Birth Date</label>
+                      <input type="text" className="modal-text-input" placeholder="DD/MM/YYYY" value={dateOfBirth} onChange={handleDobChange} />
                         {dobError && <div style={{color: 'red', fontSize: '11px', marginTop: '4px'}}>{dobError}</div>}
                     </div>
                     <div>
@@ -1135,8 +1204,12 @@ const Appointments = () => {
                     <label className="modal-label">Time Slot</label>
                     <CustomTimePicker 
                       value={timeSlot} 
-                      onChange={val => setTimeSlot(val)} 
+                      onChange={val => setTimeSlot(val)}
                     />
+                  </div>
+                  <div style={{ gridColumn: 'span 2' }}>
+                    <label className="modal-label">Seat Number</label>
+                    <input type="text" className="modal-text-input" placeholder="Enter seat number" value={seatNumber} onChange={e => setSeatNumber(e.target.value)} />
                   </div>
                   <div>
                     <label className="modal-label">Services</label>
