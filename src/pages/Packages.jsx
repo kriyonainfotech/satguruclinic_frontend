@@ -201,7 +201,7 @@ const Packages = () => {
                     />
                 </div>
 
-                {isSuperAdmin && (
+                {(isSuperAdmin || isTeam) && (
                     <button
                         type="button"
                         onClick={openCreateModal}
@@ -233,11 +233,9 @@ const Packages = () => {
                                                 {totalServicesCount} items included
                                             </span>
                                         </div>
-                                        {!isTeam && (
-                                            <span className="sp-card-price-badge">
-                                                ₹{pkg.totalPrice}
-                                            </span>
-                                        )}
+                                        <span className="sp-card-price-badge">
+                                            ₹{pkg.totalPrice}
+                                        </span>
                                     </div>
 
                                     {/* Included Services List */}
@@ -248,7 +246,7 @@ const Packages = () => {
                                                     <span className="sp-pkg-service-name">
                                                         <span style={{ color: '#94a3b8', fontSize: '11px', minWidth: '14px' }}>{idx + 1}.</span> {s.name}
                                                     </span>
-                                                    {!isTeam && <span style={{ color: '#64748b', fontSize: '11px', fontWeight: 600 }}>₹{s.price}</span>}
+                                                    <span style={{ color: '#64748b', fontSize: '11px', fontWeight: 600 }}>₹{s.price}</span>
                                                 </div>
                                             ))}
 
@@ -258,7 +256,7 @@ const Packages = () => {
                                                         <span style={{ color: '#94a3b8', fontSize: '11px', minWidth: '14px' }}>{(pkg.services?.length || 0) + mIdx + 1}.</span> {m.name}
                                                         <span className="sp-tag-pill med">Med</span>
                                                     </span>
-                                                    {!isTeam && <span style={{ color: '#64748b', fontSize: '11px', fontWeight: 600 }}>₹{m.price}</span>}
+                                                    <span style={{ color: '#64748b', fontSize: '11px', fontWeight: 600 }}>₹{m.price}</span>
                                                 </div>
                                             ))}
 
@@ -268,7 +266,7 @@ const Packages = () => {
                                                         <span style={{ color: '#94a3b8', fontSize: '11px', minWidth: '14px' }}>{(pkg.services?.length || 0) + (pkg.medicines?.length || 0) + eIdx + 1}.</span> {es.name}
                                                         <span className="sp-tag-pill extra">Extra</span>
                                                     </span>
-                                                    {!isTeam && <span style={{ color: '#64748b', fontSize: '11px', fontWeight: 600 }}>₹{es.price}</span>}
+                                                    <span style={{ color: '#64748b', fontSize: '11px', fontWeight: 600 }}>₹{es.price}</span>
                                                 </div>
                                             ))}
                                         </div>
@@ -286,7 +284,7 @@ const Packages = () => {
                                             <InfoIcon size={15} />
                                         </button>
                                     )}
-                                    {isSuperAdmin && (
+                                    {(isSuperAdmin || isTeam) && (
                                         <>
                                             <button
                                                 type="button"

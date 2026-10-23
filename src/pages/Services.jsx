@@ -114,7 +114,7 @@ const Services = () => {
                     />
                 </div>
 
-                {isSuperAdmin && (
+                {(isSuperAdmin || isTeam) && (
                     <button
                         type="button"
                         onClick={openCreateModal}
@@ -138,11 +138,9 @@ const Services = () => {
                             <div>
                                 <div className="sp-card-top">
                                     <h3 className="sp-card-name">{service.name}</h3>
-                                    {!isTeam && (
-                                        <span className="sp-card-price-badge">
-                                            ₹{service.price}
-                                        </span>
-                                    )}
+                                    <span className="sp-card-price-badge">
+                                        ₹{service.price}
+                                    </span>
                                 </div>
 
                                 <div className="sp-card-body">
@@ -169,7 +167,7 @@ const Services = () => {
                                         <InfoIcon size={15} />
                                     </button>
                                 )}
-                                {isSuperAdmin && (
+                                {(isSuperAdmin || isTeam) && (
                                     <>
                                         <button
                                             type="button"

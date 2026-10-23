@@ -161,7 +161,7 @@ const Medicines = () => {
                     </div>
                 </div>
 
-                {isSuperAdmin && (
+                {(isSuperAdmin || isTeam) && (
                     <button
                         type="button"
                         onClick={openCreateModal}
@@ -229,7 +229,7 @@ const Medicines = () => {
                                         <InfoIcon size={15} />
                                     </button>
                                 )}
-                                {isSuperAdmin && (
+                                {(isSuperAdmin || isTeam) && (
                                     <>
                                         <button
                                             type="button"

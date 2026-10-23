@@ -583,7 +583,7 @@ const Appointments = () => {
   };
 
   const filteredAppointments = useMemo(() => {
-    return appointments.filter(app => {
+    const list = appointments.filter(app => {
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         const matchesName = app.patientId?.fullName?.toLowerCase().includes(query);
@@ -610,6 +610,26 @@ const Appointments = () => {
         }
       }
       return true;
+    });
+
+    // Sort by date, then by appointment time (timeSlot)
+    const toMinutes = (app) => {
+      const t = formatDisplayTime(app.timeSlot, app.appointmentDate); // always "hh:mm AM/PM"
+      const m = t.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+      if (!m) return 0;
+      let h = parseInt(m[1], 10) % 12;
+      if (m[3].toUpperCase() === 'PM') h += 12;
+      return h * 60 + parseInt(m[2], 10);
+    };
+    const dayKey = (app) => {
+      const d = new Date(app.appointmentDate);
+      return isNaN(d) ? '' : d.toISOString().split('T')[0];
+    };
+
+    return [...list].sort((a, b) => {
+      const da = dayKey(a), db = dayKey(b);
+      if (da !== db) return da < db ? -1 : 1;
+      return toMinutes(a) - toMinutes(b);
     });
   }, [appointments, searchQuery, statusFilter, creatorFilter, dateFilterType, singleDate, startDate, endDate, filterMonth, filterYear]);
 
