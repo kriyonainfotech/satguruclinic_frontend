@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { EditIcon, TrashIcon, ClipboardListIcon, PlusIcon, XIcon } from '../components/Icons';
+import usePermissions from '../permissions/usePermissions';
 import './ChecklistTemplates.css';
 
 const ChecklistTemplates = () => {
   const API_URL = import.meta.env.VITE_API_BASE_URL;
+  const { can } = usePermissions();
+  const perm = (action) => can('checklist-templates:' + action);
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -113,9 +116,11 @@ const ChecklistTemplates = () => {
           <h2>Checklist Templates</h2>
           
         </div>
-        <button onClick={openAddModal} className="crm-btn crm-btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <PlusIcon size={16} /> Add Template
-        </button>
+        {perm('create') && (
+          <button onClick={openAddModal} className="crm-btn crm-btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <PlusIcon size={16} /> Add Template
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -135,8 +140,8 @@ const ChecklistTemplates = () => {
                   </div>
                 </div>
                 <div className="checklist-card-actions">
-                  <button onClick={() => openEditModal(t)} title="Edit"><EditIcon size={15} /></button>
-                  <button onClick={() => handleDelete(t._id)} title="Delete"><TrashIcon size={15} /></button>
+                  {perm('edit') && <button onClick={() => openEditModal(t)} title="Edit"><EditIcon size={15} /></button>}
+                  {perm('delete') && <button onClick={() => handleDelete(t._id)} title="Delete"><TrashIcon size={15} /></button>}
                 </div>
               </div>
               
@@ -150,7 +155,7 @@ const ChecklistTemplates = () => {
                     </li>
                   ))}
                   {(t.items?.length || 0) > 3 && (
-                    <li className="more-items" onClick={() => openEditModal(t)} style={{ cursor: 'pointer', color: '#0284c7' }}>+{t.items.length - 3} more item(s)</li>
+                    <li className="more-items" onClick={perm('edit') ? () => openEditModal(t) : undefined} style={{ cursor: perm('edit') ? 'pointer' : 'default', color: '#0284c7' }}>+{t.items.length - 3} more item(s)</li>
                   )}
                 </ul>
               </div>
@@ -161,7 +166,7 @@ const ChecklistTemplates = () => {
               <ClipboardListIcon size={48} color="#cbd5e1" style={{ marginBottom: '12px' }} />
               <h3 style={{ fontSize: '16px', color: '#334155', marginBottom: '8px' }}>No Templates Found</h3>
               <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '16px' }}>Create your first checklist template to get started.</p>
-              <button onClick={openAddModal} className="crm-btn crm-btn-primary">Add Template</button>
+              {perm('create') && <button onClick={openAddModal} className="crm-btn crm-btn-primary">Add Template</button>}
             </div>
           )}
         </div>

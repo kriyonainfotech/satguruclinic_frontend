@@ -249,6 +249,26 @@ export const EyeIcon = ({ size = 18, color = 'currentColor', strokeWidth = 2, cl
   </svg>
 );
 
+export const MessageSquareIcon = ({ size = 18, color = 'currentColor', strokeWidth = 2, className = '', ...props }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke={color}
+    strokeWidth={strokeWidth}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={`icon icon-message-square ${className}`.trim()}
+    {...props}
+  >
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    <line x1="8" y1="9" x2="16" y2="9" />
+    <line x1="8" y1="13" x2="13" y2="13" />
+  </svg>
+);
+
 export const MoreHorizontalIcon = ({ size = 18, color = 'currentColor', strokeWidth = 2, className = '', ...props }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -636,5 +656,11 @@ export const ChevronDownIcon = ({ size = 18, color = 'currentColor', strokeWidth
     {...props}
   >
     <polyline points="6 9 12 15 18 9" />
+  </svg>
+);
+export const PillIcon = ({ size = 18, color = 'currentColor', strokeWidth = 2, className = '', ...props }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>
+    <path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z" />
+    <path d="m8.5 8.5 7 7" />
   </svg>
 );

@@ -3,6 +3,7 @@ import axios from 'axios';
 import CustomMultiSelect from '../components/CustomMultiSelect';
 import Modal from '../components/Modal';
 import { EditIcon, TrashIcon, SearchIcon, PlusIcon, InfoIcon, PackageIcon } from '../components/Icons';
+import usePermissions from '../permissions/usePermissions';
 import './ServicesAndPackages.css';
 
 const Packages = () => {
@@ -177,9 +178,8 @@ const Packages = () => {
     const pendingExtraPrice = (newExtraServiceName.trim() && newExtraServicePrice) ? Number(newExtraServicePrice) : 0;
     const currentTotalPrice = currentBasePrice + currentMedPrice + extraPrice + pendingExtraPrice;
 
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const isSuperAdmin = user.role === 'superadmin' || user.role === 'admin';
-    const isTeam = user.role === 'team';
+    const { can } = usePermissions();
+    const perm = (action) => can('services:package-' + action);
 
     const filteredPackages = packagesList.filter(pkg =>
         pkg.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -201,7 +201,7 @@ const Packages = () => {
                     />
                 </div>
 
-                {(isSuperAdmin || isTeam) && (
+                {perm('add') && (
                     <button
                         type="button"
                         onClick={openCreateModal}
@@ -284,25 +284,25 @@ const Packages = () => {
                                             <InfoIcon size={15} />
                                         </button>
                                     )}
-                                    {(isSuperAdmin || isTeam) && (
-                                        <>
-                                            <button
-                                                type="button"
-                                                className="sp-action-btn edit"
-                                                onClick={() => openEditModal(pkg)}
-                                                title="Edit Package"
-                                            >
-                                                <EditIcon size={14} />
-                                            </button>
-                                            <button
-                                                type="button"
-                                                className="sp-action-btn delete"
-                                                onClick={() => handleDelete(pkg._id)}
-                                                title="Delete Package"
-                                            >
-                                                <TrashIcon size={14} />
-                                            </button>
-                                        </>
+                                    {perm('edit') && (
+                                        <button
+                                            type="button"
+                                            className="sp-action-btn edit"
+                                            onClick={() => openEditModal(pkg)}
+                                            title="Edit Package"
+                                        >
+                                            <EditIcon size={14} />
+                                        </button>
+                                    )}
+                                    {perm('delete') && (
+                                        <button
+                                            type="button"
+                                            className="sp-action-btn delete"
+                                            onClick={() => handleDelete(pkg._id)}
+                                            title="Delete Package"
+                                        >
+                                            <TrashIcon size={14} />
+                                        </button>
                                     )}
                                 </div>
                             </div>

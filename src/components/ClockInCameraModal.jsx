@@ -5,15 +5,29 @@ import './ClockInCameraModal.css';
 const ClockInCameraModal = ({ isOpen, onClose, onConfirm, shiftName = 'Duty', isSubmitting = false }) => {
   const [photo, setPhoto] = useState(null);
   const [streamActive, setStreamActive] = useState(false);
-  const [cameraStatus, setCameraStatus] = useState('initializing'); // 'initializing', 'active', 'denied', 'notfound', 'error'
+  // 'user' = front (selfie) camera, 'environment' = back camera
+  const [facingMode, setFacingMode] = useState('user');
+  const [hasMultipleCameras, setHasMultipleCameras] = useState(false);
+  const [cameraStatus, setCameraStatus] = useState('initializing'); // 'initializing', 'active', 'denied', 'notfound', 'insecure', 'error'
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
 
+  // <video> sirf streamActive hone ke baad render hota hai, isliye stream ko mount hone ke baad jodna padta hai
+  // (pehle startCamera me videoRef null hota tha aur box blank/kaala aata tha)
+  useEffect(() => {
+    const video = videoRef.current;
+    if (streamActive && video && streamRef.current && video.srcObject !== streamRef.current) {
+      video.srcObject = streamRef.current;
+      video.play().catch(() => {});
+    }
+  }, [streamActive, photo]);
+
   useEffect(() => {
     if (isOpen) {
       setPhoto(null);
-      startCamera();
+      setFacingMode('user');
+      startCamera('user');
     } else {
       stopCamera();
     }
@@ -23,9 +37,15 @@ const ClockInCameraModal = ({ isOpen, onClose, onConfirm, shiftName = 'Duty', is
     };
   }, [isOpen]);
 
-  const startCamera = async () => {
+  const startCamera = async (mode = facingMode) => {
     setCameraStatus('initializing');
     setStreamActive(false);
+
+    // Browser camera sirf https (ya localhost) pe deta hai. http://192.168.x.x pe mediaDevices hota hi nahi.
+    if (!window.isSecureContext) {
+      setCameraStatus('insecure');
+      return;
+    }
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       setCameraStatus('notfound');
@@ -35,9 +55,9 @@ const ClockInCameraModal = ({ isOpen, onClose, onConfirm, shiftName = 'Duty', is
     try {
       let stream;
       try {
-        // Try with front/user camera constraint first
+        // Try with selected (front / back) camera first
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+          video: { facingMode: mode, width: { ideal: 640 }, height: { ideal: 480 } },
           audio: false
         });
       } catch (err1) {
@@ -49,6 +69,14 @@ const ClockInCameraModal = ({ isOpen, onClose, onConfirm, shiftName = 'Duty', is
       }
 
       streamRef.current = stream;
+
+      // Ek se zyada camera ho tabhi Flip button dikhe
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        setHasMultipleCameras(devices.filter(d => d.kind === 'videoinput').length > 1);
+      } catch (e) {
+        setHasMultipleCameras(false);
+      }
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         videoRef.current.play().catch(() => {});
@@ -87,6 +115,8 @@ const ClockInCameraModal = ({ isOpen, onClose, onConfirm, shiftName = 'Duty', is
         alert('Please allow camera permission in browser to take live selfie.');
       } else if (cameraStatus === 'notfound') {
         alert('No camera detected on this device. Live camera is required for clock in.');
+      } else if (cameraStatus === 'insecure') {
+        alert('Camera only works on a secure (https) link. Please open the website with https.');
       } else {
         alert('Camera is starting, please wait a moment.');
       }
@@ -111,7 +141,14 @@ const ClockInCameraModal = ({ isOpen, onClose, onConfirm, shiftName = 'Duty', is
 
   const handleRetake = () => {
     setPhoto(null);
-    startCamera();
+    startCamera(facingMode);
+  };
+
+  const handleFlipCamera = () => {
+    const next = facingMode === 'user' ? 'environment' : 'user';
+    stopCamera();
+    setFacingMode(next);
+    startCamera(next);
   };
 
   const handleConfirmClockIn = () => {
@@ -162,13 +199,32 @@ const ClockInCameraModal = ({ isOpen, onClose, onConfirm, shiftName = 'Duty', is
               </div>
             ) : streamActive ? (
               <div className="camera-live-wrap">
-                <video 
-                  ref={videoRef} 
-                  autoPlay 
-                  playsInline 
-                  muted 
-                  className="camera-video-feed"
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className={`camera-video-feed ${facingMode === 'user' ? 'mirrored' : ''}`}
                 />
+                {hasMultipleCameras && (
+                  <button
+                    type="button"
+                    className="camera-flip-btn"
+                    onClick={handleFlipCamera}
+                    disabled={isSubmitting}
+                    title={facingMode === 'user' ? 'Switch to back camera' : 'Switch to front camera'}
+                    aria-label="Flip camera"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 7h-3l-2-3H9L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z" />
+                      <path d="M9 13a3 3 0 0 1 5.2-2" />
+                      <polyline points="14.5 8.5 14.5 11 12 11" />
+                      <path d="M15 13a3 3 0 0 1-5.2 2" />
+                      <polyline points="9.5 17.5 9.5 15 12 15" />
+                    </svg>
+                    <span>Flip</span>
+                  </button>
+                )}
                 <div className="face-guide-frame">
                   <div className="face-guide-oval"></div>
                   <span className="face-guide-text">Position your face inside frame</span>
@@ -188,6 +244,19 @@ const ClockInCameraModal = ({ isOpen, onClose, onConfirm, shiftName = 'Duty', is
                   <>
                     <h4 className="camera-placeholder-title" style={{ color: '#f87171' }}>No Camera Detected</h4>
                     <p className="camera-placeholder-desc">Live webcam is required. Uploading saved files is not allowed.</p>
+                  </>
+                ) : cameraStatus === 'insecure' ? (
+                  <>
+                    <h4 className="camera-placeholder-title" style={{ color: '#f87171' }}>Secure Link Required</h4>
+                    <p className="camera-placeholder-desc">Camera only works on an https:// link. Please open the website using https.</p>
+                  </>
+                ) : cameraStatus === 'error' ? (
+                  <>
+                    <h4 className="camera-placeholder-title" style={{ color: '#f87171' }}>Camera Not Available</h4>
+                    <p className="camera-placeholder-desc">Camera may be in use by another app. Close it and try again.</p>
+                    <button type="button" className="camera-btn-secondary" style={{ marginTop: '10px' }} onClick={startCamera}>
+                      Try Again
+                    </button>
                   </>
                 ) : (
                   <>

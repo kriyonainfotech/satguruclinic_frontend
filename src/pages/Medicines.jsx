@@ -3,6 +3,7 @@ import axios from 'axios';
 import CustomSelect from '../components/CustomSelect';
 import Modal from '../components/Modal';
 import { EditIcon, TrashIcon, SearchIcon, PlusIcon, InfoIcon, ClipboardListIcon } from '../components/Icons';
+import usePermissions from '../permissions/usePermissions';
 import './ServicesAndPackages.css';
 
 const CATEGORIES = [
@@ -118,9 +119,8 @@ const Medicines = () => {
         }
     };
 
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const isSuperAdmin = user.role === 'superadmin' || user.role === 'admin';
-    const isTeam = user.role === 'team';
+    const { can } = usePermissions();
+    const perm = (action) => can('services:medicine-' + action);
 
     const filterOptions = [
         { value: 'ALL', label: 'All Categories' },
@@ -161,7 +161,7 @@ const Medicines = () => {
                     </div>
                 </div>
 
-                {(isSuperAdmin || isTeam) && (
+                {perm('add') && (
                     <button
                         type="button"
                         onClick={openCreateModal}
@@ -192,7 +192,7 @@ const Medicines = () => {
                                             </span>
                                         )}
                                     </div>
-                                    {!isTeam && (
+                                    {perm('price') && (
                                         <span className="sp-card-price-badge">
                                             ₹{med.price}
                                         </span>
@@ -229,25 +229,25 @@ const Medicines = () => {
                                         <InfoIcon size={15} />
                                     </button>
                                 )}
-                                {(isSuperAdmin || isTeam) && (
-                                    <>
-                                        <button
-                                            type="button"
-                                            className="sp-action-btn edit"
-                                            onClick={() => openEditModal(med)}
-                                            title="Edit Medicine"
-                                        >
-                                            <EditIcon size={14} />
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="sp-action-btn delete"
-                                            onClick={() => handleDelete(med._id)}
-                                            title="Delete Medicine"
-                                        >
-                                            <TrashIcon size={14} />
-                                        </button>
-                                    </>
+                                {perm('edit') && (
+                                    <button
+                                        type="button"
+                                        className="sp-action-btn edit"
+                                        onClick={() => openEditModal(med)}
+                                        title="Edit Medicine"
+                                    >
+                                        <EditIcon size={14} />
+                                    </button>
+                                )}
+                                {perm('delete') && (
+                                    <button
+                                        type="button"
+                                        className="sp-action-btn delete"
+                                        onClick={() => handleDelete(med._id)}
+                                        title="Delete Medicine"
+                                    >
+                                        <TrashIcon size={14} />
+                                    </button>
                                 )}
                             </div>
                         </div>

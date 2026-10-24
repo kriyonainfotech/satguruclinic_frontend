@@ -1,0 +1,352 @@
+/* Complaint Box page */
+.complaints-subtitle {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.complaints-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.complaints-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.complaints-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.complaints-tab span {
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 11px;
+  text-align: center;
+}
+
+.complaints-tab.active {
+  border-color: var(--primary-color, #144b79);
+  background: var(--primary-color, #144b79);
+  color: #ffffff;
+}
+
+.complaints-tab.active span {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+.complaints-status-filter {
+  width: 170px;
+}
+
+.complaints-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 50px 20px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #64748b;
+  text-align: center;
+}
+
+.complaints-empty h3 {
+  margin: 4px 0 0;
+  font-size: 16px;
+  color: #334155;
+}
+
+.complaints-empty p {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.complaints-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 14px;
+}
+
+/* Category colors: patient = blue, team = amber, error = red */
+.complaint-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid #94a3b8;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.complaint-card.cat-patient { border-left-color: #0284c7; }
+.complaint-card.cat-team { border-left-color: #d97706; }
+.complaint-card.cat-error { border-left-color: #dc2626; }
+
+.complaint-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.complaint-cat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.complaint-cat-badge.cat-patient { background: #e0f2fe; color: #0369a1; }
+.complaint-cat-badge.cat-team { background: #fef3c7; color: #b45309; }
+.complaint-cat-badge.cat-error { background: #fee2e2; color: #b91c1c; }
+
+.complaint-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.complaint-status-badge {
+  padding: 4px 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Card ka status dropdown (CustomSelect): chhota aur status ke rang me */
+.complaint-status-select {
+  width: 130px;
+}
+
+.complaint-status-select button.custom-select-trigger {
+  height: 30px !important;
+  padding: 0 10px !important;
+  font-size: 12px !important;
+  font-weight: 600;
+}
+
+.complaint-status-select.status-open button.custom-select-trigger {
+  background-color: #fef2f2 !important;
+  border-color: #fecaca !important;
+  color: #b91c1c !important;
+}
+
+.complaint-status-select.status-in-progress button.custom-select-trigger {
+  background-color: #fffbeb !important;
+  border-color: #fde68a !important;
+  color: #b45309 !important;
+}
+
+.complaint-status-select.status-resolved button.custom-select-trigger {
+  background-color: #ecfdf5 !important;
+  border-color: #a7f3d0 !important;
+  color: #047857 !important;
+}
+.complaint-status-badge.status-open { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+.complaint-status-badge.status-in-progress { background: #fffbeb; color: #b45309; border-color: #fde68a; }
+.complaint-status-badge.status-resolved { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+
+.complaint-edit-btn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #d97706;
+  cursor: pointer;
+  padding: 0;
+}
+
+.complaint-delete-btn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #ef4444;
+  cursor: pointer;
+  padding: 0;
+}
+
+.complaint-text {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: #334155;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.complaint-meta {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid #f1f5f9;
+  font-size: 12px;
+  color: #64748b;
+}
+
+/* New Complaint popup */
+.modal-content.complaint-modal {
+  max-width: 520px;
+}
+
+.complaint-field-label {
+  display: block;
+  margin: 4px 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.complaint-cat-options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.complaint-cat-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 8px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #64748b;
+  text-align: center;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.complaint-cat-option strong {
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.complaint-cat-option small {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.complaint-cat-option.cat-patient.selected { border-color: #0284c7; background: #f0f9ff; color: #0284c7; }
+.complaint-cat-option.cat-team.selected { border-color: #d97706; background: #fffbeb; color: #d97706; }
+.complaint-cat-option.cat-error.selected { border-color: #dc2626; background: #fef2f2; color: #dc2626; }
+
+.complaint-textarea {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-family: inherit;
+  line-height: 1.5;
+  resize: vertical;
+  box-sizing: border-box;
+  outline: none;
+}
+
+.complaint-textarea:focus {
+  border-color: var(--primary-color, #144b79);
+}
+
+.complaint-form-error {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 13px;
+}
+
+@media (max-width: 520px) {
+  .complaint-cat-options {
+    grid-template-columns: 1fr;
+  }
+
+  .complaints-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Is page pe koi hover effect nahi: buttons mouse le jaane pe bhi waise hi dikhte hain */
+.complaints-page .crm-btn,
+.complaints-page .complaints-tab,
+.complaints-page .complaint-delete-btn,
+.complaints-page .complaint-edit-btn,
+.complaints-page .complaint-cat-option {
+  transition: none;
+}
+
+.complaints-page .crm-btn-primary:hover,
+.complaints-page .crm-btn-primary:active {
+  background-color: var(--primary-color);
+  transform: none;
+  box-shadow: 0 1px 3px rgba(20, 75, 121, 0.25), 0 1px 2px rgba(20, 75, 121, 0.15);
+}
+
+.complaints-page .crm-btn-secondary:hover {
+  background-color: #f1f5f9;
+  color: #334155;
+}
+
+.complaints-page .modal-close:hover {
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  color: #64748b !important;
+  transform: none;
+}
+
+/* App.css ka global "button:hover" (gehra neela) is page ke buttons pe na lage */
+.complaints-page .complaints-tab:hover,
+.complaints-page .complaint-delete-btn:hover,
+.complaints-page .complaint-edit-btn:hover,
+.complaints-page .complaint-cat-option:hover {
+  background-color: #ffffff;
+}
+
+.complaints-page .complaints-tab.active:hover {
+  background-color: var(--primary-color, #144b79);
+}
+
+.complaints-page .complaint-cat-option.cat-patient.selected:hover { background-color: #f0f9ff; }
+.complaints-page .complaint-cat-option.cat-team.selected:hover { background-color: #fffbeb; }
+.complaints-page .complaint-cat-option.cat-error.selected:hover { background-color: #fef2f2; }

@@ -29,7 +29,11 @@ import PaymentQR from './pages/PaymentQR';
 import ScheduleManagement from './pages/ScheduleManagement';
 import HomeExpense from './pages/HomeExpense';
 import DailyReport from './pages/DailyReport';
+import Complaints from './pages/Complaints';
+import PharmacyBills from './pages/PharmacyBills';
 import Layout from './components/Layout';
+import RequireModule from './permissions/RequireModule';
+import { refreshPermissions } from './permissions/usePermissions';
 import './App.css';
 
 function ScrollToTop() {
@@ -78,10 +82,13 @@ function App() {
     verifySession();
     const interval = setInterval(verifySession, 15000);
     window.addEventListener('focus', verifySession);
+    // Tab pe wapas aane pe latest permissions (Superadmin ne change kiye ho to sidebar update ho jaye)
+    window.addEventListener('focus', refreshPermissions);
 
     return () => {
       clearInterval(interval);
       window.removeEventListener('focus', verifySession);
+      window.removeEventListener('focus', refreshPermissions);
     };
   }, []);
 
@@ -93,140 +100,98 @@ function App() {
         <Route path="/admin/login" element={!isAuthenticated ? <Login loginType="Admin" /> : <Navigate to="/" />} />
         <Route path="/team/login" element={!isAuthenticated ? <Login loginType="Team" /> : <Navigate to="/" />} />
         
-        {/* Protected Routes inside Layout */}
+        {/* Protected Routes inside Layout (module on/off Website Settings > Roles & Permissions se) */}
         <Route path="/" element={
           isAuthenticated ? <Layout><Dashboard /></Layout> : <Navigate to="/login" />
         } />
         <Route path="/patients" element={
-          isAuthenticated ? <Layout><PatientManagement /></Layout> : <Navigate to="/login" />
+          isAuthenticated ? <RequireModule module="patients"><Layout><PatientManagement /></Layout></RequireModule> : <Navigate to="/login" />
         } />
-        
         <Route path="/call-logs" element={
-          isAuthenticated ? <Layout><AdminCallLogs /></Layout> : <Navigate to="/login" />
+          isAuthenticated ? <RequireModule module="call-logs"><Layout><AdminCallLogs /></Layout></RequireModule> : <Navigate to="/login" />
         } />
         <Route path="/calls" element={
           isAuthenticated ? <Layout><CallLogs /></Layout> : <Navigate to="/login" />
         } />
         <Route path="/appointments" element={
-          isAuthenticated ? <Layout><Appointments /></Layout> : <Navigate to="/login" />
+          isAuthenticated ? <RequireModule module="appointments"><Layout><Appointments /></Layout></RequireModule> : <Navigate to="/login" />
         } />
         <Route path="/leads" element={
-          isAuthenticated ? <Layout><Leads /></Layout> : <Navigate to="/login" />
+          isAuthenticated ? <RequireModule module="leads"><Layout><Leads /></Layout></RequireModule> : <Navigate to="/login" />
         } />
         <Route path="/reminders" element={
-          isAuthenticated ? <Layout><Reminders /></Layout> : <Navigate to="/login" />
+          isAuthenticated ? <RequireModule module="reminders"><Layout><Reminders /></Layout></RequireModule> : <Navigate to="/login" />
         } />
         <Route path="/leads/:id" element={
-          isAuthenticated ? <Layout><LeadProfile /></Layout> : <Navigate to="/login" />
+          isAuthenticated ? <RequireModule module="leads"><Layout><LeadProfile /></Layout></RequireModule> : <Navigate to="/login" />
         } />
-        
         <Route path="/admin-management" element={
-          isAuthenticated ? <Layout><AdminManagement /></Layout> : <Navigate to="/login" />
+          isAuthenticated ? <RequireModule module="admin-management"><Layout><AdminManagement /></Layout></RequireModule> : <Navigate to="/login" />
         } />
-        
         <Route path="/team-management" element={
-          isAuthenticated ? (
-            user?.role === 'team' ? <Navigate to="/" replace /> : <Layout><TeamManagement /></Layout>
-          ) : <Navigate to="/login" />
+          isAuthenticated ? <RequireModule module="team-management"><Layout><TeamManagement /></Layout></RequireModule> : <Navigate to="/login" />
         } />
-        
         <Route path="/services" element={
-          isAuthenticated ? <Layout><ServicesAndPackages /></Layout> : <Navigate to="/login" />
+          isAuthenticated ? <RequireModule module="services"><Layout><ServicesAndPackages /></Layout></RequireModule> : <Navigate to="/login" />
         } />
-
-        <Route path="/packages" element={
-          <Navigate to="/services" replace />
-        } />
-
+        <Route path="/packages" element={<Navigate to="/services" replace />} />
         <Route path="/tasks" element={
-          isAuthenticated ? <Layout><Tasks initialView="all" /></Layout> : <Navigate to="/login" />
+          isAuthenticated ? <RequireModule module="tasks"><Layout><Tasks initialView="all" /></Layout></RequireModule> : <Navigate to="/login" />
         } />
-
         <Route path="/my-tasks" element={
-          isAuthenticated ? <Layout><Tasks initialView="my" /></Layout> : <Navigate to="/login" />
+          isAuthenticated ? <RequireModule module="tasks"><Layout><Tasks initialView="my" /></Layout></RequireModule> : <Navigate to="/login" />
         } />
-        
         <Route path="/sop-management" element={
-          isAuthenticated ? <Layout><SOPManagement /></Layout> : <Navigate to="/login" />
+          isAuthenticated ? <RequireModule module="sop-management"><Layout><SOPManagement /></Layout></RequireModule> : <Navigate to="/login" />
         } />
-
         <Route path="/my-sop" element={
-          isAuthenticated ? <Layout><MyWorkspace /></Layout> : <Navigate to="/login" />
+          isAuthenticated ? <RequireModule module="my-workspace"><Layout><MyWorkspace /></Layout></RequireModule> : <Navigate to="/login" />
         } />
         <Route path="/my-workspace" element={
-          isAuthenticated ? <Layout><MyWorkspace /></Layout> : <Navigate to="/login" />
+          isAuthenticated ? <RequireModule module="my-workspace"><Layout><MyWorkspace /></Layout></RequireModule> : <Navigate to="/login" />
         } />
-
         <Route path="/rule-management" element={
-          isAuthenticated ? <Layout><RuleManagement /></Layout> : <Navigate to="/login" />
+          isAuthenticated ? <RequireModule module="rule-management"><Layout><RuleManagement /></Layout></RequireModule> : <Navigate to="/login" />
         } />
-
         <Route path="/my-rules" element={
-          isAuthenticated ? <Layout><MyWorkspace /></Layout> : <Navigate to="/login" />
+          isAuthenticated ? <RequireModule module="my-workspace"><Layout><MyWorkspace /></Layout></RequireModule> : <Navigate to="/login" />
         } />
-        
-        <Route path="/website-settings" element={
-          isAuthenticated ? <Layout><WebsiteSettings /></Layout> : <Navigate to="/login" />
-        } />
-        
         <Route path="/checklist-templates" element={
-          isAuthenticated ? (
-            (user.role === 'superadmin' || user.role === 'admin') ? (
-              <Layout><ChecklistTemplates /></Layout>
-            ) : <Navigate to="/" />
-          ) : <Navigate to="/login" />
+          isAuthenticated ? <RequireModule module="checklist-templates"><Layout><ChecklistTemplates /></Layout></RequireModule> : <Navigate to="/login" />
         } />
-        
+        <Route path="/complaints" element={
+          isAuthenticated ? <RequireModule module="complaints"><Layout><Complaints /></Layout></RequireModule> : <Navigate to="/login" />
+        } />
+        <Route path="/pharmacy-bills" element={
+          isAuthenticated ? <RequireModule module="pharmacy-bills"><Layout><PharmacyBills /></Layout></RequireModule> : <Navigate to="/login" />
+        } />
         <Route path="/attendance" element={
-          isAuthenticated ? (
-            (user.role === 'superadmin' || user.role === 'admin') ? (
-              <Layout><Attendance /></Layout>
-            ) : (
-              <Navigate to="/" replace />
-            )
-          ) : <Navigate to="/login" />
+          isAuthenticated ? <RequireModule module="attendance"><Layout><Attendance /></Layout></RequireModule> : <Navigate to="/login" />
         } />
-        
         <Route path="/payroll" element={
-          isAuthenticated ? (
-            (user.role === 'superadmin' || user.role === 'admin') ? (
-              <Layout><Payroll /></Layout>
-            ) : (
-              <Navigate to="/" replace />
-            )
-          ) : <Navigate to="/login" />
+          isAuthenticated ? <RequireModule module="payroll"><Layout><Payroll /></Layout></RequireModule> : <Navigate to="/login" />
         } />
         <Route path="/superadmin/payments" element={
-          isAuthenticated ? (
-            user.role === 'superadmin' ? (
-              <Layout><Payments /></Layout>
-            ) : (
-              <Navigate to="/" replace />
-            )
-          ) : <Navigate to="/login" />
+          isAuthenticated ? <RequireModule module="payments"><Layout><Payments /></Layout></RequireModule> : <Navigate to="/login" />
         } />
         <Route path="/superadmin/payment-qr" element={
-          isAuthenticated ? (
-            user.role === 'superadmin' ? (
-              <Layout><PaymentQR /></Layout>
-            ) : (
-              <Navigate to="/" replace />
-            )
-          ) : <Navigate to="/login" />
+          isAuthenticated ? <RequireModule module="payment-qr"><Layout><PaymentQR /></Layout></RequireModule> : <Navigate to="/login" />
         } />
-        
         <Route path="/superadmin/schedule-management" element={
-          isAuthenticated ? (
-            user.role === 'superadmin' ? (
-              <Layout><ScheduleManagement /></Layout>
-            ) : (
-              <Navigate to="/" replace />
-            )
-          ) : <Navigate to="/login" />
+          isAuthenticated ? <RequireModule module="schedule-management"><Layout><ScheduleManagement /></Layout></RequireModule> : <Navigate to="/login" />
         } />
-        <Route path="/holidays" element={isAuthenticated ? <Layout><HolidaysEvents /></Layout> : <Navigate to="/login" />} />
-        <Route path="/daily-reports" element={isAuthenticated ? <Layout><DailyReport /></Layout> : <Navigate to="/login" />} />
-        <Route path="/superadmin/home-expense" element={isAuthenticated ? (user.role === 'superadmin' ? <Layout><HomeExpense /></Layout> : <Navigate to="/" replace />) : <Navigate to="/login" />} />
+        <Route path="/holidays" element={
+          isAuthenticated ? <RequireModule module="holidays"><Layout><HolidaysEvents /></Layout></RequireModule> : <Navigate to="/login" />
+        } />
+        <Route path="/daily-reports" element={
+          isAuthenticated ? <RequireModule module="daily-reports"><Layout><DailyReport /></Layout></RequireModule> : <Navigate to="/login" />
+        } />
+        <Route path="/superadmin/home-expense" element={
+          isAuthenticated ? <RequireModule module="home-expense"><Layout><HomeExpense /></Layout></RequireModule> : <Navigate to="/login" />
+        } />
+        <Route path="/website-settings" element={
+          isAuthenticated ? (user.role === 'superadmin' ? <Layout><WebsiteSettings /></Layout> : <Navigate to="/" replace />) : <Navigate to="/login" />
+        } />
       </Routes>
     </Router>
   );

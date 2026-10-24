@@ -12,6 +12,7 @@ import {
     EyeIcon,
     EditIcon
 } from '../components/Icons';
+import usePermissions from '../permissions/usePermissions';
 import './DailyReport.css';
 
 const ChevronDownIcon = ({ size = 18 }) => (
@@ -25,6 +26,11 @@ export default function DailyReport() {
     const token = localStorage.getItem('token');
     const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
     const isPrivileged = currentUser.role === 'superadmin' || currentUser.role === 'admin';
+    const { can } = usePermissions();
+    const perm = (action) => can('daily-reports:' + action);
+    const myId = currentUser.id || currentUser._id;
+    // Apni report = 'submit', kisi aur ki report = 'edit'
+    const canEditReport = (rep) => (rep.userId === myId ? perm('submit') : perm('edit'));
 
     // Modal state for Fill/Edit Form Popup
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -441,9 +447,9 @@ export default function DailyReport() {
                 </div>
 
                 <div className="daily-report-actions">
-                    {!isPrivileged && (
-                        <button 
-                            type="button" 
+                    {!isPrivileged && perm('submit') && (
+                        <button
+                            type="button"
                             onClick={() => openFormModal()}
                             className="payments-btn-primary"
                             style={{ padding: '9px 18px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}
@@ -456,7 +462,7 @@ export default function DailyReport() {
             </div>
 
             {/* Role & User Navigation Filters (Exact same clean design as Rules / SOPs) */}
-            {isPrivileged && (
+            {isPrivileged && perm('filters') && perm('view-team') && (
                 <div style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-start', maxWidth: '100%' }}>
                     {/* Row 1: All Roles / Categories Pills */}
                     {currentUser.role === 'superadmin' && (
@@ -691,7 +697,7 @@ export default function DailyReport() {
                         <p style={{ fontSize: '15px', fontWeight: 600, color: '#334155', margin: '0 0 6px 0' }}>
                             No reports found matching your selected filters.
                         </p>
-                        {!isPrivileged ? (
+                        {!isPrivileged && perm('submit') ? (
                             <>
                                 <p style={{ fontSize: '13px', margin: '0 0 16px 0' }}>
                                     Click below to create and submit your daily report.
@@ -704,11 +710,11 @@ export default function DailyReport() {
                                     + Submit Daily Report Now
                                 </button>
                             </>
-                        ) : (
+                        ) : isPrivileged ? (
                             <p style={{ fontSize: '13px', margin: 0, color: '#64748b' }}>
                                 Team members will submit their daily reports from their account.
                             </p>
-                        )}
+                        ) : null}
                     </div>
                 ) : (
                     <>
@@ -765,33 +771,33 @@ export default function DailyReport() {
                                                 </td>
                                                 <td className="text-right">
                                                     <div className="payments-table-actions">
-                                                        <button 
-                                                            type="button" 
+                                                        {perm('view') && <button
+                                                            type="button"
                                                             onClick={() => setViewingReportModal(rep)}
                                                             className="payments-icon-action-btn"
                                                             title="View Full Details"
                                                             style={{ color: '#0284c7' }}
                                                         >
                                                             <EyeIcon size={16} />
-                                                        </button>
-                                                        <button 
-                                                            type="button" 
-                                                            onClick={() => openFormModal(rep.userId, rep.date)} 
+                                                        </button>}
+                                                        {canEditReport(rep) && <button
+                                                            type="button"
+                                                            onClick={() => openFormModal(rep.userId, rep.date)}  
                                                             className="payments-icon-action-btn"
                                                             title="Edit Report"
                                                             style={{ color: '#64748b' }}
                                                         >
                                                             <EditIcon size={15} />
-                                                        </button>
-                                                        <button 
-                                                            type="button" 
-                                                            onClick={() => handleDeleteReport(rep._id, rep.employeeName)} 
+                                                        </button>}
+                                                        {perm('delete') && <button
+                                                            type="button"
+                                                            onClick={() => handleDeleteReport(rep._id, rep.employeeName)}  
                                                             className="payments-icon-action-btn"
                                                             title="Delete Report"
                                                             style={{ color: '#ef4444' }}
                                                         >
                                                             <TrashIcon size={15} />
-                                                        </button>
+                                                        </button>}
                                                     </div>
                                                 </td>
                                             </tr>
@@ -862,16 +868,16 @@ export default function DailyReport() {
                                         </div>
 
                                         <div className="report-mcard-actions">
-                                            <button 
-                                                type="button" 
+                                            {perm('view') && <button
+                                                type="button"
                                                 onClick={() => setViewingReportModal(rep)}
                                                 className="report-mcard-btn"
                                                 style={{ background: '#f0f9ff', color: '#0284c7', borderColor: '#bae6fd' }}
                                             >
                                                 <EyeIcon size={14} />
                                                 <span>View</span>
-                                            </button>
-                                            <button 
+                                            </button>}
+                                            {canEditReport(rep) && <button  
                                                 type="button" 
                                                 onClick={() => openFormModal(rep.userId, rep.date)}
                                                 className="report-mcard-btn"
@@ -879,8 +885,8 @@ export default function DailyReport() {
                                             >
                                                 <EditIcon size={13} />
                                                 <span>Edit</span>
-                                            </button>
-                                            <button 
+                                            </button>}
+                                            {perm('delete') && <button  
                                                 type="button" 
                                                 onClick={() => handleDeleteReport(rep._id, rep.employeeName)}
                                                 className="report-mcard-btn"
@@ -888,7 +894,7 @@ export default function DailyReport() {
                                             >
                                                 <TrashIcon size={13} />
                                                 <span>Delete</span>
-                                            </button>
+                                            </button>}
                                         </div>
                                     </div>
                                 );
@@ -1241,8 +1247,8 @@ export default function DailyReport() {
                         <div className="report-modal-footer">
                             <div></div>
                             <div style={{ display: 'flex', gap: '10px' }}>
-                                <button 
-                                    type="button" 
+                                {canEditReport(viewingReportModal) && <button
+                                    type="button"
                                     onClick={() => {
                                         const uid = viewingReportModal.userId;
                                         const dt = viewingReportModal.date;
@@ -1253,7 +1259,7 @@ export default function DailyReport() {
                                     style={{ padding: '8px 18px', fontSize: '13px' }}
                                 >
                                     Edit This Report
-                                </button>
+                                </button>}
                                 <button 
                                     type="button" 
                                     onClick={() => setViewingReportModal(null)}
@@ -1283,7 +1289,7 @@ export default function DailyReport() {
                             </div>
 
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                {isPrivileged && (
+                                {isPrivileged && perm('edit') && (
                                     <>
                                         <div style={{ width: '180px' }}>
                                             <CustomSelect 

@@ -8,6 +8,7 @@ import CalendarPicker, { formatDateToISO } from '../components/CalendarPicker';
 import { EditIcon, TrashIcon, KeyIcon, XIcon, MailIcon, PhoneIcon, PlusIcon, UserIcon, ClockIcon } from '../components/Icons';
 import { sanitizeMobileNumber, isValidMobileNumber } from '../utils/validation';
 import { formatDisplayTime } from '../utils/formatDate';
+import usePermissions from '../permissions/usePermissions';
 import '../App.css';
 
 const formatTime12Hour = (time24) => {
@@ -16,6 +17,8 @@ const formatTime12Hour = (time24) => {
 };
 
 const TeamManagement = () => {
+  const { can } = usePermissions();
+  const perm = (action) => can('team-management:' + action);
   const [teamMembers, setTeamMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -265,9 +268,11 @@ const TeamManagement = () => {
     <div>
       <div className="page-header" style={{ marginBottom: '16px' }}>
           <h2>Team Management</h2>
-          <button onClick={openCreateModal} className="crm-btn crm-btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            + Create Team Member
-          </button>
+          {perm('create') && (
+            <button onClick={openCreateModal} className="crm-btn crm-btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              + Create Team Member
+            </button>
+          )}
         </div>
 
       {/* Desktop Table View */}
@@ -364,15 +369,21 @@ const TeamManagement = () => {
                         </td>
                       )}
                       <td style={{ textAlign: 'right', paddingRight: '20px' }}>
-                        <button className="action-btn key" title="Change Password" aria-label="Change Password" onClick={() => openPasswordModal(member)}>
-                          <KeyIcon size={16} />
-                        </button>
-                        <button className="action-btn edit" title="Edit" aria-label="Edit" onClick={() => openEditModal(member)}>
-                          <EditIcon size={16} />
-                        </button>
-                        <button className="action-btn delete" title="Delete" aria-label="Delete" onClick={() => handleDelete(member._id)}>
-                          <TrashIcon size={16} />
-                        </button>
+                        {perm('password') && (
+                          <button className="action-btn key" title="Change Password" aria-label="Change Password" onClick={() => openPasswordModal(member)}>
+                            <KeyIcon size={16} />
+                          </button>
+                        )}
+                        {perm('edit') && (
+                          <button className="action-btn edit" title="Edit" aria-label="Edit" onClick={() => openEditModal(member)}>
+                            <EditIcon size={16} />
+                          </button>
+                        )}
+                        {perm('delete') && (
+                          <button className="action-btn delete" title="Delete" aria-label="Delete" onClick={() => handleDelete(member._id)}>
+                            <TrashIcon size={16} />
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );
@@ -447,15 +458,21 @@ const TeamManagement = () => {
 
                 {/* Bottom: Action buttons */}
                 <div className="tm-card-actions">
-                  <button className="tm-action-btn key" title="Change Password" onClick={() => openPasswordModal(member)}>
-                    <KeyIcon size={15} />
-                  </button>
-                  <button className="tm-action-btn edit" title="Edit" onClick={() => openEditModal(member)}>
-                    <EditIcon size={15} />
-                  </button>
-                  <button className="tm-action-btn delete" title="Delete" onClick={() => handleDelete(member._id)}>
-                    <TrashIcon size={15} />
-                  </button>
+                  {perm('password') && (
+                    <button className="tm-action-btn key" title="Change Password" onClick={() => openPasswordModal(member)}>
+                      <KeyIcon size={15} />
+                    </button>
+                  )}
+                  {perm('edit') && (
+                    <button className="tm-action-btn edit" title="Edit" onClick={() => openEditModal(member)}>
+                      <EditIcon size={15} />
+                    </button>
+                  )}
+                  {perm('delete') && (
+                    <button className="tm-action-btn delete" title="Delete" onClick={() => handleDelete(member._id)}>
+                      <TrashIcon size={15} />
+                    </button>
+                  )}
                 </div>
               </div>
             ))

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { 
   PlusIcon, 
@@ -9,6 +9,7 @@ import {
   WalletIcon, 
   UserIcon 
 } from '../components/Icons';
+import RolePermissionsCard from '../components/RolePermissionsCard';
 import './WebsiteSettings.css';
 
 const WebsiteSettings = () => {
@@ -17,7 +18,15 @@ const WebsiteSettings = () => {
     const [consultationFee, setConsultationFee] = useState(500);
     const [newAdminCat, setNewAdminCat] = useState('');
     const [newTeamCat, setNewTeamCat] = useState('');
-    const [message, setMessage] = useState('');
+    // Upar right me toast: { text, type: 'success' | 'error' }, 3 sec me apne aap band
+    const [toast, setToast] = useState(null);
+    const toastTimer = useRef(null);
+    const showToast = (text, type = 'success') => {
+        clearTimeout(toastTimer.current);
+        setToast({ text, type });
+        toastTimer.current = setTimeout(() => setToast(null), 3000);
+    };
+    useEffect(() => () => clearTimeout(toastTimer.current), []);
 
     const [editingAdminCat, setEditingAdminCat] = useState(null);
     const [editAdminInput, setEditAdminInput] = useState('');
@@ -55,10 +64,9 @@ const WebsiteSettings = () => {
             });
             setAdminCategories(updatedAdmin);
             setTeamCategories(updatedTeam);
-            setMessage('Settings updated successfully');
-            setTimeout(() => setMessage(''), 3000);
+            showToast('Settings updated successfully');
         } catch (err) {
-            setMessage('Error updating settings: ' + (err.response?.data?.message || err.message));
+            showToast('Error updating settings: ' + (err.response?.data?.message || err.message), 'error');
         }
     };
 
@@ -138,155 +146,155 @@ const WebsiteSettings = () => {
                 </div>
             </div>
             
-            {/* Alert Message Banner */}
-            {message && (
-                <div className={`settings-alert-banner ${message.toLowerCase().includes('success') ? 'settings-alert-success' : 'settings-alert-error'}`}>
-                    {message.toLowerCase().includes('success') ? (
-                        <CheckCircleIcon size={16} />
-                    ) : (
-                        <XIcon size={16} />
-                    )}
-                    <span>{message}</span>
+            {/* Toast notification (upar right) */}
+            {toast && (
+                <div className={`settings-toast settings-toast-${toast.type}`} role="status">
+                    {toast.type === 'success' ? <CheckCircleIcon size={16} /> : <XIcon size={16} />}
+                    <span>{toast.text}</span>
+                    <button type="button" className="settings-toast-close" onClick={() => setToast(null)} aria-label="Close">
+                        <XIcon size={14} />
+                    </button>
                 </div>
             )}
 
-            {/* 3 Main Settings Columns */}
+            {/* Settings Columns */}
             <div className="settings-grid">
-                {/* 1. Clinic Configuration */}
-                <div className="settings-card">
-                    <div className="settings-card-header">
-                        <div className="settings-card-title-wrap">
-                            <div className="settings-card-icon">
-                                <WalletIcon size={16} />
+                {/* Clinic Configuration + Admin Categories upar-neeche, ek column me */}
+                <div className="settings-stack">
+                    {/* 1. Clinic Configuration */}
+                    <div className="settings-card">
+                        <div className="settings-card-header">
+                            <div className="settings-card-title-wrap">
+                                <div className="settings-card-icon">
+                                    <WalletIcon size={16} />
+                                </div>
+                                <h3 className="settings-card-title">Clinic Configuration</h3>
                             </div>
-                            <h3 className="settings-card-title">Clinic Configuration</h3>
+                        </div>
+
+                        <div className="settings-fee-group">
+                            <label className="settings-fee-label">Default Consultation Fee (₹)</label>
+                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                <div className="settings-fee-input-wrap" style={{ flex: 1 }}>
+                                    <span className="settings-fee-prefix">₹</span>
+                                    <input 
+                                        type="number" 
+                                        value={consultationFee} 
+                                        onChange={(e) => setConsultationFee(e.target.value)} 
+                                        className="settings-fee-input"
+                                        placeholder="500"
+                                        min="0"
+                                    />
+                                </div>
+                                <button 
+                                    type="button"
+                                    onClick={() => updateCategories(adminCategories, teamCategories)}
+                                    className="settings-btn-save"
+                                >
+                                    Save Fee
+                                </button>
+                            </div>
+                           
                         </div>
                     </div>
 
-                    <div className="settings-fee-group">
-                        <label className="settings-fee-label">Default Consultation Fee (₹)</label>
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                            <div className="settings-fee-input-wrap" style={{ flex: 1 }}>
-                                <span className="settings-fee-prefix">₹</span>
-                                <input 
-                                    type="number" 
-                                    value={consultationFee} 
-                                    onChange={(e) => setConsultationFee(e.target.value)} 
-                                    className="settings-fee-input"
-                                    placeholder="500"
-                                    min="0"
-                                />
+                    {/* 2. Admin Categories */}
+                    <div className="settings-card">
+                        <div className="settings-card-header">
+                            <div className="settings-card-title-wrap">
+                                <div className="settings-card-icon">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" />
+                                    </svg>
+                                </div>
+                                <h3 className="settings-card-title">Admin Categories</h3>
                             </div>
+                            <span className="settings-card-count">{adminCategories.length}</span>
+                        </div>
+
+                        <div className="category-add-bar">
+                            <input 
+                                type="text" 
+                                className="category-add-input" 
+                                placeholder="Add new admin category..." 
+                                value={newAdminCat}
+                                onChange={e => setNewAdminCat(e.target.value)}
+                                onKeyDown={e => e.key === 'Enter' && addAdminCategory()}
+                            />
                             <button 
                                 type="button"
-                                onClick={() => updateCategories(adminCategories, teamCategories)}
-                                className="settings-btn-save"
+                                onClick={addAdminCategory} 
+                                className="category-add-btn"
+                                title="Add Category"
                             >
-                                Save Fee
+                                <PlusIcon size={16} />
                             </button>
                         </div>
-                        <p className="settings-fee-desc">
-                            Base fee applied automatically when creating new appointments and billing invoices.
-                        </p>
-                    </div>
-                </div>
 
-                {/* 2. Admin Categories */}
-                <div className="settings-card">
-                    <div className="settings-card-header">
-                        <div className="settings-card-title-wrap">
-                            <div className="settings-card-icon">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" />
-                                </svg>
-                            </div>
-                            <h3 className="settings-card-title">Admin Categories</h3>
-                        </div>
-                        <span className="settings-card-count">{adminCategories.length}</span>
-                    </div>
-
-                    <div className="category-add-bar">
-                        <input 
-                            type="text" 
-                            className="category-add-input" 
-                            placeholder="Add new admin category..." 
-                            value={newAdminCat}
-                            onChange={e => setNewAdminCat(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && addAdminCategory()}
-                        />
-                        <button 
-                            type="button"
-                            onClick={addAdminCategory} 
-                            className="category-add-btn"
-                            title="Add Category"
-                        >
-                            <PlusIcon size={16} />
-                        </button>
-                    </div>
-
-                    <ul className="category-list">
-                        {adminCategories.length === 0 ? (
-                            <div className="category-empty-state">No admin categories configured.</div>
-                        ) : (
-                            adminCategories.map(cat => (
-                                <li key={cat} className="category-item">
-                                    {editingAdminCat === cat ? (
-                                        <div className="category-edit-form">
-                                            <input 
-                                                type="text" 
-                                                className="category-edit-input"
-                                                value={editAdminInput} 
-                                                onChange={e => setEditAdminInput(e.target.value)} 
-                                                onKeyDown={e => e.key === 'Enter' && saveAdminEdit(cat)}
-                                                autoFocus
-                                            />
-                                            <button 
-                                                type="button"
-                                                onClick={() => saveAdminEdit(cat)} 
-                                                className="category-edit-save" 
-                                                title="Save"
-                                            >
-                                                <CheckCircleIcon size={16} />
-                                            </button>
-                                            <button 
-                                                type="button"
-                                                onClick={() => setEditingAdminCat(null)} 
-                                                className="category-edit-cancel" 
-                                                title="Cancel"
-                                            >
-                                                <XIcon size={16} />
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <span className="category-item-name">
-                                                <span className="category-bullet"></span>
-                                                {cat}
-                                            </span>
-                                            <div className="category-actions">
+                        <ul className="category-list">
+                            {adminCategories.length === 0 ? (
+                                <div className="category-empty-state">No admin categories configured.</div>
+                            ) : (
+                                adminCategories.map(cat => (
+                                    <li key={cat} className="category-item">
+                                        {editingAdminCat === cat ? (
+                                            <div className="category-edit-form">
+                                                <input 
+                                                    type="text" 
+                                                    className="category-edit-input"
+                                                    value={editAdminInput} 
+                                                    onChange={e => setEditAdminInput(e.target.value)} 
+                                                    onKeyDown={e => e.key === 'Enter' && saveAdminEdit(cat)}
+                                                    autoFocus
+                                                />
                                                 <button 
                                                     type="button"
-                                                    onClick={() => { setEditingAdminCat(cat); setEditAdminInput(cat); }} 
-                                                    className="category-action-btn category-btn-edit" 
-                                                    title="Edit category"
+                                                    onClick={() => saveAdminEdit(cat)} 
+                                                    className="category-edit-save" 
+                                                    title="Save"
                                                 >
-                                                    <EditIcon size={15} />
+                                                    <CheckCircleIcon size={16} />
                                                 </button>
                                                 <button 
                                                     type="button"
-                                                    onClick={() => removeAdminCategory(cat)} 
-                                                    className="category-action-btn category-btn-delete" 
-                                                    title="Remove category"
+                                                    onClick={() => setEditingAdminCat(null)} 
+                                                    className="category-edit-cancel" 
+                                                    title="Cancel"
                                                 >
-                                                    <TrashIcon size={15} />
+                                                    <XIcon size={16} />
                                                 </button>
                                             </div>
-                                        </>
-                                    )}
-                                </li>
-                            ))
-                        )}
-                    </ul>
+                                        ) : (
+                                            <>
+                                                <span className="category-item-name">
+                                                    <span className="category-bullet"></span>
+                                                    {cat}
+                                                </span>
+                                                <div className="category-actions">
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => { setEditingAdminCat(cat); setEditAdminInput(cat); }} 
+                                                        className="category-action-btn category-btn-edit" 
+                                                        title="Edit category"
+                                                    >
+                                                        <EditIcon size={15} />
+                                                    </button>
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => removeAdminCategory(cat)} 
+                                                        className="category-action-btn category-btn-delete" 
+                                                        title="Remove category"
+                                                    >
+                                                        <TrashIcon size={15} />
+                                                    </button>
+                                                </div>
+                                            </>
+                                        )}
+                                    </li>
+                                ))
+                            )}
+                        </ul>
+                    </div>
                 </div>
 
                 {/* 3. Team Categories */}
@@ -384,6 +392,11 @@ const WebsiteSettings = () => {
                         )}
                     </ul>
                 </div>
+
+                {/* 4. Roles & Permissions */}
+                <RolePermissionsCard
+                    onMessage={showToast}
+                />
             </div>
         </div>
     );

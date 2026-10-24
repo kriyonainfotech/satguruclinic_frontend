@@ -11,11 +11,12 @@ import {
   ClockIcon,
   CheckCircleIcon
 } from '../components/Icons';
+import usePermissions from '../permissions/usePermissions';
 import './HolidaysEvents.css';
 
 const HolidaysEvents = () => {
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const isSuperAdmin = user.role === 'superadmin' || user.role === 'admin';
+  const { can } = usePermissions();
+  const perm = (action) => can('holidays:' + action);
 
   const todayIso = formatDateToISO(new Date());
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -117,7 +118,7 @@ const HolidaysEvents = () => {
   };
 
   const toggleHoliday = async (dateStr, title, isOfficial, isPaid) => {
-    if (!isSuperAdmin) return;
+    if (!perm('declare')) return;
     try {
       const token = localStorage.getItem('token');
       await axios.post(`${import.meta.env.VITE_API_BASE_URL}/holidays/toggle`, {
@@ -223,7 +224,7 @@ const HolidaysEvents = () => {
       {/* Page Header */}
       <div className="page-header" style={{ marginBottom: '16px' }}>
         <h2>Holidays & Events</h2>
-        {isSuperAdmin && (
+        {perm('add') && (
           <button
             type="button"
             className="crm-btn crm-btn-primary"
@@ -419,7 +420,7 @@ const HolidaysEvents = () => {
                           </span>
                         </div>
 
-                        {h.isCustom && isSuperAdmin && (
+                        {h.isCustom && perm('delete') && (
                           <button
                             type="button"
                             onClick={() => deleteCustomHoliday(h.id)}
@@ -431,7 +432,7 @@ const HolidaysEvents = () => {
                         )}
                       </div>
 
-                      {isSuperAdmin ? (
+                      {perm('declare') ? (
                         <div className="holiday-settings-box">
                           {/* Setting 1: Official Holiday Toggle */}
                           <div className="holiday-setting-row">
@@ -497,7 +498,7 @@ const HolidaysEvents = () => {
                     </div>
                   ))}
 
-                  {isSuperAdmin && (
+                  {perm('add') && (
                     <button
                       type="button"
                       className="add-another-holiday-btn"
@@ -551,7 +552,7 @@ const HolidaysEvents = () => {
                       <div className="uh-left">
                         <span className="legend-dot official"></span>
                         <span className="uh-title">{holiday.title.toLowerCase()}</span>
-                        {isSuperAdmin && (
+                        {perm('paid-tag') && (
                           <span className={`uh-paid-tag ${holiday.isPaid ? 'paid' : 'unpaid'}`}>
                             {holiday.isPaid ? 'Paid' : 'Unpaid'}
                           </span>

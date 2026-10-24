@@ -9,6 +9,7 @@ import CustomTimePicker from '../components/CustomTimePicker';
 import CalendarPicker from '../components/CalendarPicker';
 import Pagination from '../components/Pagination';
 import { formatDate, formatDisplayTime } from '../utils/formatDate';
+import usePermissions from '../permissions/usePermissions';
 import '../App.css';
 
 const Appointments = () => {
@@ -207,8 +208,8 @@ const Appointments = () => {
     setShowModal(true);
   };
 
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const isAdminOrTeam = ['superadmin', 'admin', 'team'].includes(user.role);
+  const { can } = usePermissions();
+  const perm = (action) => can('appointments:' + action);
 
   const [services, setServices] = useState([]);
   const [medicines, setMedicines] = useState([]);
@@ -641,9 +642,11 @@ const Appointments = () => {
     <div className="task-page-container">
       <div className="page-header" style={{ marginBottom: '16px' }}>
         <h2>Appointments Schedule</h2>
-        <button onClick={openModal} className="crm-btn crm-btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <PlusIcon /> Add Appointment
-        </button>
+        {perm('create') && (
+          <button onClick={openModal} className="crm-btn crm-btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <PlusIcon /> Add Appointment
+          </button>
+        )}
       </div>
 
                 {/* Filters Row */}
@@ -816,14 +819,16 @@ const Appointments = () => {
                       <span className="tbl-mobile-text">{a.patientId?.mobileNumber || '—'}</span>
                     </td>
                     <td style={{ textAlign: 'center' }}>
-                      <button 
-                        className="action-btn view"
-                        onClick={() => { setSelectedDetails(a); setShowDetailsModal(true); }}
-                        title="View Details"
-                        aria-label="View Details"
-                      >
-                        <InfoIcon size={15} />
-                      </button>
+                      {perm('details') ? (
+                        <button 
+                          className="action-btn view"
+                          onClick={() => { setSelectedDetails(a); setShowDetailsModal(true); }}
+                          title="View Details"
+                          aria-label="View Details"
+                        >
+                          <InfoIcon size={15} />
+                        </button>
+                      ) : '—'}
                     </td>
                     <td>
                       <span style={{ fontSize: '12.5px', color: '#334155' }}>{a.reason || 'General Consultation'}</span>
@@ -838,13 +843,13 @@ const Appointments = () => {
                         value={a.status} 
                         onChange={(val) => handleStatusChange(a._id, val)}
                         options={APPOINTMENT_STATUS_OPTIONS}
-                        disabled={!isAdminOrTeam}
+                        disabled={!perm('status')}
                       />
                     </td>
                     <td style={{ textAlign: 'right', paddingRight: '16px' }}>
-                      {isAdminOrTeam && (
+                      {(perm('sale-entry') || perm('edit') || perm('delete')) && (
                         <div style={{ display: 'flex', gap: '6px', alignItems: 'center', justifyContent: 'flex-end' }}>
-                          {!a.hasSaleEntry ? (
+                          {perm('sale-entry') && (!a.hasSaleEntry ? (
                             <button 
                               className="sale-entry-btn"
                               onClick={() => { setSaleModalData({ mobile: a.patientId?.mobileNumber || '', name: a.patientId?.fullName || '', appointment: a }); setShowSaleModal(true); }} 
@@ -854,7 +859,8 @@ const Appointments = () => {
                             </button>
                           ) : (
                             <button onClick={() => handleBilledClick(a)}  className="billed-edit-btn"><span>Billed</span></button>
-                          )}
+                          ))}
+                          {perm('edit') && (
                           <button 
                             className="action-btn edit"
                             title="Edit Appointment"
@@ -863,6 +869,8 @@ const Appointments = () => {
                           >
                             <EditIcon size={16} />
                           </button>
+                          )}
+                          {perm('delete') && (
                           <button 
                             className="action-btn delete"
                             title="Delete Appointment"
@@ -879,6 +887,7 @@ const Appointments = () => {
                           >
                             <TrashIcon size={16} />
                           </button>
+                          )}
                         </div>
                       )}
                     </td>
@@ -930,7 +939,7 @@ const Appointments = () => {
                       value={a.status} 
                       onChange={(val) => handleStatusChange(a._id, val)}
                       options={APPOINTMENT_STATUS_OPTIONS}
-                      disabled={!isAdminOrTeam}
+                      disabled={!perm('status')}
                     />
                   </div>
                 </div>
@@ -975,7 +984,7 @@ const Appointments = () => {
                 {/* Footer Actions */}
                 <div className="appt-card-footer">
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {isAdminOrTeam && (
+                    {perm('sale-entry') && (
                       !a.hasSaleEntry ? (
                         <button 
                           type="button"
@@ -992,18 +1001,21 @@ const Appointments = () => {
                         <button onClick={() => handleBilledClick(a)}  className="billed-edit-btn"><span>Billed</span></button>
                       )
                     )}
-                    <button 
-                      type="button"
-                      className="appt-view-details-btn"
-                      onClick={() => { setSelectedDetails(a); setShowDetailsModal(true); }}
-                      title="View Details"
-                    >
-                      <InfoIcon size={13} /> Details
-                    </button>
+                    {perm('details') && (
+                      <button 
+                        type="button"
+                        className="appt-view-details-btn"
+                        onClick={() => { setSelectedDetails(a); setShowDetailsModal(true); }}
+                        title="View Details"
+                      >
+                        <InfoIcon size={13} /> Details
+                      </button>
+                    )}
                   </div>
 
-                  {isAdminOrTeam && (
+                  {(perm('edit') || perm('delete')) && (
                     <div className="appt-actions-right">
+                      {perm('edit') && (
                       <button 
                         type="button"
                         className="action-btn edit tbl-icon-btn"
@@ -1013,6 +1025,8 @@ const Appointments = () => {
                       >
                         <EditIcon size={15} />
                       </button>
+                      )}
+                      {perm('delete') && (
                       <button 
                         type="button"
                         className="action-btn delete tbl-icon-btn"
@@ -1030,6 +1044,7 @@ const Appointments = () => {
                       >
                         <TrashIcon size={15} />
                       </button>
+                      )}
                     </div>
                   )}
                 </div>

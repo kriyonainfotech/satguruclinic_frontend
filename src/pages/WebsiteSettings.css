@@ -59,35 +59,99 @@
   color: #64748b;
 }
 
-/* Feedback Alert Banner */
-.settings-alert-banner {
-  padding: 12px 18px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 600;
+/* Toast notification (upar right, 3 sec me apne aap band) */
+.settings-toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 2000;
   display: flex;
   align-items: center;
   gap: 10px;
-  animation: fadeIn 0.2s ease;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 12px 14px 12px 16px;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-left-width: 4px;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.15);
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+  box-sizing: border-box;
+  animation: settingsToastIn 0.25s ease;
 }
 
-.settings-alert-success {
-  background: #ecfdf5;
-  color: #065f46;
-  border: 1px solid #a7f3d0;
+.settings-toast > svg {
+  flex-shrink: 0;
 }
 
-.settings-alert-error {
-  background: #fef2f2;
-  color: #991b1b;
-  border: 1px solid #fecaca;
+.settings-toast span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.settings-toast-success {
+  border-left-color: #059669;
+}
+
+.settings-toast-success > svg {
+  color: #059669;
+}
+
+.settings-toast-error {
+  border-left-color: #dc2626;
+}
+
+.settings-toast-error > svg {
+  color: #dc2626;
+}
+
+/* Koi hover nahi (App.css ka global button:hover bhi nahi) */
+button.settings-toast-close,
+button.settings-toast-close:hover {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+}
+
+@keyframes settingsToastIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 640px) {
+  .settings-toast {
+    top: 12px;
+    right: 16px;
+    left: 16px;
+    max-width: none;
+  }
 }
 
 /* 3 Column Grid */
 .settings-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
   gap: 20px;
+}
+
+/* Ek column me cards upar-neeche (Clinic Configuration + Admin Categories) */
+.settings-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
 }
 
 /* Setting Card Box */
@@ -203,8 +267,7 @@
 }
 
 .settings-btn-save:hover {
-  background: #0f395c;
-  box-shadow: 0 2px 6px rgba(20, 75, 121, 0.25);
+  background: var(--primary-color, #144b79);
 }
 
 .settings-fee-desc {
@@ -397,8 +460,583 @@
   font-style: italic;
 }
 
+/* Breakpoint: sm (<= 640px) — kam spacing, compact cards */
 @media (max-width: 640px) {
   .settings-page-container {
+    padding: 10px;
+    gap: 12px;
+  }
+
+  .settings-header-card {
+    padding: 12px 14px;
+    gap: 10px;
+  }
+
+  .settings-header-left {
+    gap: 10px;
+  }
+
+  .settings-icon-badge {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+  }
+
+  .settings-icon-badge svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .settings-title {
+    font-size: 16px;
+  }
+
+  .settings-subtitle {
+    margin-top: 2px;
+    font-size: 12px;
+  }
+
+  .settings-grid,
+  .settings-stack {
+    gap: 12px;
+  }
+
+  .settings-card {
     padding: 14px;
+    border-radius: 10px;
+  }
+
+  .settings-card-header {
+    padding-bottom: 10px;
+    margin-bottom: 12px;
+  }
+
+  .settings-card-icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .settings-card-title {
+    font-size: 14px;
+  }
+
+  .settings-fee-group {
+    margin-bottom: 12px;
+  }
+
+  .settings-fee-label {
+    margin-bottom: 6px;
+  }
+
+  .category-add-bar {
+    margin-bottom: 10px;
+  }
+
+  .category-list {
+    gap: 6px;
+  }
+
+  .category-item {
+    padding: 8px 10px;
+  }
+
+  .category-empty-state {
+    padding: 14px 10px;
+  }
+}
+
+/* Roles & Permissions Card */
+.perm-card {
+  grid-column: 1 / -1;
+}
+
+.perm-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.perm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 180px;
+  min-width: 0;
+}
+
+.perm-field .settings-fee-label {
+  margin: 0;
+}
+
+.perm-field-name {
+  width: 300px;
+}
+
+.perm-bulk {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.perm-link-btn {
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.perm-link-btn:hover {
+  background: #f8fafc;
+  color: #475569;
+}
+
+.perm-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr));
+  gap: 10px;
+  align-items: start;
+}
+
+.perm-item {
+  position: relative;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  transition: all 0.15s ease;
+}
+
+.perm-item-open {
+  border-color: var(--primary-color, #144b79);
+}
+
+.perm-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.perm-item-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.perm-options-btn {
+  padding: 3px 8px;
+  border: 1px solid #c7d7e8;
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--primary-color, #144b79);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.perm-options-btn.active {
+  background: var(--primary-color, #144b79);
+  color: #ffffff;
+}
+
+/* Koi hover effect nahi (App.css ka global button:hover bhi nahi) */
+.perm-options-btn:not(.active):hover {
+  background: #ffffff;
+  color: var(--primary-color, #144b79);
+}
+
+.perm-actions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* App.css ka global li style (card, border, shadow) yahan nahi chahiye */
+.perm-actions li {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.perm-action-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+  color: #475569;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.perm-action-row input {
+  margin-top: 2px;
+  accent-color: var(--primary-color, #144b79);
+  flex-shrink: 0;
+}
+
+.perm-item-on {
+  background: #f0f5fa;
+  border-color: #c7d7e8;
+}
+
+.perm-item-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.perm-item-name svg {
+  flex-shrink: 0;
+}
+
+.perm-switch {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.perm-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.perm-slider {
+  position: absolute;
+  inset: 0;
+  background: #cbd5e1;
+  border-radius: 20px;
+  transition: background 0.2s ease;
+}
+
+.perm-slider::before {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  left: 2px;
+  top: 2px;
+  background: #ffffff;
+  border-radius: 50%;
+  transition: transform 0.2s ease;
+}
+
+.perm-switch input:checked + .perm-slider {
+  background: var(--primary-color, #144b79);
+}
+
+.perm-switch input:checked + .perm-slider::before {
+  transform: translateX(16px);
+}
+
+.perm-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.perm-footer-actions {
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.perm-footer-actions button {
+  white-space: nowrap;
+}
+
+.perm-reset-btn {
+  padding: 10px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.perm-reset-btn:hover {
+  background: #ffffff;
+  color: #475569;
+}
+
+/* Disabled: aadha transparent nahi, saaf grey button */
+.perm-reset-btn:disabled,
+.perm-reset-btn:disabled:hover {
+  background: #ffffff;
+  color: #cbd5e1;
+  border-color: #e2e8f0;
+  cursor: not-allowed;
+}
+
+.perm-card .settings-btn-save:disabled,
+.perm-card .settings-btn-save:disabled:hover {
+  background: #e2e8f0;
+  color: #94a3b8;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+/* Save / reset ka status, footer me buttons ke left */
+.perm-status {
+  flex: 1 1 260px;
+  min-width: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.perm-status-dirty {
+  background: #fffbeb;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+/* Options popup (module on karne pe ya "Options" dabane pe) */
+.perm-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.perm-modal {
+  width: 100%;
+  max-width: 480px;
+  max-height: calc(100vh - 32px);
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.25);
+  padding: 20px;
+}
+
+.perm-modal-header {
+  margin-bottom: 14px;
+}
+
+.perm-modal-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.perm-modal-sub {
+  margin-top: 2px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.perm-mode {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.perm-mode-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.perm-mode-option.active {
+  border-color: var(--primary-color, #144b79);
+  background: #f0f5fa;
+}
+
+.perm-mode-option input {
+  margin-top: 3px;
+  accent-color: var(--primary-color, #144b79);
+}
+
+.perm-mode-option strong {
+  display: block;
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.perm-mode-option small {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.perm-modal-list {
+  flex: 1 1 auto;
+  min-height: 0; /* iske bina lambi list popup ke bahar nikal ke footer kaat deti thi */
+  overflow-y: auto;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.perm-action-locked {
+  cursor: default;
+  opacity: 0.75;
+}
+
+.perm-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.perm-modal-count {
+  margin-right: auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.perm-modal-hint {
+  margin: 10px 0 0;
+  font-size: 11px;
+  color: #92400e;
+  text-align: right;
+}
+
+@media (max-width: 640px) {
+  /* Role + Name ek line me, All on/off unke neeche */
+  .perm-toolbar {
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .perm-field {
+    flex: 1 1 calc(50% - 4px);
+    width: auto;
+    gap: 4px;
+  }
+
+  .perm-field-name {
+    flex-basis: calc(50% - 4px);
+  }
+
+  .perm-bulk {
+    width: 100%;
+    margin-left: 0;
+    gap: 8px;
+  }
+
+  .perm-bulk .perm-link-btn {
+    flex: 1;
+    padding: 7px 10px;
+  }
+
+  .perm-card .settings-fee-desc {
+    margin-bottom: 10px !important;
+    font-size: 11.5px;
+  }
+
+  .perm-grid {
+    gap: 6px;
+  }
+
+  .perm-item {
+    padding: 8px 10px;
+  }
+
+  .perm-item-name {
+    font-size: 12.5px;
+    gap: 6px;
+  }
+
+  .perm-footer {
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+  }
+
+  .perm-status {
+    flex-basis: 100%;
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  .perm-footer-actions {
+    width: 100%;
+    gap: 8px;
+  }
+
+  .perm-footer-actions button {
+    flex: 1;
+    padding: 9px 10px;
+  }
+
+  .perm-modal-overlay {
+    padding: 10px;
+  }
+
+  .perm-modal {
+    padding: 14px;
+    max-height: calc(100vh - 20px);
+  }
+
+  .perm-modal-header,
+  .perm-mode {
+    margin-bottom: 10px;
+  }
+
+  .perm-mode {
+    gap: 8px;
+  }
+
+  .perm-mode-option {
+    padding: 8px 10px;
+  }
+
+  .perm-modal-list {
+    padding: 10px;
+  }
+
+  .perm-modal-footer {
+    gap: 8px;
+    margin-top: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .perm-mode {
+    grid-template-columns: 1fr;
   }
 }

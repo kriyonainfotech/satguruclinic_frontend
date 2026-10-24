@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import Modal from '../components/Modal';
 import { EditIcon, TrashIcon, SearchIcon, PlusIcon, InfoIcon, SparkleIcon } from '../components/Icons';
+import usePermissions from '../permissions/usePermissions';
 import './ServicesAndPackages.css';
 
 const Services = () => {
@@ -90,9 +91,8 @@ const Services = () => {
         }
     };
 
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const isSuperAdmin = user.role === 'superadmin' || user.role === 'admin';
-    const isTeam = user.role === 'team';
+    const { can } = usePermissions();
+    const perm = (action) => can('services:service-' + action);
 
     const filteredServices = services.filter(service =>
         service.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -114,7 +114,7 @@ const Services = () => {
                     />
                 </div>
 
-                {(isSuperAdmin || isTeam) && (
+                {perm('add') && (
                     <button
                         type="button"
                         onClick={openCreateModal}
@@ -167,25 +167,25 @@ const Services = () => {
                                         <InfoIcon size={15} />
                                     </button>
                                 )}
-                                {(isSuperAdmin || isTeam) && (
-                                    <>
-                                        <button
-                                            type="button"
-                                            className="sp-action-btn edit"
-                                            onClick={() => openEditModal(service)}
-                                            title="Edit Service"
-                                        >
-                                            <EditIcon size={14} />
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="sp-action-btn delete"
-                                            onClick={() => handleDelete(service._id)}
-                                            title="Delete Service"
-                                        >
-                                            <TrashIcon size={14} />
-                                        </button>
-                                    </>
+                                {perm('edit') && (
+                                    <button
+                                        type="button"
+                                        className="sp-action-btn edit"
+                                        onClick={() => openEditModal(service)}
+                                        title="Edit Service"
+                                    >
+                                        <EditIcon size={14} />
+                                    </button>
+                                )}
+                                {perm('delete') && (
+                                    <button
+                                        type="button"
+                                        className="sp-action-btn delete"
+                                        onClick={() => handleDelete(service._id)}
+                                        title="Delete Service"
+                                    >
+                                        <TrashIcon size={14} />
+                                    </button>
                                 )}
                             </div>
                         </div>

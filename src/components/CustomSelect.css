@@ -76,12 +76,7 @@ button.custom-select-trigger.disabled {
   padding: 8px 12px;
   border-radius: 6px;
   cursor: pointer;
-  transition: background-color 0.15s ease;
   color: #1e293b !important;
-}
-
-.custom-select-option:hover {
-  background-color: #f1f5f9;
 }
 
 .custom-select-option.selected {

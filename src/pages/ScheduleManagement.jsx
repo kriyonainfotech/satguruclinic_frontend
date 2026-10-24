@@ -5,9 +5,12 @@ import CustomTimePicker from '../components/CustomTimePicker';
 import CalendarPicker from '../components/CalendarPicker';
 import { CalendarIcon, UsersIcon, ClipboardListIcon, VideoIcon, PlusIcon, EditIcon, TrashIcon } from '../components/Icons';
 import axios from 'axios';
+import usePermissions from '../permissions/usePermissions';
 import './ScheduleManagement.css';
 
 const ScheduleManagement = () => {
+  const { can } = usePermissions();
+  const perm = (action) => can('schedule-management:' + action);
   
   const [activeTab, setActiveTab] = useState('all');
     const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
@@ -207,7 +210,7 @@ const ScheduleManagement = () => {
         
         </div>
         <div className="header-actions">
-          {!isSynced ? (
+          {perm('google-sync') && (!isSynced ? (
             <button className="crm-btn crm-btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '8px' }} onClick={handleSyncClick}>
               <CalendarIcon size={16} />
               <span>Sync Google Calendar</span>
@@ -217,11 +220,13 @@ const ScheduleManagement = () => {
               <CalendarIcon size={16} />
               <span>Disconnect Google Calendar</span>
             </button>
+          ))}
+          {perm('create') && (
+            <button className="crm-btn crm-btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => { setEditEventId(null); setTitle(''); setDescription(''); setEventDate(selectedDateView || new Date().toISOString().substring(0, 10)); setStartTime('09:00 AM'); setEndTime('10:00 AM'); setShowModal(true); }}>
+              <PlusIcon size={16} />
+              <span>Add New {(activeTab === 'meetings' || activeTab === 'all') ? 'Meeting' : activeTab === 'tasks' ? 'Task' : 'Event'}</span>
+            </button>
           )}
-          <button className="crm-btn crm-btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => { setEditEventId(null); setTitle(''); setDescription(''); setEventDate(selectedDateView || new Date().toISOString().substring(0, 10)); setStartTime('09:00 AM'); setEndTime('10:00 AM'); setShowModal(true); }}>
-            <PlusIcon size={16} />
-            <span>Add New {(activeTab === 'meetings' || activeTab === 'all') ? 'Meeting' : activeTab === 'tasks' ? 'Task' : 'Event'}</span>
-          </button>
         </div>
       </div>
 
@@ -281,8 +286,8 @@ const ScheduleManagement = () => {
               setSelectedDateView(date);
               setTimeout(() => detailsRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
             }}
-            onEditEvent={(ev) => handleEditEvent(ev)}
-            onDeleteEvent={(id) => handleDeleteEvent(id)}
+            onEditEvent={perm('edit') ? (ev) => handleEditEvent(ev) : undefined}
+            onDeleteEvent={perm('delete') ? (id) => handleDeleteEvent(id) : undefined}
             selectedDate={selectedDateView}
             currentMonth={currentMonth}
             currentYear={currentYear}
@@ -312,8 +317,8 @@ const ScheduleManagement = () => {
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: '8px' }}>
-                       <button className="sch-action-btn" onClick={(e) => { e.stopPropagation(); handleEditEvent(ev); }} style={{ padding: '6px 12px', background: '#fff', border: '1px solid #cbd5e1', borderRadius: '4px', cursor: 'pointer', fontSize: '13px', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}><EditIcon size={14} /> <span className="action-text">Edit</span></button>
-                       <button className="sch-action-btn" onClick={(e) => { e.stopPropagation(); handleDeleteEvent(ev.id); }} style={{ padding: '6px 12px', background: '#fee2e2', border: '1px solid #f87171', borderRadius: '4px', cursor: 'pointer', fontSize: '13px', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '6px' }}><TrashIcon size={14} /> <span className="action-text">Delete</span></button>
+                       {perm('edit') && <button className="sch-action-btn" onClick={(e) => { e.stopPropagation(); handleEditEvent(ev); }} style={{ padding: '6px 12px', background: '#fff', border: '1px solid #cbd5e1', borderRadius: '4px', cursor: 'pointer', fontSize: '13px', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}><EditIcon size={14} /> <span className="action-text">Edit</span></button>}
+                       {perm('delete') && <button className="sch-action-btn" onClick={(e) => { e.stopPropagation(); handleDeleteEvent(ev.id); }} style={{ padding: '6px 12px', background: '#fee2e2', border: '1px solid #f87171', borderRadius: '4px', cursor: 'pointer', fontSize: '13px', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '6px' }}><TrashIcon size={14} /> <span className="action-text">Delete</span></button>}
                     </div>
                   </div>); })}
                 {filteredEvents.filter(ev => {
@@ -428,22 +433,22 @@ const ScheduleManagement = () => {
             </div>
             <div className="modal-footer" style={{ marginTop: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', gap: '8px' }}>
-                <button 
+                {perm('edit') && <button 
                   type="button" 
                   className="sch-action-btn" 
                   onClick={() => { setShowDetailModal(false); handleEditEvent(selectedEvent); }} 
                   style={{ padding: '6px 14px', background: '#fff', border: '1px solid #cbd5e1', borderRadius: '4px', cursor: 'pointer', fontSize: '13px', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
                   <EditIcon size={14} /> <span>Edit</span>
-                </button>
-                <button 
+                </button>}
+                {perm('delete') && <button 
                   type="button" 
                   className="sch-action-btn" 
                   onClick={() => { setShowDetailModal(false); handleDeleteEvent(selectedEvent.id); }} 
                   style={{ padding: '6px 14px', background: '#fee2e2', border: '1px solid #f87171', borderRadius: '4px', cursor: 'pointer', fontSize: '13px', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
                   <TrashIcon size={14} /> <span>Delete</span>
-                </button>
+                </button>}
               </div>
               <button type="button" className="crm-btn crm-btn-outline" onClick={() => setShowDetailModal(false)}>Close</button>
             </div>

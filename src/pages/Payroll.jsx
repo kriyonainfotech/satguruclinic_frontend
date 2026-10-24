@@ -15,6 +15,7 @@ import {
   CheckCircleIcon 
 } from '../components/Icons';
 import CustomSelect from '../components/CustomSelect';
+import usePermissions from '../permissions/usePermissions';
 import './Payroll.css';
 
 // Minutes ko "9 hr 15 min" format me dikhata hai
@@ -28,6 +29,8 @@ const formatHrMin = (totalMinutes) => {
 
 const Payroll = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const { can } = usePermissions();
+  const perm = (action) => can('payroll:' + action);
   const [payrollData, setPayrollData] = useState({ summary: {}, details: [] });
   const [loading, setLoading] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(moment());
@@ -363,6 +366,7 @@ const Payroll = () => {
       </div>
 
       {/* 4 Summary Stat Cards */}
+      {perm('summary') && (
       <div className="payroll-stats-grid">
         <div className="payroll-stat-card stat-payroll">
           <div className="payroll-stat-header">
@@ -412,6 +416,7 @@ const Payroll = () => {
           <div className="payroll-stat-desc">Salary disbursed via expenses</div>
         </div>
       </div>
+      )}
 
       {/* Filters & Search */}
       <div className="payroll-filter-bar">
@@ -567,6 +572,7 @@ const Payroll = () => {
                             {/* Actions */}
                             <td className="text-right">
                               <div className="payroll-actions-wrap">
+                                {perm('logs') && (
                                 <button 
                                   type="button"
                                   onClick={() => setSelectedLogsForUser(record)}
@@ -576,6 +582,8 @@ const Payroll = () => {
                                 >
                                   <CalendarIcon size={16} />
                                 </button>
+                                )}
+                                {perm('pay') && (
                                 <button 
                                   type="button"
                                   onClick={() => handleOpenPayModal(record)}
@@ -584,6 +592,7 @@ const Payroll = () => {
                                 >
                                   PAY NOW
                                 </button>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -672,6 +681,7 @@ const Payroll = () => {
                           {typeof record.totalDays === 'number' ? Number(record.totalDays.toFixed(2)) : record.totalDays} <span className="total-days-sub">/ {record.daysInMonth} DAYS</span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          {perm('logs') && (
                           <button 
                             type="button"
                             onClick={() => setSelectedLogsForUser(record)}
@@ -680,6 +690,8 @@ const Payroll = () => {
                           >
                             <CalendarIcon size={13} /> Logs
                           </button>
+                          )}
+                          {perm('pay') && (
                           <button 
                             type="button"
                             onClick={() => handleOpenPayModal(record)}
@@ -688,6 +700,7 @@ const Payroll = () => {
                           >
                             PAY NOW
                           </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -726,6 +739,7 @@ const Payroll = () => {
             </div>
             
             <div className="payroll-drawer-top-banner">
+              {perm('pdf') && (
               <button 
                 type="button"
                 onClick={() => {
@@ -874,6 +888,7 @@ const Payroll = () => {
               >
                 <DownloadIcon size={16} /> Download Detailed Report (PDF)
               </button>
+              )}
 
               <div className="drawer-emp-meta">
                 <h4 className="drawer-emp-name">{selectedLogsForUser.user.name}</h4>
@@ -1003,7 +1018,7 @@ const Payroll = () => {
               {' = '}Live Balance: <strong style={{ color: '#144b79' }}>₹{(salesModalRecord.earned || 0).toLocaleString()}</strong>
             </div>
 
-            {(salesModalRecord.salesSummary?.commissionPending || 0) > 0 && (
+            {perm('incentives') && (salesModalRecord.salesSummary?.commissionPending || 0) > 0 && (
               <div style={{ padding: '4px 20px 8px' }}>
                 <button
                   type="button"
@@ -1046,7 +1061,7 @@ const Payroll = () => {
                       <div style={{ fontSize: '12px', color: '#334155' }}>
                         5% of ₹{sale.saleAmount.toLocaleString()} = <strong style={{ color: '#10b981' }}>₹{sale.commission.toLocaleString()}</strong>
                       </div>
-                    {sale.commissionAdded ? (
+                    {perm('incentives') && (sale.commissionAdded ? (
                       <button
                         type="button"
                         disabled={commissionUpdatingId === sale._id}
@@ -1066,7 +1081,7 @@ const Payroll = () => {
                       >
                         {commissionUpdatingId === sale._id ? '...' : `+ Add ₹${sale.commission.toLocaleString()}`}
                       </button>
-                    )}
+                    ))}
                     </div>
                   </div>
                 ))
@@ -1116,7 +1131,7 @@ const Payroll = () => {
               {' = '}Live Balance: <strong style={{ color: '#144b79' }}>₹{(leadsModalRecord.earned || 0).toLocaleString()}</strong>
             </div>
 
-            {(leadsModalRecord.leadsSummary?.bonusPending || 0) > 0 && (
+            {perm('incentives') && (leadsModalRecord.leadsSummary?.bonusPending || 0) > 0 && (
               <div style={{ padding: '4px 20px 8px' }}>
                 <button
                   type="button"
@@ -1145,7 +1160,7 @@ const Payroll = () => {
                         {lead.mobile}{lead.source ? ` · ${lead.source}` : ''}{lead.status ? ` · ${lead.status}` : ''}
                       </div>
                     </div>
-                    {lead.bonusAdded ? (
+                    {perm('incentives') && (lead.bonusAdded ? (
                       <button
                         type="button"
                         disabled={commissionUpdatingId === lead._id}
@@ -1165,7 +1180,7 @@ const Payroll = () => {
                       >
                         {commissionUpdatingId === lead._id ? '...' : `+ Add ₹${lead.bonus}`}
                       </button>
-                    )}
+                    ))}
                   </div>
                 ))
               )}

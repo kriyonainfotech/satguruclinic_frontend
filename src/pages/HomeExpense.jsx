@@ -5,6 +5,7 @@ import CalendarPicker from '../components/CalendarPicker';
 import '../App.css';
 import './Payments.css';
 import moment from 'moment';
+import usePermissions from '../permissions/usePermissions';
 
 const MONTH_LIST = [
   { val: 'All', label: 'All Months' },
@@ -23,6 +24,9 @@ const MONTH_LIST = [
 ];
 
 export default function HomeExpense() {
+    const { can } = usePermissions();
+    const perm = (action) => can('home-expense:' + action);
+
     const [members, setMembers] = useState(() => {
         const local = localStorage.getItem('homeMembers');
         return local ? JSON.parse(local) : [];
@@ -225,6 +229,7 @@ export default function HomeExpense() {
                         }}
                     >
                         <span>{m.name}</span>
+                        {perm('members') && (
                         <span 
                             role="button"
                             title={`Delete ${m.name}`}
@@ -255,8 +260,10 @@ export default function HomeExpense() {
                         >
                             &times;
                         </span>
+                        )}
                     </div>
                 ))}
+                {perm('members') && (
                 <button 
                     type="button"
                     onClick={() => setShowMemberModal(true)}
@@ -278,6 +285,7 @@ export default function HomeExpense() {
                 >
                     <PlusIcon size={14} /> Add Member
                 </button>
+                )}
             </div>
 
             {/* KPI Cards */}
@@ -314,6 +322,7 @@ export default function HomeExpense() {
                         <h3 className="payments-section-title">Expense Journal</h3>
                     </div>
                     <div className="payments-section-actions">
+                        {perm('expense-add') && (
                         <button 
                             type="button" 
                             onClick={() => {
@@ -329,6 +338,7 @@ export default function HomeExpense() {
                             <PlusIcon size={14} />
                             <span>Record Expense</span>
                         </button>
+                        )}
                     </div>
                 </div>
 
@@ -373,9 +383,11 @@ export default function HomeExpense() {
                                             <td style={{ color: '#ef4444', fontWeight: 600 }}>{R}{exp.amount.toLocaleString()}</td>
                                             <td className="text-right">
                                                 <div className="payments-table-actions">
+                                                    {perm('expense-delete') && (
                                                     <button type="button" onClick={() => handleDeleteExpense(exp.id)} className="payments-icon-action-btn" title="Delete">
                                                         <TrashIcon size={15} />
                                                     </button>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>
@@ -435,9 +447,11 @@ export default function HomeExpense() {
                                     <div className="pay-card-footer">
                                         <span className="pay-card-receipt-tag">Home Expense</span>
                                         <div className="pay-card-actions">
+                                            {perm('expense-delete') && (
                                             <button type="button" onClick={() => handleDeleteExpense(exp.id)} className="pay-card-icon-btn" style={{ color: '#ef4444' }} title="Delete">
                                                 <TrashIcon size={16} />
                                             </button>
+                                            )}
                                         </div>
                                     </div>
                                 </div>

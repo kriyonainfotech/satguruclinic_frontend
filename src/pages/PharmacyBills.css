@@ -1,0 +1,754 @@
+/* Pharmacy Bills page */
+.pb-subtitle {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.pb-strong { font-weight: 600; color: #0f172a; }
+.pb-muted { color: #94a3b8; }
+.pb-green { color: #047857; }
+.pb-red { color: #dc2626; }
+
+/* Summary cards */
+.pb-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.pb-summary-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 18px;
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid var(--primary-color, #144b79);
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.pb-summary-card.paid { border-left-color: #059669; }
+.pb-summary-card.pending { border-left-color: #dc2626; }
+
+.pb-summary-label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #64748b;
+}
+
+.pb-summary-card strong {
+  font-size: 22px;
+  color: #0f172a;
+}
+
+.pb-summary-card.paid strong { color: #047857; }
+.pb-summary-card.pending strong { color: #dc2626; }
+
+.pb-summary-card small {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+/* Sections */
+.pb-section {
+  margin-bottom: 20px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.pb-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.pb-section-head h3 {
+  margin: 0;
+  font-size: 15px;
+  color: #0f172a;
+}
+
+.pb-section-head span {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+/* Tables */
+.pb-table-wrap {
+  overflow-x: auto;
+}
+
+.pb-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.pb-table th {
+  padding: 10px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.pb-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+  vertical-align: middle;
+}
+
+.pb-table .num { text-align: right; white-space: nowrap; }
+.pb-table .center { text-align: center; }
+
+.pb-items {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pb-due {
+  margin-top: 2px;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.pb-due.overdue {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+/* Status badge */
+.pb-status {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.pb-status-pending { background: #fef2f2; color: #b91c1c; }
+.pb-status-partial { background: #fffbeb; color: #b45309; }
+.pb-status-paid { background: #ecfdf5; color: #047857; }
+
+/* Action buttons (koi hover effect nahi) */
+.pb-actions {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.pharmacy-page .pb-icon-btn {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.pharmacy-page .pb-icon-btn.pay { color: #059669; border-color: #a7f3d0; }
+.pharmacy-page .pb-icon-btn.edit { color: #d97706; border-color: #fde68a; }
+.pharmacy-page .pb-icon-btn.delete { color: #ef4444; border-color: #fecaca; }
+
+/* Bill cards (sirf tablet / mobile par dikhte hain) */
+.pb-cards {
+  display: none;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.pb-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid #059669;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.pb-card.pending { border-left-color: #dc2626; }
+.pb-card.partial { border-left-color: #d97706; }
+
+.pb-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pb-card-title {
+  min-width: 0;
+}
+
+.pb-card-title h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pb-card-title span {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.pb-card .pb-due {
+  margin-top: -6px;
+}
+
+.pb-card-items {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #f8fafc;
+  font-size: 12.5px;
+  color: #475569;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.pb-card-amounts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.pb-card-amounts > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.pb-card-amounts span {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: #94a3b8;
+}
+
+.pb-card-amounts strong {
+  font-size: 14px;
+  color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pb-card-actions {
+  display: flex;
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.pharmacy-page .pb-card-btn {
+  flex: 1;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid #a7f3d0;
+  border-radius: 8px;
+  background: #ecfdf5;
+  color: #047857;
+  font-size: 12.5px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* Filters */
+.pb-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.pb-search {
+  flex: 1;
+  min-width: 220px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  color: #94a3b8;
+  box-sizing: border-box;
+}
+
+.pb-search input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 13.5px;
+  font-family: inherit;
+  color: #1e293b;
+  background: transparent;
+}
+
+.pb-filter-select {
+  width: 190px;
+}
+
+.pb-filter-select.small {
+  width: 140px;
+}
+
+.pb-filter-select.wide {
+  width: 250px;
+}
+
+/* Status slider (All / Pending / Partially Paid / Paid) */
+.pb-status-slider {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 12px;
+  background: #f1f5f9;
+  border-radius: 10px;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.pb-status-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pb-status-count {
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #475569;
+  font-size: 11.5px;
+  text-align: center;
+}
+
+.pb-status-tab.active {
+  background: #ffffff;
+  color: var(--primary-color, #144b79);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+
+.pb-status-tab.pending.active { color: #b91c1c; }
+.pb-status-tab.partial.active { color: #b45309; }
+.pb-status-tab.paid.active { color: #047857; }
+
+.pb-status-tab.pending.active .pb-status-count { background: #fee2e2; color: #b91c1c; }
+.pb-status-tab.partial.active .pb-status-count { background: #fef3c7; color: #b45309; }
+.pb-status-tab.paid.active .pb-status-count { background: #d1fae5; color: #047857; }
+.pb-status-tab.all.active .pb-status-count { background: #e0e7ff; color: var(--primary-color, #144b79); }
+
+/* Empty states */
+.pb-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 40px 20px;
+  color: #64748b;
+  text-align: center;
+}
+
+.pb-empty h4 {
+  margin: 0;
+  font-size: 15px;
+  color: #334155;
+}
+
+.pb-empty-small {
+  padding: 12px;
+  font-size: 13px;
+  color: #94a3b8;
+}
+
+/* Popups */
+.modal-content.pb-modal {
+  max-width: 560px;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+}
+
+.pb-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.pb-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.pb-field.full {
+  grid-column: 1 / -1;
+}
+
+.pb-field label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.pb-field input,
+.pb-field textarea {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-family: inherit;
+  color: #1e293b;
+  box-sizing: border-box;
+  outline: none;
+}
+
+.pb-field input { height: 38px; }
+.pb-field textarea { resize: vertical; }
+
+.pb-field input:focus,
+.pb-field textarea:focus {
+  border-color: var(--primary-color, #144b79);
+}
+
+.pb-combo {
+  position: relative;
+}
+
+.pb-combo input,
+.pb-combo textarea {
+  padding-right: 34px;
+}
+
+.pb-combo-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 38px;
+  width: 34px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.pb-combo-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+  z-index: 20;
+}
+
+.pb-combo-option {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 12px;
+  font-size: 13.5px;
+  color: #1e293b;
+  cursor: pointer;
+}
+
+.pb-combo-option.active {
+  background: #f1f5f9;
+}
+
+.pb-combo-option.new {
+  color: var(--primary-color, #144b79);
+  font-weight: 600;
+  border-top: 1px solid #e2e8f0;
+}
+
+.pb-combo-meta {
+  font-size: 12px;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+/* Items field ki height fixed; zyada items par field ke andar hi scroll */
+.pb-field textarea.pb-items-input {
+  height: 84px;
+  resize: none;
+  overflow-y: auto;
+}
+
+.pb-combo-menu-floating {
+  position: fixed;
+  right: auto;
+  z-index: 1100;
+}
+
+.pb-pending-preview {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #991b1b;
+  font-size: 13px;
+}
+
+.pb-form-error {
+  margin-top: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 13px;
+}
+
+.pb-bill-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+.pb-amount-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.pb-amount-row > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.pb-amount-row span {
+  font-size: 11.5px;
+  color: #64748b;
+}
+
+.pb-amount-row strong {
+  font-size: 15px;
+  color: #0f172a;
+}
+
+.pb-history-title {
+  margin: 4px 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.pb-history {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.pb-history li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0;
+  padding: 10px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  background: #ffffff;
+  font-size: 13px;
+  /* App.css ka global li style (left border, shadow) hatana */
+  border-left: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.pb-history li:last-child { border-bottom: none; }
+
+.pb-note { font-size: 12px; margin-top: 2px; }
+
+.pb-pay-form {
+  padding-top: 12px;
+  border-top: 1px dashed #e2e8f0;
+}
+
+/* Is page pe koi hover effect nahi (App.css ka global button:hover bhi nahi) */
+.pharmacy-page .pb-icon-btn:hover {
+  background: #ffffff;
+}
+
+.pharmacy-page .pb-card-btn:hover {
+  background: #ecfdf5;
+}
+
+.pharmacy-page .crm-btn {
+  transition: none;
+}
+
+.pharmacy-page .crm-btn-primary:hover,
+.pharmacy-page .crm-btn-primary:active {
+  background-color: var(--primary-color);
+  transform: none;
+  box-shadow: 0 1px 3px rgba(20, 75, 121, 0.25), 0 1px 2px rgba(20, 75, 121, 0.15);
+}
+
+.pharmacy-page .crm-btn-secondary:hover {
+  background-color: #f1f5f9;
+  color: #334155;
+}
+
+.pharmacy-page .pb-combo-toggle:hover {
+  background: transparent;
+}
+
+.pharmacy-page .pb-status-tab:hover {
+  background: transparent;
+}
+
+.pharmacy-page .pb-status-tab.active:hover {
+  background: #ffffff;
+}
+
+.pharmacy-page .modal-close:hover {
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  color: #64748b !important;
+  transform: none;
+}
+
+/* Breakpoint: Tablet (md: <= 1024px) — table ki jagah 2 column cards */
+@media (max-width: 1024px) {
+  .pb-table-wrap {
+    display: none;
+  }
+
+  .pb-cards {
+    display: grid;
+  }
+
+  .pb-search {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .pb-filter-select,
+  .pb-filter-select.small,
+  .pb-filter-select.wide {
+    flex: 1 1 180px;
+    width: auto;
+    min-width: 0;
+  }
+}
+
+/* Breakpoint: Small Mobile (sm: <= 640px) */
+@media (max-width: 640px) {
+  .pb-summary {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .pb-summary-card {
+    padding: 12px 14px;
+  }
+
+  .pb-summary-card strong {
+    font-size: 19px;
+  }
+
+  .pb-section {
+    padding: 12px;
+  }
+
+  .pb-filters {
+    gap: 8px;
+  }
+
+  .pb-filter-select,
+  .pb-filter-select.small,
+  .pb-filter-select.wide {
+    flex: 1 1 100%;
+  }
+
+  .pb-status-slider {
+    display: flex;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .pb-status-tab {
+    flex: 1 0 auto;
+    justify-content: center;
+    padding: 7px 10px;
+  }
+
+  .pb-cards {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .pb-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pb-amount-row {
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+  }
+}

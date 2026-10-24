@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
 import FormInput from '../components/FormInput';
 import CalendarPicker, { formatDateToISO, formatDisplayDate } from '../components/CalendarPicker';
@@ -20,8 +20,10 @@ import {
   CheckCircleIcon,
   ClockIcon,
   AlertTriangleIcon,
-  ClipboardListIcon
+  ClipboardListIcon,
+  MessageSquareIcon
 } from '../components/Icons';
+import usePermissions from '../permissions/usePermissions';
 import './Tasks.css';
 
 const DEFAULT_CATEGORIES = [
@@ -61,6 +63,8 @@ const Tasks = ({ isEmbedded }) => {
   const isTeam = userRole === 'team';
   const isSuperadmin = userRole === 'superadmin';
   const isAdmin = userRole === 'admin';
+  const { can } = usePermissions();
+  const perm = (action) => can('tasks:' + action);
 
   const [assignableUsers, setAssignableUsers] = useState([]);
   const currentUserId = currentUser.id || currentUser._id;
@@ -84,12 +88,12 @@ const Tasks = ({ isEmbedded }) => {
       ];
     }
     if (isAdmin) {
-      return [
+      return perm('team-tab') ? [
         { id: 'my', label: 'My Tasks' },
         { id: 'team', label: 'Team Tasks' }
-      ];
+      ] : [{ id: 'my', label: 'My Tasks' }];
     }
-    if (isSenior) {
+    if (isSenior && perm('team-tab')) {
       return [
         { id: 'my', label: 'My Tasks' },
         { id: 'team', label: 'My Juniors Tasks' }
@@ -98,12 +102,18 @@ const Tasks = ({ isEmbedded }) => {
     return [
       { id: 'my', label: 'My Tasks' }
     ];
-  }, [isSuperadmin, isAdmin, isSenior]);
+  }, [isSuperadmin, isAdmin, isSenior, can]);
 
   const [activeTab, setActiveTab] = useState('my');
 
   // Senior apne juniors ke tasks add / edit / delete kar sakta hai
   const canManageTasks = !isTeam || (isSenior && activeTab === 'team');
+  // Superadmin "Roles & Permissions" se andar ke buttons on/off
+  const canCreate = canManageTasks && perm('create');
+  const canBulkAdd = canManageTasks && perm('bulk-add');
+  const canEdit = canManageTasks && perm('edit');
+  const canDelete = canManageTasks && perm('delete');
+  const canChangeStatus = perm('status');
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -130,10 +140,24 @@ const Tasks = ({ isEmbedded }) => {
 
   // View Details Modal
   const [viewingTask, setViewingTask] = useState(null);
+  // View popup me remark add / edit
+  const [isEditingRemark, setIsEditingRemark] = useState(false);
+  const [remarkDraft, setRemarkDraft] = useState('');
+  const [savingRemark, setSavingRemark] = useState(false);
+  // Remark icon se khulne wala popup
+  const [remarkTask, setRemarkTask] = useState(null);
+  // Remark pehle se ho to popup view mode me khulta hai, pencil se edit mode
+  const [remarkPopupEditing, setRemarkPopupEditing] = useState(false);
+  // Abhi khule popup ka task aur draft (server se latest aane pe check karne ke liye)
+  const remarkPopupRef = useRef({ taskId: null, draft: '' });
+  useEffect(() => {
+    remarkPopupRef.current = { taskId: remarkTask?._id || null, draft: remarkDraft };
+  }, [remarkTask, remarkDraft]);
 
   // Form Fields
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [remark, setRemark] = useState('');
   const [category, setCategory] = useState('General');
   const [customCategory, setCustomCategory] = useState('');
   const [assignedTo, setAssignedTo] = useState('');
@@ -191,9 +215,10 @@ const Tasks = ({ isEmbedded }) => {
     }
   };
 
-  const fetchTasks = async () => {
+  // silent = list ka loader na dikhe (background refresh). Fresh list return karta hai.
+  const fetchTasks = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const token = localStorage.getItem('token');
       const params = new URLSearchParams();
 
@@ -213,10 +238,12 @@ const Tasks = ({ isEmbedded }) => {
         headers: { Authorization: `Bearer ${token}` }
       });
       setTasks(res.data);
+      return res.data;
     } catch (error) {
       console.error('Error fetching tasks:', error);
+      return null;
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -294,6 +321,7 @@ const Tasks = ({ isEmbedded }) => {
     fetchChecklistTemplates();
     setTitle('');
     setDescription('');
+    setRemark('');
     setCategory('General');
     setCustomCategory('');
     
@@ -360,6 +388,7 @@ const Tasks = ({ isEmbedded }) => {
       const payload = {
         title: title.trim(),
         description: description.trim(),
+        remark: remark.trim(),
         category: finalCategory,
         dueDates, // Multiple dates
         dueDate: dueDates.length > 0 ? dueDates[0] : null, // Fallback for backend validation
@@ -401,6 +430,7 @@ const Tasks = ({ isEmbedded }) => {
     setEditingId(null);
     setTitle('');
     setDescription('');
+    setRemark('');
     setCategory('General');
     setCustomCategory('');
 
@@ -441,6 +471,7 @@ const Tasks = ({ isEmbedded }) => {
     }
     setTitle(task.title);
     setDescription(task.description || '');
+    setRemark(task.remark || '');
     if (DEFAULT_CATEGORIES.includes(task.category)) {
       setCategory(task.category);
       setCustomCategory('');
@@ -466,7 +497,8 @@ const Tasks = ({ isEmbedded }) => {
     try {
       const token = localStorage.getItem('token');
       let targetAssignee = assignedTo;
-      if (activeTab === 'my') {
+      // My Tasks tab me naya task khud ko jaata hai, lekin edit me dropdown se chuna hua assignee hi rahe
+      if (activeTab === 'my' && !isEditMode) {
         targetAssignee = currentUserId;
       } else if (assignedTo === 'ALL_TEAM') {
         targetAssignee = teamAssignees.map(u => u._id || u.id).filter(Boolean);
@@ -510,6 +542,7 @@ const Tasks = ({ isEmbedded }) => {
         checklistItems: !isEditMode ? checklistItems : undefined,
         title: title.trim(),
         description: description.trim(),
+        remark: remark.trim(),
         category: finalCategory,
         dueDate,
         priority,
@@ -562,6 +595,70 @@ const Tasks = ({ isEmbedded }) => {
         || error.message 
         || `Error ${isEditMode ? 'updating' : 'creating'} task`;
       setMessage(detail);
+    }
+  };
+
+  const openViewTask = (task) => {
+    setViewingTask(task);
+    setIsEditingRemark(false);
+    setRemarkDraft(task.remark || '');
+  };
+
+  // List ke remark box aur View popup dono yahi use karte hain
+  const saveTaskRemark = async (taskId, newRemark) => {
+    const token = localStorage.getItem('token');
+    await axios.put(
+      `${import.meta.env.VITE_API_BASE_URL}/tasks/${taskId}`,
+      { remark: newRemark },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    setTasks(prev => prev.map(t => t._id === taskId ? { ...t, remark: newRemark } : t));
+    setViewingTask(prev => (prev && prev._id === taskId ? { ...prev, remark: newRemark } : prev));
+  };
+
+  const showRemarkPopup = (task) => {
+    setRemarkTask(task);
+    setRemarkDraft(task.remark || '');
+    setRemarkPopupEditing(!task.remark);
+  };
+
+  // Popup turant khulta hai, phir server se latest remark laata hai
+  // (kisi aur ne abhi remark likha ho aur ye page purana ho, tab bhi sahi remark dikhe)
+  const openRemarkModal = async (task) => {
+    showRemarkPopup(task);
+    const fresh = await fetchTasks(true);
+    const latest = fresh && fresh.find(t => t._id === task._id);
+    if (!latest || (latest.remark || '') === (task.remark || '')) return;
+    // Popup abhi bhi isi task ka khula ho aur user ne kuch likha na ho, tabhi update karo
+    const current = remarkPopupRef.current;
+    if (current.taskId === task._id && current.draft === (task.remark || '')) {
+      showRemarkPopup(latest);
+    }
+  };
+
+  // Edit cancel: remark tha to wapas view mode, warna popup band
+  const cancelRemarkEdit = () => {
+    if (remarkTask?.remark) {
+      setRemarkDraft(remarkTask.remark);
+      setRemarkPopupEditing(false);
+    } else {
+      setRemarkTask(null);
+    }
+  };
+
+  // task = View popup ya Remark popup wala task
+  const saveRemark = async (task) => {
+    if (!task) return;
+    setSavingRemark(true);
+    try {
+      await saveTaskRemark(task._id, remarkDraft.trim());
+      setIsEditingRemark(false);
+      setRemarkTask(null);
+    } catch (error) {
+      console.error('Error saving remark:', error);
+      alert(error.response?.data?.message || 'Failed to save remark');
+    } finally {
+      setSavingRemark(false);
     }
   };
 
@@ -854,8 +951,9 @@ const Tasks = ({ isEmbedded }) => {
       {!isEmbedded && (
       <div className="page-header" style={{ marginBottom: '16px' }}>
         <h2>Task Management</h2>
-        {canManageTasks && (
+        {(canBulkAdd || canCreate) && (
           <div style={{ display: 'flex', gap: '10px' }}>
+            {canBulkAdd && (
             <button
               type="button"
               className="crm-btn crm-btn-secondary"
@@ -864,6 +962,8 @@ const Tasks = ({ isEmbedded }) => {
             >
               Bulk Add
             </button>
+            )}
+            {canCreate && (
             <button
               type="button"
               className="crm-btn crm-btn-primary"
@@ -872,6 +972,7 @@ const Tasks = ({ isEmbedded }) => {
             >
               <PlusIcon size={16} /> {addButtonLabel}
             </button>
+            )}
           </div>
         )}
       </div>
@@ -895,7 +996,7 @@ const Tasks = ({ isEmbedded }) => {
           ))}
         </div>
 
-        {isTeam && (
+        {isTeam && perm('overview') && (
           <div style={{ display: 'flex', gap: '15px', alignItems: 'center', marginLeft: '10px' }}>
             <div className="task-metric-box total" style={{ padding: '8px 12px', minHeight: 'auto', minWidth: '130px', display: 'flex', alignItems: 'center', gap: '10px' }}>
               <div className="metric-icon-wrap" style={{ width: '32px', height: '32px' }}><CheckSquareIcon size={16} /></div>
@@ -1078,7 +1179,7 @@ const Tasks = ({ isEmbedded }) => {
                     ? 'Pick another date on the calendar to view tasks or schedule a new task for this day.'
                     : 'Try clearing your search query or adjusting your status filters.'}
                 </p>
-                {canManageTasks && (
+                {canCreate && (
                   <button
                     type="button"
                     className="task-empty-btn"
@@ -1156,6 +1257,7 @@ const Tasks = ({ isEmbedded }) => {
                               <StatusDropdown
                                 value={task.status}
                                 onChange={(newStatus) => handleStatusChange(task._id, newStatus)}
+                                disabled={!canChangeStatus}
                               />
                             </div>
                           </td>
@@ -1166,11 +1268,20 @@ const Tasks = ({ isEmbedded }) => {
                                 className="action-btn view tbl-icon-btn"
                                 title="View Description"
                                 aria-label="View Description"
-                                onClick={() => setViewingTask(task)}
+                                onClick={() => openViewTask(task)}
                               >
                                 <EyeIcon size={16} />
                               </button>
-                              {canManageTasks && ( <><button
+                              <button
+                                type="button"
+                                className={`action-btn remark tbl-icon-btn ${task.remark ? 'has-remark' : ''}`}
+                                title={task.remark ? 'View / Edit Remark' : 'Add Remark'}
+                                aria-label="Remark"
+                                onClick={() => openRemarkModal(task)}
+                              >
+                                <MessageSquareIcon size={16} />
+                              </button>
+                              {canEdit && (<button
                                 type="button"
                                 className="action-btn edit tbl-icon-btn"
                                 title="Edit Task"
@@ -1178,8 +1289,8 @@ const Tasks = ({ isEmbedded }) => {
                                 onClick={() => openEditModal(task)}
                               >
                                 <EditIcon size={16} />
-                              </button>
-                              <button
+                              </button>)}
+                              {canDelete && (<button
                                 type="button"
                                 className="action-btn delete tbl-icon-btn"
                                 title="Delete Task"
@@ -1187,7 +1298,7 @@ const Tasks = ({ isEmbedded }) => {
                                 onClick={() => handleDelete(task._id)}
                               >
                                 <TrashIcon size={16} />
-                              </button></> )}
+                              </button>)}
                             </div>
                           </td>
                         </tr>
@@ -1231,6 +1342,7 @@ const Tasks = ({ isEmbedded }) => {
                                 <StatusDropdown
                                   value={task.status}
                                   onChange={(newStatus) => handleStatusChange(task._id, newStatus)}
+                                  disabled={!canChangeStatus}
                                 />
                               </div>
                             </div>
@@ -1255,26 +1367,35 @@ const Tasks = ({ isEmbedded }) => {
                               type="button"
                               className="action-btn view tbl-icon-btn"
                               title="View Description"
-                              onClick={() => setViewingTask(task)}
+                              onClick={() => openViewTask(task)}
                             >
                               <EyeIcon size={14} />
                             </button>
-                            {canManageTasks && ( <><button
+                            <button
+                              type="button"
+                              className={`action-btn remark tbl-icon-btn ${task.remark ? 'has-remark' : ''}`}
+                              title={task.remark ? 'View / Edit Remark' : 'Add Remark'}
+                              aria-label="Remark"
+                              onClick={() => openRemarkModal(task)}
+                            >
+                              <MessageSquareIcon size={14} />
+                            </button>
+                            {canEdit && (<button
                               type="button"
                               className="action-btn edit tbl-icon-btn"
                               title="Edit Task"
                               onClick={() => openEditModal(task)}
                             >
                               <EditIcon size={14} />
-                            </button>
-                            <button
+                            </button>)}
+                            {canDelete && (<button
                               type="button"
                               className="action-btn delete tbl-icon-btn"
                               title="Delete Task"
                               onClick={() => handleDelete(task._id)}
                             >
                               <TrashIcon size={14} />
-                            </button></> )}
+                            </button>)}
                           </div>
                         </div>
                       </div>
@@ -1301,7 +1422,7 @@ const Tasks = ({ isEmbedded }) => {
         {/* Right Sidebar Column */}
         <div className="task-side-column">
           {/* Modern 2x2 Overview Metrics Grid */}
-          {!isTeam && renderMetricsCard()}
+          {!isTeam && perm('overview') && renderMetricsCard()}
 
           {/* Embedded CALENDAR Widget */}
           <SidebarCalendar
@@ -1311,6 +1432,95 @@ const Tasks = ({ isEmbedded }) => {
           />
         </div>
       </div>
+
+      {/* Remark Popup (Remark icon se) */}
+      {remarkTask && (
+        <div className="modal-overlay" onClick={() => !savingRemark && setRemarkTask(null)}>
+          <div className="modal-content remark-modal" onClick={e => e.stopPropagation()}>
+            <div className="remark-modal-head">
+              <span className="remark-modal-icon">
+                <MessageSquareIcon size={18} />
+              </span>
+              <div className="remark-modal-head-text">
+                <h3>Remark</h3>
+                <p>{remarkTask.title}{remarkTask.assignedTo?.name ? ` · ${remarkTask.assignedTo.name}` : ''}</p>
+              </div>
+              <button
+                className="modal-close"
+                title="Close"
+                aria-label="Close"
+                onClick={() => setRemarkTask(null)}
+                disabled={savingRemark}
+              >
+                <XIcon size={16} />
+              </button>
+            </div>
+
+            {remarkPopupEditing ? (
+              <>
+                <div className="remark-modal-body">
+                  <textarea
+                    className="remark-modal-textarea"
+                    rows="5"
+                    maxLength={1000}
+                    autoFocus
+                    placeholder="Write your remark here..."
+                    value={remarkDraft}
+                    onChange={e => setRemarkDraft(e.target.value)}
+                  />
+                  <div className="remark-modal-count">{remarkDraft.length}/1000</div>
+                </div>
+
+                <div className="remark-modal-footer">
+                  <button
+                    type="button"
+                    className="crm-btn crm-btn-secondary"
+                    onClick={cancelRemarkEdit}
+                    disabled={savingRemark}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="crm-btn crm-btn-primary"
+                    onClick={() => saveRemark(remarkTask)}
+                    disabled={savingRemark || remarkDraft.trim() === (remarkTask.remark || '')}
+                  >
+                    {savingRemark ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="remark-modal-body">
+                  <div className="remark-modal-view">
+                    <div className="remark-modal-view-text">{remarkTask.remark}</div>
+                    <button
+                      type="button"
+                      className="remark-modal-edit-btn"
+                      title="Edit Remark"
+                      aria-label="Edit Remark"
+                      onClick={() => { setRemarkDraft(remarkTask.remark || ''); setRemarkPopupEditing(true); }}
+                    >
+                      <EditIcon size={15} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="remark-modal-footer">
+                  <button
+                    type="button"
+                    className="crm-btn crm-btn-secondary"
+                    onClick={() => setRemarkTask(null)}
+                  >
+                    Close
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* View Task Description Modal */}
       {viewingTask && (
@@ -1378,6 +1588,86 @@ const Tasks = ({ isEmbedded }) => {
                 <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>
                   No description provided for this task.
                 </span>
+              )}
+            </div>
+
+            <div style={{ marginTop: '14px' }}>
+              <label className="compact-field-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                Remark
+                {!isEditingRemark && (
+                  <button
+                    type="button"
+                    onClick={() => { setRemarkDraft(viewingTask.remark || ''); setIsEditingRemark(true); }}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', border: 'none', background: 'none', color: '#0284c7', fontSize: '12px', fontWeight: 600, cursor: 'pointer', padding: 0 }}
+                  >
+                    <EditIcon size={12} />
+                    {viewingTask.remark ? 'Edit' : 'Add Remark'}
+                  </button>
+                )}
+              </label>
+              {isEditingRemark ? (
+                <>
+                  <textarea
+                    className="modal-textarea-input"
+                    rows="3"
+                    autoFocus
+                    placeholder="Add a remark..."
+                    value={remarkDraft}
+                    onChange={e => setRemarkDraft(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '13.5px',
+                      fontFamily: 'inherit',
+                      boxSizing: 'border-box',
+                      outline: 'none',
+                      resize: 'vertical'
+                    }}
+                  />
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '8px' }}>
+                    <button
+                      type="button"
+                      className="crm-btn crm-btn-secondary"
+                      onClick={() => setIsEditingRemark(false)}
+                      disabled={savingRemark}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="crm-btn crm-btn-primary"
+                      onClick={() => saveRemark(viewingTask)}
+                      disabled={savingRemark}
+                    >
+                      {savingRemark ? 'Saving...' : 'Save Remark'}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div
+                  style={{
+                    background: '#fffbeb',
+                    border: '1px solid #fde68a',
+                    borderRadius: '10px',
+                    padding: '12px 16px',
+                    color: '#334155',
+                    fontSize: '13.5px',
+                    lineHeight: 1.6,
+                    whiteSpace: 'pre-wrap',
+                    maxHeight: '160px',
+                    overflowY: 'auto'
+                  }}
+                >
+                  {viewingTask.remark ? (
+                    viewingTask.remark
+                  ) : (
+                    <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>
+                      No remark added yet.
+                    </span>
+                  )}
+                </div>
               )}
             </div>
 
@@ -1476,6 +1766,26 @@ const Tasks = ({ isEmbedded }) => {
                   placeholder="Enter task details..."
                   value={description}
                   onChange={e => setDescription(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    borderRadius: '4px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '14px',
+                    resize: 'vertical'
+                  }}
+                />
+              </div>
+
+              {/* Remark (Optional) */}
+              <div style={{ marginBottom: '10px' }}>
+                <label className="compact-field-label">Remark (Optional)</label>
+                <textarea
+                  className="modal-textarea-input"
+                  rows="2"
+                  placeholder="Add a remark..."
+                  value={remark}
+                  onChange={e => setRemark(e.target.value)}
                   style={{
                     width: '100%',
                     padding: '8px',
@@ -1665,6 +1975,29 @@ const Tasks = ({ isEmbedded }) => {
                 />
               </div>
 
+              {/* Remark (Optional) */}
+              <div style={{ marginBottom: '10px' }}>
+                <label className="compact-field-label">Remark (Optional)</label>
+                <textarea
+                  className="modal-textarea-input"
+                  rows="2"
+                  placeholder="Add a remark..."
+                  value={remark}
+                  onChange={e => setRemark(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '13.5px',
+                    fontFamily: 'inherit',
+                    boxSizing: 'border-box',
+                    outline: 'none',
+                    resize: 'vertical'
+                  }}
+                />
+              </div>
+
               {/* Row 2: Category & Priority with CustomSelect */}
               <div className="form-two-col-grid" style={{ marginBottom: '10px' }}>
                 <div>
@@ -1737,17 +2070,17 @@ const Tasks = ({ isEmbedded }) => {
                       />
                       {assignedTo === 'ALL_TEAM' && (
                         <span style={{ fontSize: '11.5px', color: '#0284c7', marginTop: '4px', display: 'block', fontWeight: 500 }}>
-                          ✓ Sabhi team members ko individual task assign hoga
+                          ✓ Task will be assigned to each team member
                         </span>
                       )}
                       {assignedTo === 'ALL_ADMIN' && (
                         <span style={{ fontSize: '11.5px', color: '#0284c7', marginTop: '4px', display: 'block', fontWeight: 500 }}>
-                          ✓ Sabhi admins ko individual task assign hoga
+                          ✓ Task will be assigned to each admin
                         </span>
                       )}
                       {assignedTo && assignedTo !== 'ALL_TEAM' && assignedTo !== 'ALL_ADMIN' && (activeTab === 'team' || activeTab === 'admin') && (
                         <span style={{ fontSize: '11.5px', color: '#64748b', marginTop: '4px', display: 'block' }}>
-                          ✓ Sirf selected member ko task assign hoga
+                          ✓ Task will be assigned to the selected member only
                         </span>
                       )}
                     </>

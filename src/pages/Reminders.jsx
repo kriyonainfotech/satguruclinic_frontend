@@ -8,8 +8,11 @@ import CustomSelect from '../components/CustomSelect';
 import Button from '../components/Button';
 import CalendarPicker from '../components/CalendarPicker';
 import CustomTimePicker from '../components/CustomTimePicker';
+import usePermissions from '../permissions/usePermissions';
 
 const Reminders = () => {
+  const { can } = usePermissions();
+  const perm = (action) => can('reminders:' + action);
   const [reminders, setReminders] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -136,8 +139,8 @@ const Reminders = () => {
                         <div className="lead-info-cell">
                         <span 
                           className="lead-name" 
-                          style={{ cursor: 'pointer', color: '#0f172a' }} 
-                          onClick={() => navigate(`/leads/${lead._id}`)}
+                          style={{ cursor: perm('history') ? 'pointer' : 'default', color: '#0f172a' }}
+                          onClick={() => { if (perm('history')) navigate(`/leads/${lead._id}`); }}
                         >
                           {lead.fullName}
                         </span>
@@ -171,8 +174,12 @@ const Reminders = () => {
                         </div>
                       </td>
                     <td data-label="STATUS">
-                        <CustomSelect
-                          options={statusSelectOptions} value={lead.status} onChange={(val) => handleInlineUpdate(lead._id, val)} style={{ width: '130px' }} />
+                        {perm('status') ? (
+                          <CustomSelect
+                            options={statusSelectOptions} value={lead.status} onChange={(val) => handleInlineUpdate(lead._id, val)} style={{ width: '130px' }} />
+                        ) : (
+                          <span style={{ fontSize: '13px', color: '#0f172a', fontWeight: '500' }}>{lead.status}</span>
+                        )}
                     </td>
                     <td>
                       <div className="actions-cell" style={{ justifyContent: 'flex-end' }}>
@@ -182,15 +189,19 @@ const Reminders = () => {
                         <button className="icon-btn" style={{ color: '#ef4444' }} title="Delete">
                           <TrashIcon size={16} />
                         </button>
-                        <button className="btn-view-history" onClick={() => navigate(`/leads/${lead._id}`)}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                          View History
+                        {perm('history') && (
+                          <button className="btn-view-history" onClick={() => navigate(`/leads/${lead._id}`)}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                            View History
                           </button>
+                        )}
 
+                        {perm('followup') && (
                           <button className="btn-followup" onClick={() => openFollowupModal(lead)}>
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
                             Follow Up
                           </button>
+                        )}
                       </div>
                     </td>
                   </tr>

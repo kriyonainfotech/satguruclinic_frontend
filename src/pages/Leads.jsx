@@ -7,8 +7,11 @@ import CustomSelect from '../components/CustomSelect';
 import CalendarPicker from '../components/CalendarPicker';
 import CustomTimePicker from '../components/CustomTimePicker';
 import { EditIcon, TrashIcon, UsersIcon, UserIcon, PhoneIcon, HeartPulseIcon, SparkleIcon, CheckCircleIcon, XIcon, MailIcon, CalendarIcon } from '../components/Icons';
+import usePermissions from '../permissions/usePermissions';
 
 const Leads = () => {
+  const { can } = usePermissions();
+  const perm = (action) => can('leads:' + action);
   const [leads, setLeads] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -67,7 +70,7 @@ const Leads = () => {
   };
 
   const fetchTeamMembers = async () => {
-    if (user.role === 'admin' || user.role === 'superadmin') {
+    if (perm('assign')) {
       try {
         if (user.role === 'superadmin') {
           const adminRes = await axios.get(`${API_URL}/auth/users/admin`, {
@@ -86,10 +89,16 @@ const Leads = () => {
     }
   };
 
+  const canAssign = perm('assign');
+
   useEffect(() => {
     fetchLeads();
-    fetchTeamMembers();
   }, []);
+
+  // Permissions baad me load hon to bhi team list aa jaye
+  useEffect(() => {
+    fetchTeamMembers();
+  }, [canAssign]);
 
   const handleInputChange = (e) => {
     let { name, value } = e.target;
@@ -328,9 +337,11 @@ const Leads = () => {
 
       <div className="page-header" style={{ marginBottom: '16px' }}>
         <h2>Leads</h2>
-        <button onClick={openAddModal} className="crm-btn crm-btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          + Add Lead
-        </button>
+        {perm('create') && (
+          <button onClick={openAddModal} className="crm-btn crm-btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            + Add Lead
+          </button>
+        )}
       </div>
 
       <div className="custom-metrics-grid">
@@ -410,15 +421,17 @@ const Leads = () => {
                 placeholder="Filter by Date"
               />
             </div>
-          <button 
-            type="button" 
-            onClick={handleMessageTodayBirthdays} 
-            className="btn-primary" 
-            style={{ marginLeft: '10px', background: '#25d366', borderColor: '#25d366' }}
-            title="Message Today's Birthdays"
-          >
-            <SparkleIcon size={14} /> Msg Today Birthdays
-          </button>
+          {perm('birthday') && (
+            <button
+              type="button"
+              onClick={handleMessageTodayBirthdays}
+              className="btn-primary"
+              style={{ marginLeft: '10px', background: '#25d366', borderColor: '#25d366' }}
+              title="Message Today's Birthdays"
+            >
+              <SparkleIcon size={14} /> Msg Today Birthdays
+            </button>
+          )}
           </div>
       </div>
 
@@ -459,15 +472,19 @@ const Leads = () => {
                     </div>
                   </td>
                   <td data-label="STATUS">
-                    <CustomSelect
-                      options={statusSelectOptions}
-                      value={lead.status}
-                      onChange={(val) => handleInlineUpdate(lead._id, 'status', val)}
-                      style={{ width: '130px' }}
-                    />
+                    {perm('status') ? (
+                      <CustomSelect
+                        options={statusSelectOptions}
+                        value={lead.status}
+                        onChange={(val) => handleInlineUpdate(lead._id, 'status', val)}
+                        style={{ width: '130px' }}
+                      />
+                    ) : (
+                      <span style={{ fontSize: '13px', color: '#0f172a', fontWeight: '500' }}>{lead.status}</span>
+                    )}
                   </td>
                   <td data-label="ASSIGNED TO">
-                    {(user.role === 'admin' || user.role === 'superadmin') ? (
+                    {canAssign ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                         <CustomSelect
                           options={teamSelectOptions}
@@ -505,21 +522,27 @@ const Leads = () => {
                   </td>
                   <td data-label="ACTIONS">
                     <div className="actions-cell" style={{ justifyContent: 'flex-end' }}>
-                      <button className="icon-btn" onClick={() => handleEdit(lead)} title="Edit">
-                        <EditIcon size={16} />
-                      </button>
+                      {perm('edit') && (
+                        <button className="icon-btn" onClick={() => handleEdit(lead)} title="Edit">
+                          <EditIcon size={16} />
+                        </button>
+                      )}
                       <button className="icon-btn" style={{ color: '#10b981' }} onClick={() => {
                           window.open(`https://wa.me/91${lead.mobile}`, '_blank');
                         }} title="Send WhatsApp Message">
                           <PhoneIcon size={16} />
                         </button>
+                      {perm('delete') && (
                         <button className="icon-btn" style={{ color: '#ef4444' }} onClick={() => handleDelete(lead._id)} title="Delete">
-                        <TrashIcon size={16} />
-                      </button>
-                      <button className="btn-followup" onClick={() => openFollowupModal(lead)}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-                        Follow Up
-                      </button>
+                          <TrashIcon size={16} />
+                        </button>
+                      )}
+                      {perm('followup') && (
+                        <button className="btn-followup" onClick={() => openFollowupModal(lead)}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                          Follow Up
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -632,7 +655,7 @@ const Leads = () => {
                 />
               </div>
 
-              {(user.role === 'admin' || user.role === 'superadmin') && (
+              {canAssign && (
                 <div className="form-group">
                   <label>Assign To</label>
                   <CustomSelect

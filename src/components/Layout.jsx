@@ -1,28 +1,14 @@
 import axios from 'axios';
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { CheckSquareIcon,
+import {
   LogoutIcon,
   XIcon,
   DashboardIcon,
-  ShieldCheckIcon,
-  UsersIcon,
-  CalendarCheckIcon,
-  BookOpenIcon,
-  BookmarkIcon,
-  SlidersIcon,
-  HeartPulseIcon,
-  PhoneCallIcon,
-  CalendarDaysIcon,
-  PackageIcon,
-  ClipboardListIcon,
-  UserCheckIcon,
-  BanknoteIcon,
-  CreditCardIcon,
-  QrCodeIcon,
-  SettingsIcon,
-  BellIcon
+  SettingsIcon
 } from './Icons';
+import usePermissions, { clearPermissionsCache } from '../permissions/usePermissions';
+import { PERMISSION_MODULES } from '../permissions/modules';
 import './Layout.css';
 
 const Layout = ({ children }) => {
@@ -32,6 +18,7 @@ const Layout = ({ children }) => {
   const [isSidebarHidden, setIsSidebarHidden] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [myPerfScore, setMyPerfScore] = useState(null);
+  const { can } = usePermissions();
 
   useEffect(() => {
     if (user.role === 'team') {
@@ -80,6 +67,7 @@ const Layout = ({ children }) => {
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    clearPermissionsCache();
     window.location.href = '/login';
   };
 
@@ -128,183 +116,19 @@ const Layout = ({ children }) => {
               <span>Dashboard</span>
             </Link>
           </li>
-          {user.role === 'superadmin' && (
-            <li className={location.pathname === '/admin-management' ? 'active' : ''} onClick={closeMobileMenu}>
-              <Link to="/admin-management">
-                <ShieldCheckIcon size={14} />
-                <span>Admin Management</span>
-              </Link>
-            </li>
-          )}
-          
+          {PERMISSION_MODULES.filter(m => can(m.key)).map(m => {
+            const Icon = m.icon;
+            const isActive = m.isActive ? m.isActive(location.pathname) : location.pathname === m.path;
+            return (
+              <li key={m.key} className={isActive ? 'active' : ''} onClick={closeMobileMenu}>
+                <Link to={m.path}>
+                  <Icon size={14} />
+                  <span>{m.label}</span>
+                </Link>
+              </li>
+            );
+          })}
 
-          {(user.role === 'superadmin' || user.role === 'admin') && (
-            <li className={location.pathname === '/team-management' ? 'active' : ''} onClick={closeMobileMenu}>
-              <Link to="/team-management">
-                <UsersIcon size={14} />
-                <span>Team Management</span>
-              </Link>
-            </li>
-          )}
-
-
-          {user.role === 'superadmin' && (
-            <li className={location.pathname === '/superadmin/schedule-management' ? 'active' : ''} onClick={closeMobileMenu}>
-              <Link to="/superadmin/schedule-management">
-                <CalendarDaysIcon size={14} />
-                <span>Schedule Management</span>
-              </Link>
-            </li>
-          )}
-
-
-          <li className={location.pathname === '/appointments' ? 'active' : ''} onClick={closeMobileMenu}>
-            <Link to="/appointments">
-              <CalendarCheckIcon size={14} />
-              <span>Appointments</span>
-            </Link>
-          </li>
-
-          {(user.role === 'superadmin' || user.role === 'admin') && (
-            <li className={location.pathname === '/sop-management' ? 'active' : ''} onClick={closeMobileMenu}>
-              <Link to="/sop-management">
-                <BookOpenIcon size={14} />
-                <span>SOP Management</span>
-              </Link>
-            </li>
-          )}
-
-          {(user.role === 'superadmin' || user.role === 'admin') && (
-            <li className={location.pathname === '/rule-management' ? 'active' : ''} onClick={closeMobileMenu}>
-              <Link to="/rule-management">
-                <SlidersIcon size={14} />
-                <span>Rule Management</span>
-              </Link>
-            </li>
-          )}
-
-          <li className={location.pathname === '/my-workspace' || location.pathname === '/my-sop' ? 'active' : ''} onClick={closeMobileMenu}>
-            <Link to="/my-workspace">
-              <BookmarkIcon size={14} />
-              <span>My SOP and Rules</span>
-            </Link>
-          </li>
-
-          
-          <li className={location.pathname === '/tasks' || location.pathname === '/my-tasks' ? 'active' : ''} onClick={closeMobileMenu}>
-            <Link to="/tasks">
-              <ClipboardListIcon size={14} />
-              <span>Task Management</span>
-            </Link>
-          </li>
-
-          <li className={location.pathname === '/patients' ? 'active' : ''} onClick={closeMobileMenu}>
-            <Link to="/patients">
-              <HeartPulseIcon size={14} />
-              <span>Patient Database</span>
-            </Link>
-          </li>
-          
-          <li className={location.pathname === '/leads' ? 'active' : ''} onClick={closeMobileMenu}>
-            <Link to="/leads">
-              <UsersIcon size={14} />
-              <span>Leads</span>
-            </Link>
-          </li>
-
-
-          <li className={location.pathname === '/reminders' ? 'active' : ''} onClick={closeMobileMenu}>
-            <Link to="/reminders">
-              <BellIcon size={14} />
-              <span>Reminders</span>
-            </Link>
-          </li>
-
-          {user && (user.role === 'superadmin' || user.role === 'admin') && (
-            <li className={location.pathname === '/call-logs' ? 'active' : ''} onClick={closeMobileMenu}>
-              <Link to="/call-logs">
-                <PhoneCallIcon size={14} />
-                <span>Call Logs</span>
-              </Link>
-            </li>
-          )}
-
-         
-          <li className={location.pathname === '/holidays' ? 'active' : ''} onClick={closeMobileMenu}>
-            <Link to="/holidays">
-              <CalendarDaysIcon size={14} />
-              <span>Holidays & Events</span>
-            </Link>
-          </li>
-          
-          <li className={location.pathname.startsWith('/services') ? 'active' : ''} onClick={closeMobileMenu}>
-            <Link to="/services">
-              <PackageIcon size={14} />
-              <span>Services & Packages</span>
-            </Link>
-          </li>
-
-          <li className={location.pathname === '/daily-reports' ? 'active' : ''} onClick={closeMobileMenu}>
-            <Link to="/daily-reports">
-              <CheckSquareIcon size={14} />
-              <span>Daily Team Report</span>
-            </Link>
-          </li>
-          
-          {(user.role === 'superadmin' || user.role === 'admin') && (
-            <li className={location.pathname === '/checklist-templates' ? 'active' : ''}  onClick={closeMobileMenu}>
-              <Link to="/checklist-templates">
-                <CheckSquareIcon size={14} />
-                <span>Checklist Templates</span>
-              </Link>
-            </li>
-          )}
-          
-          {(user.role === 'superadmin' || user.role === 'admin') && (
-            <li className={location.pathname === '/attendance' ? 'active' : ''} onClick={closeMobileMenu}>
-              <Link to="/attendance">
-                <UserCheckIcon size={14} />
-                <span>Attendance</span>
-              </Link>
-            </li>
-          )}
-          
-          {(user.role === 'superadmin' || user.role === 'admin') && (
-            <li className={location.pathname === '/payroll' ? 'active' : ''} onClick={closeMobileMenu}>
-              <Link to="/payroll">
-                <BanknoteIcon size={14} />
-                <span>Payroll & Salaries</span>
-              </Link>
-            </li>
-          )}
-          
-          {user.role === 'superadmin' && (
-            <li className={location.pathname === '/superadmin/payments' ? 'active' : ''} onClick={closeMobileMenu}>
-              <Link to="/superadmin/payments">
-                <CreditCardIcon size={14} />
-                <span>Payments & Finances</span>
-              </Link>
-            </li>
-          )}
-
-          {user.role === 'superadmin' && (
-            <li className={location.pathname === '/superadmin/payment-qr' ? 'active' : ''} onClick={closeMobileMenu}>
-              <Link to="/superadmin/payment-qr">
-                <QrCodeIcon size={14} />
-                <span>Payment QR</span>
-              </Link>
-            </li>
-          )}
-
-          {user.role === 'superadmin' && (
-            <li className={location.pathname === '/superadmin/home-expense' ? 'active' : ''} onClick={closeMobileMenu}>
-              <Link to="/superadmin/home-expense">
-                <BanknoteIcon size={14} />
-                <span>Home Expense</span>
-              </Link>
-            </li>
-          )}
-          
           {user.role === 'superadmin' && (
             <li className={location.pathname === '/website-settings' ? 'active' : ''} onClick={closeMobileMenu}>
               <Link to="/website-settings">

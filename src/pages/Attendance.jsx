@@ -13,6 +13,7 @@ import {
   InfoIcon,
   CameraIcon
 } from '../components/Icons';
+import usePermissions from '../permissions/usePermissions';
 import './Attendance.css';
 
 const formatTime12HourStr = (time24) => {
@@ -69,6 +70,9 @@ const getStatusFromTimes = (inTime, outTime, timings) => {
 
 const Attendance = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
+  // Edit / photo / team view permissions Website Settings > Roles & Permissions se (backend bhi check karta hai)
+  const { can } = usePermissions();
+  const canEdit = can('attendance:edit');
   const [activeTab, setActiveTab] = useState('team');
   const [selectMode, setSelectMode] = useState('single'); // 'single' or 'range'
   const [currentDate, setCurrentDate] = useState(moment().format('YYYY-MM-DD'));
@@ -265,7 +269,7 @@ const Attendance = () => {
       </div>
 
       {/* Role Tabs */}
-      {user.role !== 'admin' && (
+      {user.role === 'superadmin' && (
         <div className="attendance-tabs-wrap">
           {['admins', 'team', 'leaves'].map(tab => (
             <button 
@@ -489,13 +493,13 @@ const Attendance = () => {
                     <th>USER DETAILS</th>
                     <th>TIMING INFO</th>
                     <th>DAILY STATUS</th>
-                    <th style={{ textAlign: 'right' }}>ACTIONS</th>
+                    {canEdit && <th style={{ textAlign: 'right' }}>ACTIONS</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {attendanceData.length === 0 ? (
                     <tr>
-                      <td colSpan={selectMode === 'range' ? 5 : 4} style={{ padding: '36px', textAlign: 'center', color: '#94a3b8' }}>
+                      <td colSpan={(selectMode === 'range' ? 5 : 4) - (canEdit ? 0 : 1)} style={{ padding: '36px', textAlign: 'center', color: '#94a3b8' }}>
                         No attendance records found for this selection.
                       </td>
                     </tr>
@@ -609,43 +613,45 @@ const Attendance = () => {
                       <td>
                         {getStatusBadge(record.status)}
                       </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-                          <div className="att-action-group">
+                      {canEdit && (
+                        <td style={{ textAlign: 'right' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                            <div className="att-action-group">
+                              <button 
+                                type="button"
+                                onClick={() => updateStatus(record.userId, 'present', record.date)} 
+                                className={`att-act-btn ${record.status === 'present' ? 'active full' : ''}`}
+                              >
+                                FULL
+                              </button>
+                              <button 
+                                type="button"
+                                onClick={() => updateStatus(record.userId, 'half-day', record.date)} 
+                                className={`att-act-btn ${record.status === 'half-day' ? 'active half' : ''}`}
+                              >
+                                HALF
+                              </button>
+                              <button 
+                                type="button"
+                                onClick={() => updateStatus(record.userId, 'leave', record.date)} 
+                                className={`att-act-btn ${record.status === 'leave' ? 'active leave' : ''}`}
+                              >
+                                LEAVE
+                              </button>
+                            </div>
+
                             <button 
                               type="button"
-                              onClick={() => updateStatus(record.userId, 'present', record.date)} 
-                              className={`att-act-btn ${record.status === 'present' ? 'active full' : ''}`}
+                              onClick={() => openEditModal(record)} 
+                              className="att-edit-icon-btn"
+                              title="Edit Timings & Status"
+                              aria-label="Edit Timings & Status"
                             >
-                              FULL
-                            </button>
-                            <button 
-                              type="button"
-                              onClick={() => updateStatus(record.userId, 'half-day', record.date)} 
-                              className={`att-act-btn ${record.status === 'half-day' ? 'active half' : ''}`}
-                            >
-                              HALF
-                            </button>
-                            <button 
-                              type="button"
-                              onClick={() => updateStatus(record.userId, 'leave', record.date)} 
-                              className={`att-act-btn ${record.status === 'leave' ? 'active leave' : ''}`}
-                            >
-                              LEAVE
+                              <EditIcon size={16} strokeWidth={2.2} />
                             </button>
                           </div>
-
-                          <button 
-                            type="button"
-                            onClick={() => openEditModal(record)} 
-                            className="att-edit-icon-btn"
-                            title="Edit Timings & Status"
-                            aria-label="Edit Timings & Status"
-                          >
-                            <EditIcon size={16} strokeWidth={2.2} />
-                          </button>
-                        </div>
-                      </td>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -757,41 +763,43 @@ const Attendance = () => {
                   </div>
 
                   {/* Card Footer: Quick Status Buttons + Edit Modal */}
-                  <div className="att-card-footer">
-                    <div className="att-card-action-group att-action-group">
+                  {canEdit && (
+                    <div className="att-card-footer">
+                      <div className="att-card-action-group att-action-group">
+                        <button 
+                          type="button"
+                          onClick={() => updateStatus(record.userId, 'present', record.date)} 
+                          className={`att-act-btn ${record.status === 'present' ? 'active full' : ''}`}
+                        >
+                          FULL
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => updateStatus(record.userId, 'half-day', record.date)} 
+                          className={`att-act-btn ${record.status === 'half-day' ? 'active half' : ''}`}
+                        >
+                          HALF
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => updateStatus(record.userId, 'leave', record.date)} 
+                          className={`att-act-btn ${record.status === 'leave' ? 'active leave' : ''}`}
+                        >
+                          LEAVE
+                        </button>
+                      </div>
+
                       <button 
                         type="button"
-                        onClick={() => updateStatus(record.userId, 'present', record.date)} 
-                        className={`att-act-btn ${record.status === 'present' ? 'active full' : ''}`}
+                        onClick={() => openEditModal(record)} 
+                        className="att-edit-icon-btn"
+                        title="Edit Timings & Status"
+                        aria-label="Edit Timings & Status"
                       >
-                        FULL
-                      </button>
-                      <button 
-                        type="button"
-                        onClick={() => updateStatus(record.userId, 'half-day', record.date)} 
-                        className={`att-act-btn ${record.status === 'half-day' ? 'active half' : ''}`}
-                      >
-                        HALF
-                      </button>
-                      <button 
-                        type="button"
-                        onClick={() => updateStatus(record.userId, 'leave', record.date)} 
-                        className={`att-act-btn ${record.status === 'leave' ? 'active leave' : ''}`}
-                      >
-                        LEAVE
+                        <EditIcon size={16} strokeWidth={2.2} />
                       </button>
                     </div>
-
-                    <button 
-                      type="button"
-                      onClick={() => openEditModal(record)} 
-                      className="att-edit-icon-btn"
-                      title="Edit Timings & Status"
-                      aria-label="Edit Timings & Status"
-                    >
-                      <EditIcon size={16} strokeWidth={2.2} />
-                    </button>
-                  </div>
+                  )}
                 </div>
               ))}
             </div>

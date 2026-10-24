@@ -5,10 +5,14 @@ import FormInput from '../components/FormInput';
 import Modal from '../components/Modal';
 import CustomSelect from '../components/CustomSelect';
 import { EditIcon, TrashIcon } from '../components/Icons';
+import usePermissions from '../permissions/usePermissions';
 
 const SOPManagement = () => {
     const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
     const isSuperadmin = currentUser.role === 'superadmin';
+    // Page ke andar kya dikhe, Website Settings > Roles & Permissions se aata hai
+    const { can } = usePermissions();
+    const perm = (action) => can('sop-management:' + action);
     const [sops, setSops] = useState([]);
     const [users, setUsers] = useState([]);
     const [selectedSOP, setSelectedSOP] = useState(null);
@@ -37,9 +41,9 @@ const SOPManagement = () => {
         try {
             const [sopRes, teamRes, adminRes, superadminRes] = await Promise.all([
                 axios.get(`${import.meta.env.VITE_API_BASE_URL}/sops`, { headers: { Authorization: `Bearer ${token}` } }),
-                axios.get(`${import.meta.env.VITE_API_BASE_URL}/auth/users/team`, { headers: { Authorization: `Bearer ${token}` } }),
-                axios.get(`${import.meta.env.VITE_API_BASE_URL}/auth/users/admin`, { headers: { Authorization: `Bearer ${token}` } }),
-                axios.get(`${import.meta.env.VITE_API_BASE_URL}/auth/users/superadmin`, { headers: { Authorization: `Bearer ${token}` } })
+                axios.get(`${import.meta.env.VITE_API_BASE_URL}/auth/users/team`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: [] })),
+                axios.get(`${import.meta.env.VITE_API_BASE_URL}/auth/users/admin`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: [] })),
+                axios.get(`${import.meta.env.VITE_API_BASE_URL}/auth/users/superadmin`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: [] }))
             ]);
             setSops(sopRes.data);
             const allFetchedUsers = [...superadminRes.data, ...adminRes.data, ...teamRes.data];
@@ -219,10 +223,13 @@ const SOPManagement = () => {
                     <h2>Standard Operating Procedures</h2>
                    
                 </div>
-                <button onClick={() => openSopModal()} className="crm-btn crm-btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>+ Create Global SOP</button>
+                {perm('create') && (
+                    <button onClick={() => openSopModal()} className="crm-btn crm-btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>+ Create Global SOP</button>
+                )}
             </div>
 
             {/* Filters */}
+            {perm('filters') && (
             <div style={{ marginBottom: '15px', display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-start', maxWidth: '100%' }}>
                 <div className="hide-scrollbar" style={{ display: 'inline-flex', gap: '2px', background: '#f8fafc', padding: '3px', borderRadius: '8px', flexWrap: 'nowrap', overflowX: 'auto', maxWidth: '100%', WebkitOverflowScrolling: 'touch' }}>
                     { (isSuperadmin ? ['All Roles', 'Superadmin', 'Admin', ...uniqueCategories] : ['All Roles', ...uniqueCategories]).map(role => (
@@ -274,6 +281,7 @@ const SOPManagement = () => {
                     ))}
                 </div>
             </div>
+            )}
 
             {/* Search */}
             <div style={{ position: 'relative', marginBottom: '15px', flexShrink: 0 }}>
@@ -296,6 +304,7 @@ const SOPManagement = () => {
                     </h3>
 
                     {/* Quick Add */}
+                    {perm('create') && (
                     <div style={{ display: 'flex', gap: '8px', marginBottom: '15px', flexShrink: 0 }}>
                         <input 
                             type="text" 
@@ -309,6 +318,7 @@ const SOPManagement = () => {
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                         </button>
                     </div>
+                    )}
 
                     {/* SOP List */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto', flex: 1, paddingRight: '4px' }}>
@@ -332,8 +342,8 @@ const SOPManagement = () => {
                                         <strong style={{ color: '#1e293b', fontSize: '13px', fontWeight: 'bold' }}>{sop.title}</strong>
                                     </div>
                                     <div style={{ display: 'flex', gap: '6px' }}>
-                                        <button onClick={(e) => { e.stopPropagation(); openSopModal(sop); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 0 }} title="Edit Roles/Title"><EditIcon size={13} /></button>
-                                        <button onClick={(e) => { e.stopPropagation(); handleDeleteSop(sop._id); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#f87171', padding: 0 }} title="Delete Group"><TrashIcon size={13} /></button>
+                                        {perm('edit') && <button onClick={(e) => { e.stopPropagation(); openSopModal(sop); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 0 }} title="Edit Roles/Title"><EditIcon size={13} /></button>}
+                                        {perm('delete') && <button onClick={(e) => { e.stopPropagation(); handleDeleteSop(sop._id); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#f87171', padding: 0 }} title="Delete Group"><TrashIcon size={13} /></button>}
                                     </div>
                                 </div>
                                 
@@ -360,6 +370,7 @@ const SOPManagement = () => {
                             
                             <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column' }}>
                                 {/* Inline Adder */}
+                                {perm('points-add') && (
                                 <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', marginBottom: '25px', paddingBottom: '20px', borderBottom: '1px solid #f1f5f9' }}>
                                     <textarea 
                                         placeholder="Add a new point directly here..."
@@ -383,6 +394,7 @@ const SOPManagement = () => {
                                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                                     </button>
                                 </div>
+                                )}
 
                                 {selectedSOP.points.length === 0 ? (
                                     <div style={{ textAlign: 'center', color: '#94a3b8', marginTop: '20px', marginBottom: '40px', fontSize: '13px' }}>No points added yet.</div>
@@ -396,8 +408,8 @@ const SOPManagement = () => {
                                                         <span style={{ whiteSpace: 'pre-wrap', lineHeight: '1.5', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{pt.heading ? pt.heading.trim() : ''}</span>
                                                     </div>
                                                     <div style={{ display: 'flex', gap: '8px', paddingLeft: '15px', flexShrink: 0 }}>
-                                                        <button onClick={() => openPointModal(pt)} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '4px', padding: '6px', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><EditIcon size={13} /></button>
-                                                        <button onClick={() => handleDeletePoint(pt._id)} style={{ background: '#fff', border: '1px solid #fee2e2', borderRadius: '4px', padding: '6px', cursor: 'pointer', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><TrashIcon size={13} /></button>
+                                                        {perm('points-edit') && <button onClick={() => openPointModal(pt)} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '4px', padding: '6px', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><EditIcon size={13} /></button>}
+                                                        {perm('points-delete') && <button onClick={() => handleDeletePoint(pt._id)} style={{ background: '#fff', border: '1px solid #fee2e2', borderRadius: '4px', padding: '6px', cursor: 'pointer', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><TrashIcon size={13} /></button>}
                                                     </div>
                                                 </div>
                                                 {pt.description && (

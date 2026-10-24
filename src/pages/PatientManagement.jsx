@@ -6,6 +6,7 @@ import StatusDropdown from '../components/StatusDropdown';
 import CustomSelect from '../components/CustomSelect';
 import Pagination from '../components/Pagination';
 import { formatDate } from '../utils/formatDate';
+import usePermissions from '../permissions/usePermissions';
 import '../App.css';
 
 const GENDER_OPTIONS = [
@@ -267,8 +268,8 @@ const PatientManagement = () => {
     status: 'All'
   });
   
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const isAdminOrTeam = ['superadmin', 'admin', 'team'].includes(user.role);
+  const { can } = usePermissions();
+  const perm = (action) => can('patients:' + action);
 
   // Generate Year options
   const createdByOptions = React.useMemo(() => {
@@ -536,6 +537,7 @@ const PatientManagement = () => {
     setShowModal(true);
   };
 
+  const canBirthdays = perm('birthdays');
   const [todayBirthdays, setTodayBirthdays] = useState([]);
   const [showBirthdayModal, setShowBirthdayModal] = useState(false);
 
@@ -551,8 +553,8 @@ const PatientManagement = () => {
         console.error('Error fetching birthdays:', err);
       }
     };
-    fetchBirthdays();
-  }, []);
+    if (canBirthdays) fetchBirthdays();
+  }, [canBirthdays]);
 
   const generateMessage = (patientName) => {
     return `Dear ${patientName}, wishing you a very Happy Birthday from Satguru Clinic! May you be blessed with good health, happiness, and a wonderful year ahead.`;
@@ -607,7 +609,7 @@ const PatientManagement = () => {
         <h2>Patient Directory</h2>
         
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {todayBirthdays.length > 0 && (
+          {canBirthdays && todayBirthdays.length > 0 && (
             <button 
               onClick={() => setShowBirthdayModal(true)}
               style={{ 
@@ -624,7 +626,7 @@ const PatientManagement = () => {
             </button>
           )}
 
-          {isAdminOrTeam && (
+          {perm('create') && (
             <button 
               onClick={openCreateModal}
               className="crm-btn crm-btn-primary"
@@ -657,19 +659,21 @@ const PatientManagement = () => {
           )}
         </div>
         <div className="patient-filter-selects">
-          <button 
-            type="button"
-            className="patient-birthday-msg-btn"
-            onClick={() => {
-              if (todayBirthdays.length > 0) {
-                setShowBirthdayModal(true);
-              } else {
-                alert('No birthdays today!');
-              }
-            }}
-          >
-            + Msg Today Birthdays
-          </button>
+          {canBirthdays && (
+            <button 
+              type="button"
+              className="patient-birthday-msg-btn"
+              onClick={() => {
+                if (todayBirthdays.length > 0) {
+                  setShowBirthdayModal(true);
+                } else {
+                  alert('No birthdays today!');
+                }
+              }}
+            >
+              + Msg Today Birthdays
+            </button>
+          )}
           <div className="patient-filter-item">
             <CustomSelect
               value={dateFilterMode}
@@ -795,6 +799,7 @@ const PatientManagement = () => {
                     </span>
                   </td>
                   <td>
+                    {perm('history') ? (
                     <button 
                       onClick={() => openHistory(p)}
                       style={{
@@ -825,6 +830,7 @@ const PatientManagement = () => {
                       </svg>
                       View
                     </button>
+                    ) : '—'}
                   </td>
                   <td>
                     <span style={{ fontSize: '12.5px', color: '#64748b' }}>
@@ -836,15 +842,17 @@ const PatientManagement = () => {
                       value={p.status || 'Active'} 
                       onChange={(val) => handleStatusChange(p._id, val)}
                       options={PATIENT_STATUS_OPTIONS}
-                      disabled={!isAdminOrTeam}
+                      disabled={!perm('status')}
                     />
                   </td>
                   <td style={{ textAlign: 'center' }}>
                     <div className="table-action-icons-wrap" style={{ justifyContent: 'center' }}>
+                        {perm('details') && (
                         <button className="action-btn view tbl-icon-btn" onClick={() => setViewPatient(p)} title="View Details" aria-label="View Details">
                           <EyeIcon size={15} />
                         </button>
-                        {p.mobileNumber && (
+                        )}
+                        {canBirthdays && p.mobileNumber && (
                           <button 
                             className="action-btn tbl-icon-btn" 
                             style={{ color: '#25D366' }} 
@@ -857,12 +865,12 @@ const PatientManagement = () => {
                             </svg>
                           </button>
                         )}
-                        {isAdminOrTeam && (
+                        {perm('edit') && (
                         <button className="action-btn edit tbl-icon-btn" onClick={() => openEditModal(p)} title="Edit Patient" aria-label="Edit Patient">
                           <EditIcon size={15} />
                         </button>
                       )}
-                      {(user.role === 'admin' || user.role === 'superadmin') && (
+                      {perm('delete') && (
                         <button className="action-btn delete tbl-icon-btn" onClick={() => handleDelete(p._id)} title="Delete Patient" aria-label="Delete Patient">
                           <TrashIcon size={15} />
                         </button>
@@ -923,7 +931,7 @@ const PatientManagement = () => {
                       value={p.status || 'Active'} 
                       onChange={(val) => handleStatusChange(p._id, val)}
                       options={PATIENT_STATUS_OPTIONS}
-                      disabled={!isAdminOrTeam}
+                      disabled={!perm('status')}
                     />
                   </div>
                 </div>
@@ -959,26 +967,30 @@ const PatientManagement = () => {
 
                 {/* Footer: View Appts & Action Buttons */}
                 <div className="patient-card-footer">
-                  <button 
-                    type="button"
-                    className="patient-appts-btn"
-                    onClick={() => openHistory(p)}
-                    title="View Appointments History"
-                  >
-                    <CalendarIcon size={13} /> View Appts
-                  </button>
-
-                  <div className="patient-actions-right">
+                  {perm('history') ? (
                     <button 
                       type="button"
-                      className="action-btn view tbl-icon-btn" 
-                      onClick={() => setViewPatient(p)} 
-                      title="View Details" 
-                      aria-label="View Details"
+                      className="patient-appts-btn"
+                      onClick={() => openHistory(p)}
+                      title="View Appointments History"
                     >
-                      <EyeIcon size={15} />
+                      <CalendarIcon size={13} /> View Appts
                     </button>
-                    {p.mobileNumber && (
+                  ) : <span />}
+
+                  <div className="patient-actions-right">
+                    {perm('details') && (
+                      <button 
+                        type="button"
+                        className="action-btn view tbl-icon-btn" 
+                        onClick={() => setViewPatient(p)} 
+                        title="View Details" 
+                        aria-label="View Details"
+                      >
+                        <EyeIcon size={15} />
+                      </button>
+                    )}
+                    {canBirthdays && p.mobileNumber && (
                       <button 
                         type="button"
                         className="action-btn tbl-icon-btn" 
@@ -991,7 +1003,7 @@ const PatientManagement = () => {
                         </svg>
                       </button>
                     )}
-                    {isAdminOrTeam && (
+                    {perm('edit') && (
                       <button 
                         type="button"
                         className="action-btn edit tbl-icon-btn" 
@@ -1002,7 +1014,7 @@ const PatientManagement = () => {
                         <EditIcon size={15} />
                       </button>
                     )}
-                    {(user.role === 'admin' || user.role === 'superadmin') && (
+                    {perm('delete') && (
                       <button 
                         type="button"
                         className="action-btn delete tbl-icon-btn" 
@@ -1424,10 +1436,12 @@ const PatientManagement = () => {
             </div>
 
             <div className="modal-footer">
-              <button type="button" className="crm-btn crm-btn-secondary" onClick={() => { const p = viewPatient; setViewPatient(null); openHistory(p); }}>
-                <CalendarIcon size={14} /> View Appointments
-              </button>
-              {isAdminOrTeam && (
+              {perm('history') && (
+                <button type="button" className="crm-btn crm-btn-secondary" onClick={() => { const p = viewPatient; setViewPatient(null); openHistory(p); }}>
+                  <CalendarIcon size={14} /> View Appointments
+                </button>
+              )}
+              {perm('edit') && (
                 <button type="button" className="crm-btn crm-btn-primary" onClick={() => { const p = viewPatient; setViewPatient(null); openEditModal(p); }}>
                   <EditIcon size={14} /> Edit Patient
                 </button>

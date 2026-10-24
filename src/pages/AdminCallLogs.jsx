@@ -7,6 +7,7 @@ import Pagination from '../components/Pagination';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import '../App.css';
+import usePermissions from '../permissions/usePermissions';
 
 const WhatsAppIcon = ({ size = 13 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
@@ -15,11 +16,12 @@ const WhatsAppIcon = ({ size = 13 }) => (
 );
 
 const AdminCallLogs = () => {
+  const { can } = usePermissions();
+  const perm = (action) => can('call-logs:' + action);
   const [logs, setLogs] = useState([]);
   const [patients, setPatients] = useState([]);
   const [teamMembers, setTeamMembers] = useState([]);
   const [showModal, setShowModal] = useState(false);
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
   const [loading, setLoading] = useState(false);
   
   const [teamFilter, setTeamFilter] = useState('All');
@@ -357,13 +359,15 @@ const AdminCallLogs = () => {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
             <span>Refresh</span>
           </button>
-          <button 
-            onClick={exportPDF} 
-            className="crm-btn crm-btn-primary"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 12px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
-          >
-            <DownloadIcon size={14} /> Export PDF
-          </button>
+          {perm('export') && (
+            <button
+              onClick={exportPDF}
+              className="crm-btn crm-btn-primary"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 12px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+            >
+              <DownloadIcon size={14} /> Export PDF
+            </button>
+          )}
         </div>
       </div>
 
@@ -380,14 +384,16 @@ const AdminCallLogs = () => {
           />
         </div>
         <div className="call-filter-selects">
-          <div className="call-filter-select-item">
-            <CustomSelect 
-              value={teamFilter}
-              onChange={val => setTeamFilter(val)}
-              options={teamOptions}
-              placeholder="All Team / Admin"
-            />
-          </div>
+          {perm('filters') && (
+            <div className="call-filter-select-item">
+              <CustomSelect
+                value={teamFilter}
+                onChange={val => setTeamFilter(val)}
+                options={teamOptions}
+                placeholder="All Team / Admin"
+              />
+            </div>
+          )}
           <div className="call-filter-select-item">
             <CustomSelect 
               value={monthFilter}
@@ -492,7 +498,7 @@ const AdminCallLogs = () => {
                       {renderReadMoreText(log.remarks, 'Remarks')}
                     </td>
                     <td style={{ textAlign: 'center' }}>
-                      {(user.role === 'superadmin' || user.role === 'admin') && (
+                      {perm('delete') && (
                         <button 
                           onClick={() => deleteLog(log._id)} 
                           className="action-btn delete tbl-icon-btn" 
@@ -604,7 +610,7 @@ const AdminCallLogs = () => {
                   <div className="call-card-footer">
                     <span className="call-card-index">#{indexOfFirstRecord + index + 1}</span>
                     <div className="call-card-actions">
-                      {(user.role === 'superadmin' || user.role === 'admin') && (
+                      {perm('delete') && (
                         <button 
                           onClick={() => deleteLog(log._id)} 
                           className="action-btn delete tbl-icon-btn" 

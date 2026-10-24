@@ -127,8 +127,40 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transform: scaleX(-1); /* selfie mirror */
   background: #000;
+}
+
+/* Front (selfie) camera mirror me dikhe, back camera seedha */
+.camera-video-feed.mirrored {
+  transform: scaleX(-1);
+}
+
+.camera-flip-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.6);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+}
+
+.camera-flip-btn:hover {
+  background: rgba(15, 23, 42, 0.8);
+}
+
+.camera-flip-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .camera-preview-img {

@@ -6,6 +6,7 @@ import autoTable from 'jspdf-autotable';
 import moment from 'moment';
 import Pagination from '../components/Pagination';
 import CustomSelect from '../components/CustomSelect';
+import CalendarPicker from '../components/CalendarPicker';
 import { 
   CalendarIcon, 
   DownloadIcon, 
@@ -18,6 +19,7 @@ import {
   SearchIcon 
 } from '../components/Icons';
 import '../App.css';
+import usePermissions from '../permissions/usePermissions';
 import './Payments.css';
 
 const MONTH_LIST = [
@@ -62,7 +64,18 @@ const parseItemDate = (item) => {
 
 const Payments = () => {
   const location = useLocation();
+  const { can } = usePermissions();
+  const perm = (action) => can('payments:' + action);
   const [activeTab, setActiveTab] = useState(localStorage.getItem('paymentsActiveTab') || 'Sales Book');
+  // Cash / Personal Bank / Company Bank ka opening balance (date = kis din se)
+  const [openingBalance, setOpeningBalance] = useState({ cash: 0, personal: 0, company: 0, date: '' });
+  const [showOpeningModal, setShowOpeningModal] = useState(false);
+  const [openingForm, setOpeningForm] = useState({ cash: '', personal: '', company: '', date: '' });
+  const [openingError, setOpeningError] = useState('');
+  const [savingOpening, setSavingOpening] = useState(false);
+  // Jo tab permission me off hai wo na dikhe, saved tab hidden ho to Sales Book khulega
+  const visibleTabs = ['Sales Book', perm('collections') && 'Collections', perm('expenses') && 'Expenses'].filter(Boolean);
+  const currentTab = visibleTabs.includes(activeTab) ? activeTab : 'Sales Book';
   const [showNewSaleModal, setShowNewSaleModal] = useState(location.state?.openNewSale || false);
 
   const currentYearStr = new Date().getFullYear().toString();
@@ -99,6 +112,9 @@ const Payments = () => {
   const [expenseCategory, setExpenseCategory] = useState('Operational');
   const [expenseAccount, setExpenseAccount] = useState('Cash');
   const [editingExpenseId, setEditingExpenseId] = useState(null);
+  const [expenseCategories, setExpenseCategories] = useState([]);
+  const [showCategoryManager, setShowCategoryManager] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
 
   // For Editing Collections
   const [showEditCollectionModal, setShowEditCollectionModal] = useState(false);
@@ -164,7 +180,8 @@ const Payments = () => {
           settingsRes,
           invoicesRes,
           collectionsRes,
-          expensesRes
+          expensesRes,
+          expenseCategoriesRes
         ] = await Promise.all([
           axios.get(`${import.meta.env.VITE_API_BASE_URL}/patients`, config),
           axios.get(`${import.meta.env.VITE_API_BASE_URL}/services`, config),
@@ -173,7 +190,8 @@ const Payments = () => {
           axios.get(`${import.meta.env.VITE_API_BASE_URL}/settings`, config),
           axios.get(`${import.meta.env.VITE_API_BASE_URL}/invoices`, config),
           axios.get(`${import.meta.env.VITE_API_BASE_URL}/collections`, config),
-          axios.get(`${import.meta.env.VITE_API_BASE_URL}/expenses`, config)
+          axios.get(`${import.meta.env.VITE_API_BASE_URL}/expenses`, config),
+          axios.get(`${import.meta.env.VITE_API_BASE_URL}/expense-categories`, config).catch(() => ({ data: [] }))
         ]);
 
         const loadedPatients = (patientsRes.data || []).map(p => ({
@@ -209,6 +227,7 @@ const Payments = () => {
 
         setCollections(collectionsRes.data || []);
         setExpenses(expensesRes.data || []);
+        setExpenseCategories(expenseCategoriesRes.data || []);
         // --- END PARALLEL FETCH ---
 
 
@@ -218,6 +237,48 @@ const Payments = () => {
     };
     fetchData();
   }, []);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    axios.get(`${import.meta.env.VITE_API_BASE_URL}/opening-balance`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => setOpeningBalance(res.data))
+      .catch(err => console.error('Error fetching opening balance', err));
+  }, []);
+
+  const openOpeningModal = () => {
+    setOpeningForm({
+      cash: openingBalance.date ? String(openingBalance.cash) : '',
+      personal: openingBalance.date ? String(openingBalance.personal) : '',
+      company: openingBalance.date ? String(openingBalance.company) : '',
+      date: openingBalance.date || moment().format('YYYY-MM-DD')
+    });
+    setOpeningError('');
+    setShowOpeningModal(true);
+  };
+
+  const handleSaveOpening = async (e) => {
+    e.preventDefault();
+    const values = {};
+    for (const key of ['cash', 'personal', 'company']) {
+      const n = Number(openingForm[key] || 0);
+      if (!Number.isFinite(n) || n < 0) return setOpeningError('Please enter valid amounts (0 or more).');
+      values[key] = n;
+    }
+    if (!openingForm.date) return setOpeningError('Please select the date.');
+    setSavingOpening(true);
+    try {
+      const res = await axios.put(`${import.meta.env.VITE_API_BASE_URL}/opening-balance`, { ...values, date: openingForm.date }, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      setOpeningBalance(res.data);
+      setShowOpeningModal(false);
+    } catch (err) {
+      setOpeningError(err.response?.data?.message || 'Could not save opening balance.');
+    } finally {
+      setSavingOpening(false);
+    }
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -442,9 +503,18 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
 
   // Expenses Tab Totals (filtered by period)
   const totalOutflow = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
-  const operationalExpense = filteredExpenses.filter(e => e.category === 'Operational').reduce((sum, e) => sum + e.amount, 0);
-  const salaryExpense = filteredExpenses.filter(e => e.category === 'Salary / Payout').reduce((sum, e) => sum + e.amount, 0);
-  const purchaseExpense = filteredExpenses.filter(e => e.category === 'Purchase').reduce((sum, e) => sum + e.amount, 0);
+  // Category-wise totals: saved categories + koi bhi purani/auto category (jaise Payroll ki 'Salary') jo expenses me hai
+  const categoryTotals = React.useMemo(() => {
+    const names = expenseCategories.map(c => c.name);
+    filteredExpenses.forEach(e => {
+      const name = e.category || 'Operational';
+      if (!names.includes(name)) names.push(name);
+    });
+    return names.map(name => ({
+      name,
+      total: filteredExpenses.filter(e => (e.category || 'Operational') === name).reduce((sum, e) => sum + e.amount, 0)
+    }));
+  }, [expenseCategories, filteredExpenses]);
 
   // Available Balances for this period
   const companyAvailable = companyCollection - filteredExpenses.filter(e => e.account === 'Company Bank').reduce((sum, e) => sum + e.amount, 0);
@@ -452,9 +522,9 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
   const cashAvailable = cashCollection - filteredExpenses.filter(e => e.account === 'Cash').reduce((sum, e) => sum + e.amount, 0);
 
   // All-time available balances for validation when creating an expense
-  const allTimeCompanyAvailable = collections.filter(c => c.account === 'Company Bank').reduce((sum, c) => sum + c.amount, 0) - expenses.filter(e => e.account === 'Company Bank').reduce((sum, e) => sum + e.amount, 0);
-  const allTimePersonalAvailable = collections.filter(c => c.account === 'Personal Bank').reduce((sum, c) => sum + c.amount, 0) - expenses.filter(e => e.account === 'Personal Bank').reduce((sum, e) => sum + e.amount, 0);
-  const allTimeCashAvailable = collections.filter(c => c.account === 'Cash').reduce((sum, c) => sum + c.amount, 0) - expenses.filter(e => e.account === 'Cash').reduce((sum, e) => sum + e.amount, 0);
+  const allTimeCompanyAvailable = (openingBalance.company || 0) + collections.filter(c => c.account === 'Company Bank').reduce((sum, c) => sum + c.amount, 0) - expenses.filter(e => e.account === 'Company Bank').reduce((sum, e) => sum + e.amount, 0);
+  const allTimePersonalAvailable = (openingBalance.personal || 0) + collections.filter(c => c.account === 'Personal Bank').reduce((sum, c) => sum + c.amount, 0) - expenses.filter(e => e.account === 'Personal Bank').reduce((sum, e) => sum + e.amount, 0);
+  const allTimeCashAvailable = (openingBalance.cash || 0) + collections.filter(c => c.account === 'Cash').reduce((sum, c) => sum + c.amount, 0) - expenses.filter(e => e.account === 'Cash').reduce((sum, e) => sum + e.amount, 0);
 
   // Yearly Analytics computation
   const yearlyStats = React.useMemo(() => {
@@ -547,6 +617,7 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
     e.preventDefault();
     const amt = Number(expenseAmount);
     if (!expenseParty || amt <= 0) return;
+    if (!expenseCategory) { alert('Please select a category'); return; }
 
     let available = 0;
     if (expenseAccount === 'Cash') available = allTimeCashAvailable;
@@ -611,6 +682,37 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
     setExpenseCategory(exp.category);
     setExpenseAccount(exp.account);
     setShowExpenseModal(true);
+  };
+
+  const handleAddCategory = async () => {
+    const name = newCategoryName.trim();
+    if (!name) return;
+    if (expenseCategories.some(c => c.name.toLowerCase() === name.toLowerCase())) {
+      alert('Ye category pehle se exist karti hai');
+      return;
+    }
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/expense-categories`, { name }, { headers: { Authorization: `Bearer ${token}` } });
+      setExpenseCategories([...expenseCategories, res.data]);
+      setExpenseCategory(res.data.name);
+      setNewCategoryName('');
+    } catch (err) {
+      alert(err.response?.data?.message || 'Error adding category');
+    }
+  };
+
+  const handleDeleteCategory = async (cat) => {
+    if (!window.confirm(`"${cat.name}" category delete karni hai? Purane expenses par iska naam waise hi rahega.`)) return;
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`${import.meta.env.VITE_API_BASE_URL}/expense-categories/${cat._id}`, { headers: { Authorization: `Bearer ${token}` } });
+      const remaining = expenseCategories.filter(c => c._id !== cat._id);
+      setExpenseCategories(remaining);
+      if (expenseCategory === cat.name) setExpenseCategory(remaining[0]?.name || '');
+    } catch (err) {
+      alert(err.response?.data?.message || 'Error deleting category');
+    }
   };
 
   const handleConfirmPayment = async () => {
@@ -976,9 +1078,10 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
     const bankExp = filteredExpenses.filter(e => e.account === 'Company Bank').reduce((s, e) => s + e.amount, 0);
     const cashExp = filteredExpenses.filter(e => e.account === 'Cash').reduce((s, e) => s + e.amount, 0);
 
-    const opExp = filteredExpenses.filter(e => e.category === 'Operational').reduce((s, e) => s + e.amount, 0);
-    const salExp = filteredExpenses.filter(e => e.category === 'Salary / Payout').reduce((s, e) => s + e.amount, 0);
-    const purExp = filteredExpenses.filter(e => e.category === 'Purchase').reduce((s, e) => s + e.amount, 0);
+    const categoryBreakdown = categoryTotals.filter(c => c.total > 0);
+    const categoryLine = categoryBreakdown.length
+      ? categoryBreakdown.map(c => `${c.name}: Rs. ${c.total.toLocaleString()}`).join('        ')
+      : 'No expenses';
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
@@ -998,7 +1101,8 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.setTextColor(71, 85, 105);
-    doc.text(`Operational: Rs. ${opExp.toLocaleString()}        Salary: Rs. ${salExp.toLocaleString()}        Purchase: Rs. ${purExp.toLocaleString()}`, 14, 54);
+    const categoryLines = doc.splitTextToSize(categoryLine, 182);
+    doc.text(categoryLines, 14, 54);
 
     const rows = filteredExpenses.map((exp, idx) => [
       String(idx + 1),
@@ -1021,7 +1125,7 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
     ]);
 
     autoTable(doc, {
-      startY: 60,
+      startY: 60 + (categoryLines.length - 1) * 5,
       head: [['#', 'Date', 'Paid To', 'Category', 'Description', 'Paid From', 'Amount']],
       body: rows,
       theme: 'grid',
@@ -1080,11 +1184,14 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
       return m && m.isBefore(startMoment, 'day');
     };
 
-    const opPersonal = collections.filter(beforeStart).filter(c => c.account === 'Personal Bank').reduce((s, c) => s + c.amount, 0)
+    // Opening balance us report me gina jaata hai jiski end date opening ki date ke baad ho
+    const { endMoment } = getPeriodReportInfo();
+    const obCounts = !!openingBalance.date && !moment(openingBalance.date, 'YYYY-MM-DD').isAfter(endMoment, 'day');
+    const opPersonal = (obCounts ? openingBalance.personal : 0) + collections.filter(beforeStart).filter(c => c.account === 'Personal Bank').reduce((s, c) => s + c.amount, 0)
                      - expenses.filter(beforeStart).filter(e => e.account === 'Personal Bank').reduce((s, e) => s + e.amount, 0);
-    const opBank = collections.filter(beforeStart).filter(c => c.account === 'Company Bank').reduce((s, c) => s + c.amount, 0)
+    const opBank = (obCounts ? openingBalance.company : 0) + collections.filter(beforeStart).filter(c => c.account === 'Company Bank').reduce((s, c) => s + c.amount, 0)
                  - expenses.filter(beforeStart).filter(e => e.account === 'Company Bank').reduce((s, e) => s + e.amount, 0);
-    const opCash = collections.filter(beforeStart).filter(c => c.account === 'Cash').reduce((s, c) => s + c.amount, 0)
+    const opCash = (obCounts ? openingBalance.cash : 0) + collections.filter(beforeStart).filter(c => c.account === 'Cash').reduce((s, c) => s + c.amount, 0)
                  - expenses.filter(beforeStart).filter(e => e.account === 'Cash').reduce((s, e) => s + e.amount, 0);
     const opTotal = opPersonal + opBank + opCash;
 
@@ -1256,11 +1363,11 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
 
   // Master handler that dispatches based on active tab
   const handleDownloadReport = () => {
-    if (activeTab === 'Sales Book') {
+    if (currentTab === 'Sales Book') {
       handleDownloadSalesReport();
-    } else if (activeTab === 'Collections') {
+    } else if (currentTab === 'Collections') {
       handleDownloadCollectionStatement();
-    } else if (activeTab === 'Expenses') {
+    } else if (currentTab === 'Expenses') {
       handleDownloadExpenseReport();
     }
   };
@@ -1555,19 +1662,19 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
 
       {/* Tabs Navigation */}
       <div className="payments-tabs-nav">
-        {['Sales Book', 'Collections', 'Expenses'].map(tab => (
+        {visibleTabs.map(tab => (
           <button 
             key={tab}
             type="button"
             onClick={() => setActiveTab(tab)}
-            className={`payments-tab-btn ${activeTab === tab ? 'active' : ''}`}
+            className={`payments-tab-btn ${currentTab === tab ? 'active' : ''}`}
           >
             {tab}
           </button>
         ))}
       </div>
 
-      {activeTab === 'Sales Book' && (
+      {currentTab === 'Sales Book' && (
         <div>
           {/* 4 KPI Cards */}
           <div className="payments-kpi-grid">
@@ -1618,6 +1725,7 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
               <h3 className="payments-section-title">Recent Invoices</h3>
             </div>
             <div className="payments-action-buttons">
+               {perm('reports') && (
               <button 
                 type="button"
                 onClick={handleDownloadReport} 
@@ -1626,6 +1734,8 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
                 <DownloadIcon size={14} /> 
                 <span>Download Report</span>
               </button>
+               )}
+               {perm('new-sale') && (
               <button 
                 type="button"
                 onClick={() => setShowNewSaleModal(true)} 
@@ -1633,6 +1743,7 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
               >
                 <span>+ New Sale</span>
               </button>
+               )}
             </div>
           </div>
 
@@ -1695,7 +1806,7 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
 
                     {/* Card Footer: Collect Button (if pending) + Action Icons */}
                     <div className="pay-card-footer">
-                      {!isCleared ? (
+                      {!isCleared ? (perm('collect') && (
                         <button 
                           type="button" 
                           onClick={() => { 
@@ -1709,13 +1820,14 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
                           <WalletIcon size={13} />
                           <span>Collect {R}{inv.balance}</span>
                         </button>
-                      ) : (
+                      )) : (
                         <div className="pay-card-cleared-tag">
                           <span>Fully Settled</span>
                         </div>
                       )}
 
                       <div className="pay-card-actions">
+                         {perm('reports') && (
                         <button 
                           type="button" 
                           onClick={() => handleDownloadPDF(inv)} 
@@ -1724,6 +1836,7 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
                         >
                           <DownloadIcon size={17} />
                         </button>
+                         )}
                         <button 
                           type="button" 
                           onClick={() => { setInfoModalData(inv); setShowInfoModal(true); }} 
@@ -1732,6 +1845,7 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
                         >
                           <InfoIcon size={17} />
                         </button>
+                         {perm('invoice-edit') && (
                         <button 
                           type="button" 
                           onClick={() => openEditModal(inv)} 
@@ -1740,6 +1854,8 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
                         >
                           <EditIcon size={17} />
                         </button>
+                         )}
+                         {perm('invoice-delete') && (
                         <button 
                           type="button" 
                           onClick={() => handleDeleteInvoice(inv.id)} 
@@ -1748,6 +1864,7 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
                         >
                           <TrashIcon size={17} />
                         </button>
+                         )}
                       </div>
                     </div>
                   </div>
@@ -1803,6 +1920,7 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
                           ) : (
                             <>
                               <span className="status-badge-pending">Pending</span>
+                               {perm('collect') && (
                               <button 
                                 type="button"
                                 onClick={() => { setSelectedInvoice(inv); setCollectAmount(inv.balance); setCollectLoss(0); setShowCollectModal(true); }} 
@@ -1811,16 +1929,17 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
                                 <span>Collect</span>
                               </button>
+                               )}
                             </>
                           )}
                         </div>
                       </td>
                       <td className="text-right">
                          <div className="payments-table-actions">
-                             <button type="button" onClick={() => handleDownloadPDF(inv)} className="payments-icon-action-btn" title="Download Invoice"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg></button>
+                             {perm('reports') && <button type="button" onClick={() => handleDownloadPDF(inv)} className="payments-icon-action-btn" title="Download Invoice"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg></button>}
                              <button type="button" onClick={() => { setInfoModalData(inv); setShowInfoModal(true); }} className="payments-icon-action-btn btn-info" title="Info"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button>
-                             <button type="button" onClick={() => openEditModal(inv)} className="payments-icon-action-btn" title="Edit"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></button>
-                             <button type="button" onClick={() => handleDeleteInvoice(inv.id)} className="payments-icon-action-btn btn-delete" title="Delete"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
+                             {perm('invoice-edit') && <button type="button" onClick={() => openEditModal(inv)} className="payments-icon-action-btn" title="Edit"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></button>}
+                             {perm('invoice-delete') && <button type="button" onClick={() => handleDeleteInvoice(inv.id)} className="payments-icon-action-btn btn-delete" title="Delete"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>}
                          </div>
                       </td>
                     </tr>
@@ -1841,8 +1960,30 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
         </div>
       )}
 
-      {activeTab === 'Collections' && (
+      {currentTab === 'Collections' && (
         <div>
+          {/* Account balances + opening balance */}
+          <div className="ob-strip">
+            <div className="ob-strip-main">
+              <span className="ob-strip-title">Current Balance</span>
+              <div className="ob-strip-values">
+                <span>Cash <strong>{R}{allTimeCashAvailable.toLocaleString('en-IN')}</strong></span>
+                <span>Personal <strong>{R}{allTimePersonalAvailable.toLocaleString('en-IN')}</strong></span>
+                <span>Company <strong>{R}{allTimeCompanyAvailable.toLocaleString('en-IN')}</strong></span>
+              </div>
+              <div className="ob-strip-sub">
+                {openingBalance.date
+                  ? <>Opening balance as of {moment(openingBalance.date).format('DD MMM YYYY')}: Cash {R}{openingBalance.cash.toLocaleString('en-IN')} · Personal {R}{openingBalance.personal.toLocaleString('en-IN')} · Company {R}{openingBalance.company.toLocaleString('en-IN')}</>
+                  : 'No opening balance set yet'}
+              </div>
+            </div>
+            {perm('opening-balance') && (
+              <button type="button" className="ob-strip-btn" onClick={openOpeningModal}>
+                {openingBalance.date ? 'Edit Opening Balance' : 'Set Opening Balance'}
+              </button>
+            )}
+          </div>
+
           {/* KPI Cards */}
           <div className="payments-kpi-grid">
             <div className="payments-kpi-card kpi-theme-collection">
@@ -1892,6 +2033,7 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
               <h3 className="payments-section-title">Collection History</h3>
             </div>
             <div className="payments-action-buttons">
+               {perm('reports') && (<>
               <button 
                 type="button"
                 onClick={handleDownloadReport} 
@@ -1908,6 +2050,7 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
                 <DownloadIcon size={14} /> 
                 <span>Download Profit Report</span>
               </button>
+               </>)}
             </div>
           </div>
 
@@ -1966,15 +2109,19 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
                     <div className="pay-card-footer">
                       <span className="pay-card-receipt-tag">Incoming Receipt</span>
                       <div className="pay-card-actions">
+                         {perm('reports') && (
                         <button type="button" onClick={() => handleDownloadCollectionReceipt(col)} className="pay-card-icon-btn btn-download" title="Download Receipt">
                           <DownloadIcon size={17} />
                         </button>
+                         )}
+                         {perm('collection-edit') && (<>
                         <button type="button" onClick={() => openEditCollection(col)} className="pay-card-icon-btn btn-edit" title="Edit Collection">
                           <EditIcon size={17} />
                         </button>
                         <button type="button" onClick={() => handleDeleteCollection(col._id)} className="pay-card-icon-btn btn-delete" title="Delete Collection">
                           <TrashIcon size={17} />
                         </button>
+                         </>)}
                       </div>
                     </div>
                   </div>
@@ -2023,9 +2170,9 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
                       <td style={{ color: col.account === 'Cash' ? '#10b981' : (col.account === 'Personal Bank' ? '#7c3aed' : '#2563eb'), fontWeight: 600 }}>{col.account}</td>
                       <td className="text-right">
                          <div className="payments-table-actions">
-                             <button type="button" onClick={() => handleDownloadCollectionReceipt(col)} className="payments-icon-action-btn" title="Download Receipt"><DownloadIcon size={15} /></button>
-                             <button type="button" onClick={() => openEditCollection(col)} className="payments-icon-action-btn" title="Edit"><EditIcon size={15} /></button>
-                             <button type="button" onClick={() => handleDeleteCollection(col._id)} className="payments-icon-action-btn btn-delete" title="Delete"><TrashIcon size={15} /></button>
+                             {perm('reports') && <button type="button" onClick={() => handleDownloadCollectionReceipt(col)} className="payments-icon-action-btn" title="Download Receipt"><DownloadIcon size={15} /></button>}
+                             {perm('collection-edit') && <button type="button" onClick={() => openEditCollection(col)} className="payments-icon-action-btn" title="Edit"><EditIcon size={15} /></button>}
+                             {perm('collection-edit') && <button type="button" onClick={() => handleDeleteCollection(col._id)} className="payments-icon-action-btn btn-delete" title="Delete"><TrashIcon size={15} /></button>}
                          </div>
                       </td>
                     </tr>
@@ -2046,8 +2193,30 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
         </div>
       )}
       
-      {activeTab === 'Expenses' && (
+      {currentTab === 'Expenses' && (
         <div>
+          {/* Account balances + opening balance */}
+          <div className="ob-strip">
+            <div className="ob-strip-main">
+              <span className="ob-strip-title">Current Balance</span>
+              <div className="ob-strip-values">
+                <span>Cash <strong>{R}{allTimeCashAvailable.toLocaleString('en-IN')}</strong></span>
+                <span>Personal <strong>{R}{allTimePersonalAvailable.toLocaleString('en-IN')}</strong></span>
+                <span>Company <strong>{R}{allTimeCompanyAvailable.toLocaleString('en-IN')}</strong></span>
+              </div>
+              <div className="ob-strip-sub">
+                {openingBalance.date
+                  ? <>Opening balance as of {moment(openingBalance.date).format('DD MMM YYYY')}: Cash {R}{openingBalance.cash.toLocaleString('en-IN')} · Personal {R}{openingBalance.personal.toLocaleString('en-IN')} · Company {R}{openingBalance.company.toLocaleString('en-IN')}</>
+                  : 'No opening balance set yet'}
+              </div>
+            </div>
+            {perm('opening-balance') && (
+              <button type="button" className="ob-strip-btn" onClick={openOpeningModal}>
+                {openingBalance.date ? 'Edit Opening Balance' : 'Set Opening Balance'}
+              </button>
+            )}
+          </div>
+
           {/* KPI Cards */}
           <div className="payments-kpi-grid">
             <div className="payments-kpi-card kpi-theme-outflow">
@@ -2060,35 +2229,27 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
               <div className="payments-kpi-value">{R}{totalOutflow}</div>
             </div>
 
-            <div className="payments-kpi-card">
-              <div className="payments-kpi-header">
-                <span className="payments-kpi-label">Operational</span>
-                <div className="payments-kpi-icon" style={{ background: '#f1f5f9', color: '#475569' }}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            {categoryTotals.map((cat, idx) => {
+              const palette = [
+                { background: '#f1f5f9', color: '#475569' },
+                { background: '#f5f3ff', color: '#7c3aed' },
+                { background: '#eff6ff', color: '#2563eb' },
+                { background: '#ecfdf5', color: '#059669' },
+                { background: '#fff7ed', color: '#ea580c' },
+                { background: '#fdf2f8', color: '#db2777' }
+              ];
+              return (
+                <div className="payments-kpi-card" key={cat.name}>
+                  <div className="payments-kpi-header">
+                    <span className="payments-kpi-label">{cat.name}</span>
+                    <div className="payments-kpi-icon" style={palette[idx % palette.length]}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
+                    </div>
+                  </div>
+                  <div className="payments-kpi-value">{R}{cat.total}</div>
                 </div>
-              </div>
-              <div className="payments-kpi-value">{R}{operationalExpense}</div>
-            </div>
-
-            <div className="payments-kpi-card">
-              <div className="payments-kpi-header">
-                <span className="payments-kpi-label">Salary / Payout</span>
-                <div className="payments-kpi-icon" style={{ background: '#f5f3ff', color: '#7c3aed' }}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                </div>
-              </div>
-              <div className="payments-kpi-value">{R}{salaryExpense}</div>
-            </div>
-
-            <div className="payments-kpi-card">
-              <div className="payments-kpi-header">
-                <span className="payments-kpi-label">Purchase</span>
-                <div className="payments-kpi-icon" style={{ background: '#eff6ff', color: '#2563eb' }}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
-                </div>
-              </div>
-              <div className="payments-kpi-value">{R}{purchaseExpense}</div>
-            </div>
+              );
+            })}
           </div>
 
           {/* Section Header */}
@@ -2097,6 +2258,7 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
               <h3 className="payments-section-title">Expense Journal</h3>
             </div>
             <div className="payments-action-buttons">
+               {perm('reports') && (
               <button 
                 type="button"
                 onClick={handleDownloadReport} 
@@ -2105,14 +2267,23 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
                 <DownloadIcon size={14} /> 
                 <span>Download Report</span>
               </button>
+               )}
+               {perm('expense-add') && (
               <button 
                 type="button"
-                onClick={() => setShowExpenseModal(true)} 
+                onClick={() => {
+                  setEditingExpenseId(null);
+                  setExpenseParty('');
+                  setExpenseAmount('');
+                  if (!expenseCategories.some(c => c.name === expenseCategory)) setExpenseCategory(expenseCategories[0]?.name || 'Operational');
+                  setShowExpenseModal(true);
+                }}
                 className="payments-btn-primary"
               >
                 <PlusIcon size={14} />
-                <span>+ Record Expense</span>
+                <span>Record Expense</span>
               </button>
+               )}
             </div>
           </div>
 
@@ -2171,15 +2342,19 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
                     <div className="pay-card-footer">
                       <span className="pay-card-receipt-tag">Outflow Expense</span>
                       <div className="pay-card-actions">
+                         {perm('reports') && (
                         <button type="button" onClick={() => handleDownloadExpenseReceipt(exp)} className="pay-card-icon-btn btn-download" title="Download Receipt">
                           <DownloadIcon size={17} />
                         </button>
+                         )}
+                         {perm('expense-edit') && (<>
                         <button type="button" onClick={() => openEditExpense(exp)} className="pay-card-icon-btn btn-edit" title="Edit Expense">
                           <EditIcon size={17} />
                         </button>
                         <button type="button" onClick={() => handleDeleteExpense(exp._id)} className="pay-card-icon-btn btn-delete" title="Delete Expense">
                           <TrashIcon size={17} />
                         </button>
+                         </>)}
                       </div>
                     </div>
                   </div>
@@ -2228,9 +2403,9 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
                       <td style={{ color: exp.account === 'Cash' ? '#10b981' : (exp.account === 'Personal Bank' ? '#7c3aed' : '#2563eb'), fontWeight: 600 }}>{exp.account}</td>
                       <td className="text-right">
                          <div className="payments-table-actions">
-                             <button type="button" onClick={() => handleDownloadExpenseReceipt(exp)} className="payments-icon-action-btn" title="Download Receipt"><DownloadIcon size={15} /></button>
-                             <button type="button" onClick={() => openEditExpense(exp)} className="payments-icon-action-btn" title="Edit"><EditIcon size={15} /></button>
-                             <button type="button" onClick={() => handleDeleteExpense(exp._id)} className="payments-icon-action-btn btn-delete" title="Delete"><TrashIcon size={15} /></button>
+                             {perm('reports') && <button type="button" onClick={() => handleDownloadExpenseReceipt(exp)} className="payments-icon-action-btn" title="Download Receipt"><DownloadIcon size={15} /></button>}
+                             {perm('expense-edit') && <button type="button" onClick={() => openEditExpense(exp)} className="payments-icon-action-btn" title="Edit"><EditIcon size={15} /></button>}
+                             {perm('expense-edit') && <button type="button" onClick={() => handleDeleteExpense(exp._id)} className="payments-icon-action-btn btn-delete" title="Delete"><TrashIcon size={15} /></button>}
                          </div>
                       </td>
                     </tr>
@@ -2252,7 +2427,7 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
       )}
 
       {/* NEW SALE ENTRY MODAL */}
-      {showNewSaleModal && (
+      {showNewSaleModal && perm('new-sale') && (
         <>
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000 }} onClick={() => setShowNewSaleModal(false)}></div>
           <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: '#fff', padding: '24px', borderRadius: '12px', width: '90%', maxWidth: '500px', zIndex: 1001, boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
@@ -2709,6 +2884,54 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
       )}
 
         {/* EXPENSE MODAL */}
+      {showOpeningModal && (
+        <div className="modal-overlay ob-overlay" onClick={() => !savingOpening && setShowOpeningModal(false)}>
+          <div className="modal-content ob-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">Opening Balance</h3>
+              <button className="modal-close" onClick={() => setShowOpeningModal(false)} disabled={savingOpening} aria-label="Close">✕</button>
+            </div>
+            <p className="ob-help">Money already in each account before you started recording here. It is added to the current balance.</p>
+            <form onSubmit={handleSaveOpening}>
+              <div className="ob-field">
+                <label>As of Date *</label>
+                <CalendarPicker
+                  selectedDate={openingForm.date}
+                  onChange={d => { setOpeningForm({ ...openingForm, date: d }); setOpeningError(''); }}
+                  allowClear={false}
+                  showPresets={false}
+                />
+              </div>
+              {[
+                { key: 'cash', label: 'Cash' },
+                { key: 'personal', label: 'Personal (Personal Bank)' },
+                { key: 'company', label: 'Company (Company Bank)' }
+              ].map(f => (
+                <div className="ob-field" key={f.key}>
+                  <label>{f.label} ({R})</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0"
+                    value={openingForm[f.key]}
+                    onChange={e => { setOpeningForm({ ...openingForm, [f.key]: e.target.value }); setOpeningError(''); }}
+                  />
+                </div>
+              ))}
+              <div className="ob-total">
+                Total: <strong>{R}{(['cash', 'personal', 'company'].reduce((s, k) => s + (Number(openingForm[k]) || 0), 0)).toLocaleString('en-IN')}</strong>
+              </div>
+              {openingError && <div className="ob-error">{openingError}</div>}
+              <div className="modal-footer" style={{ marginTop: '16px' }}>
+                <button type="button" className="crm-btn crm-btn-secondary" onClick={() => setShowOpeningModal(false)} disabled={savingOpening}>Cancel</button>
+                <button type="submit" className="crm-btn crm-btn-primary" disabled={savingOpening}>{savingOpening ? 'Saving...' : 'Save'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {showExpenseModal && (
         <>
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000 }} onClick={() => setShowExpenseModal(false)}></div>
@@ -2728,15 +2951,64 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
               </div>
               <div style={{ marginBottom: '16px' }}>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', color: '#1e293b', marginBottom: '6px' }}>Category</label>
-                <CustomSelect 
-                  value={expenseCategory} 
-                  onChange={val => setExpenseCategory(val)}
-                  options={[
-                    { value: 'Operational', label: 'Operational' },
-                    { value: 'Salary / Payout', label: 'Salary / Payout' },
-                    { value: 'Purchase', label: 'Purchase' }
-                  ]}
-                />
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'stretch' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <CustomSelect
+                      value={expenseCategory}
+                      onChange={val => {
+                        if (val === '__add_new__') { setShowCategoryManager(true); return; }
+                        setExpenseCategory(val);
+                      }}
+                      placeholder="Select category"
+                      options={[
+                        ...expenseCategories.map(c => ({ value: c.name, label: c.name })),
+                        // Edit karte waqt agar purani category list me nahi hai to bhi dikhe
+                        ...(expenseCategory && !expenseCategories.some(c => c.name === expenseCategory)
+                          ? [{ value: expenseCategory, label: expenseCategory }]
+                          : []),
+                        ...(perm('expense-add') ? [{ value: '__add_new__', label: '+ Add New Category' }] : [])
+                      ]}
+                    />
+                  </div>
+                  {perm('expense-add') && (
+                    <button
+                      type="button"
+                      onClick={() => setShowCategoryManager(v => !v)}
+                      title="Nayi category add karein"
+                      style={{ padding: '0 12px', fontSize: '13px', borderRadius: '6px', border: '1px solid #2563eb', background: showCategoryManager ? '#2563eb' : '#eff6ff', color: showCategoryManager ? '#fff' : '#2563eb', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                    >
+                      {showCategoryManager ? 'Done' : '+ New'}
+                    </button>
+                  )}
+                </div>
+                {showCategoryManager && (
+                  <div style={{ marginTop: '10px', padding: '10px', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#f8fafc' }}>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <input
+                        type="text"
+                        value={newCategoryName}
+                        onChange={e => setNewCategoryName(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddCategory(); } }}
+                        placeholder="New category name"
+                        autoFocus
+                        style={{ flex: 1, padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none', background: '#ffffff', color: '#1e293b', boxSizing: 'border-box' }}
+                      />
+                      <button type="button" onClick={handleAddCategory} style={{ padding: '8px 12px', fontSize: '13px', borderRadius: '6px', background: '#2563eb', color: '#fff', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>Add</button>
+                    </div>
+                    {expenseCategories.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '10px' }}>
+                        {expenseCategories.map(c => (
+                          <span key={c._id} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', borderRadius: '999px', background: '#fff', border: '1px solid #e2e8f0', fontSize: '12px', color: '#334155' }}>
+                            {c.name}
+                            {perm('expense-edit') && (
+                              <button type="button" onClick={() => handleDeleteCategory(c)} title="Delete category" style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 0, fontSize: '12px', lineHeight: 1 }}>✕</button>
+                            )}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               <div style={{ marginBottom: '24px' }}>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', color: '#1e293b', marginBottom: '6px' }}>

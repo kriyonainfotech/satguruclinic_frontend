@@ -4,8 +4,11 @@ import axios from 'axios';
 import moment from 'moment';
 import './LeadProfile.css';
 import { ChevronLeftIcon, PhoneIcon, MailIcon, UsersIcon, EditIcon, TrashIcon } from '../components/Icons';
+import usePermissions from '../permissions/usePermissions';
 
 const LeadProfile = () => {
+  const { can } = usePermissions();
+  const canEditHistory = can('leads:history-edit');
   const { id } = useParams();
   const navigate = useNavigate();
   const [lead, setLead] = useState(null);
@@ -162,10 +165,12 @@ const LeadProfile = () => {
                           <span className="timeline-date">{moment(rem.date).format('DD/MM/YYYY')} - {rem.time}</span>
                           <span style={{ fontSize: '11px', color: '#64748b', marginLeft: '8px', fontWeight: '500' }}>By {rem.createdBy?.name || 'Admin'}</span>
                         </div>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <button className="icon-btn" style={{ color: '#64748b', padding: '4px' }} onClick={() => setEditingReminder(rem)}><EditIcon size={14} /></button>
-                          <button className="icon-btn" style={{ color: '#ef4444', padding: '4px' }} onClick={() => handleDeleteReminder(rem._id)}><TrashIcon size={14} /></button>
-                        </div>
+                        {canEditHistory && (
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button className="icon-btn" style={{ color: '#64748b', padding: '4px' }} onClick={() => setEditingReminder(rem)}><EditIcon size={14} /></button>
+                            <button className="icon-btn" style={{ color: '#ef4444', padding: '4px' }} onClick={() => handleDeleteReminder(rem._id)}><TrashIcon size={14} /></button>
+                          </div>
+                        )}
                       </div>
                       <div className="timeline-remarks">
                         {rem.remarks || 'No remarks added.'}

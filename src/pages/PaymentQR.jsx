@@ -7,9 +7,12 @@ import {
   ClockIcon,
   TrashIcon
 } from '../components/Icons';
+import usePermissions from '../permissions/usePermissions';
 import './PaymentQR.css';
 
 const PaymentQR = () => {
+  const { can } = usePermissions();
+  const perm = (action) => can('payment-qr:' + action);
   const [upiId, setUpiId] = useState('');
   const [amount, setAmount] = useState('');
   const [savedUpiId, setSavedUpiId] = useState('');
@@ -140,6 +143,7 @@ const PaymentQR = () => {
           </div>
 
           {/* UPI ID Field */}
+          {perm('upi-config') && (
           <div className="config-field-group">
             <label className="config-label">Your UPI ID</label>
             <div className="config-input-wrap">
@@ -184,6 +188,7 @@ const PaymentQR = () => {
               <span>Save this to attach it to your clinic profile permanently.</span>
             </div>
           </div>
+          )}
 
           {/* Payment Amount Field */}
           <div className="config-field-group">
@@ -204,6 +209,7 @@ const PaymentQR = () => {
           </div>
 
           {/* Copy Button */}
+          {perm('copy') && (
           <button 
             type="button"
             onClick={handleCopyToClipboard} 
@@ -215,6 +221,7 @@ const PaymentQR = () => {
             </svg>
             <span>{copyStatus ? 'Copied to Clipboard!' : 'Copy Image to Clipboard'}</span>
           </button>
+          )}
         </div>
 
         {/* Right: Live Preview */}
