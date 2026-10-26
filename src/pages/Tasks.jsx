@@ -74,7 +74,7 @@ const Tasks = ({ isEmbedded }) => {
     if (!isTeam) return [];
     return assignableUsers.filter(u => (u.role || '').toLowerCase() === 'team' && (u._id || u.id) !== currentUserId);
   }, [assignableUsers, isTeam, currentUserId]);
-  const isSenior = juniorAssignees.length > 0;
+  const isSenior = isTeam && (currentUser.teamLevel === 'senior' || juniorAssignees.length > 0);
 
   // Available Tabs based on user role
   const availableTabs = useMemo(() => {
@@ -108,9 +108,11 @@ const Tasks = ({ isEmbedded }) => {
 
   // Senior apne juniors ke tasks add / edit / delete kar sakta hai
   const canManageTasks = !isTeam || (isSenior && activeTab === 'team');
+  // Senior ko Add Task har tab par dikhe (My Tasks tab se bhi junior ko task de sake)
+  const canAddTasks = !isTeam || isSenior;
   // Superadmin "Roles & Permissions" se andar ke buttons on/off
-  const canCreate = canManageTasks && perm('create');
-  const canBulkAdd = canManageTasks && perm('bulk-add');
+  const canCreate = canAddTasks && perm('create');
+  const canBulkAdd = canAddTasks && perm('bulk-add');
   const canEdit = canManageTasks && perm('edit');
   const canDelete = canManageTasks && perm('delete');
   const canChangeStatus = perm('status');
@@ -311,11 +313,11 @@ const Tasks = ({ isEmbedded }) => {
 
   // Dynamic Add Button Text
   const addButtonLabel = useMemo(() => {
-    if (activeTab === 'team') return isTeam ? '+ Add Junior Task' : '+ Add Team Task';
+    if (activeTab === 'team' || isSenior) return isTeam ? '+ Add Junior Task' : '+ Add Team Task';
     if (activeTab === 'admin') return '+ Add Admin Task';
     if (activeTab === 'superadmin') return '+ Add Superadmin Task';
     return 'Add Task';
-  }, [activeTab, isTeam]);
+  }, [activeTab, isTeam, isSenior]);
 
   const openBulkModal = () => {
     fetchChecklistTemplates();
@@ -325,7 +327,13 @@ const Tasks = ({ isEmbedded }) => {
     setCategory('General');
     setCustomCategory('');
     
-    setAssignedTo(currentUserId);
+    // Senior ke bulk dropdown me sirf juniors hain, isliye default junior hi rakho
+    if (isSenior) {
+      if (activeTab !== 'team') setActiveTab('team');
+      setAssignedTo(teamAssignees.length > 1 ? 'ALL_TEAM' : (teamAssignees[0]?._id || ''));
+    } else {
+      setAssignedTo(currentUserId);
+    }
     setBulkStartDate('');
     setBulkEndDate('');
     setPriority('Medium');
@@ -438,8 +446,13 @@ const Tasks = ({ isEmbedded }) => {
       fetchAssignableUsers();
     }
 
+    // Senior My Tasks tab se add kare to juniors wale tab par le jao, task junior ko hi jaaye
+    if (isSenior && activeTab !== 'team') setActiveTab('team');
+
     let defaultAssignee = '';
-    if (activeTab === 'my') {
+    if (isSenior) {
+      defaultAssignee = teamAssignees.length > 1 ? 'ALL_TEAM' : (teamAssignees.length > 0 ? teamAssignees[0]._id : '');
+    } else if (activeTab === 'my') {
       defaultAssignee = currentUserId;
     } else if (activeTab === 'team') {
       defaultAssignee = teamAssignees.length > 1 ? 'ALL_TEAM' : (teamAssignees.length > 0 ? teamAssignees[0]._id : '');
@@ -1195,10 +1208,11 @@ const Tasks = ({ isEmbedded }) => {
                   <thead>
                     <tr>
                       <th style={{ width: '60px', textAlign: 'center' }}>Sr.no</th>
-                      <th style={{ width: '32%' }}>Task</th>
-                      <th style={{ width: '22%' }}>Assignee</th>
-                      <th style={{ width: '16%' }}>Due Date</th>
-                      <th style={{ width: '16%' }}>Status</th>
+                      <th style={{ width: '28%' }}>Task</th>
+                      <th style={{ width: '18%' }}>Assignee</th>
+                      <th style={{ width: '16%' }}>Assigned By</th>
+                      <th style={{ width: '13%' }}>Due Date</th>
+                      <th style={{ width: '13%' }}>Status</th>
                       <th style={{ width: '100px', textAlign: 'center' }}>Actions</th>
                     </tr>
                   </thead>
@@ -1244,6 +1258,17 @@ const Tasks = ({ isEmbedded }) => {
                                   {task.assignedTo?.role || ''}
                                 </span>
                               </div>
+                            </div>
+                          </td>
+                          <td>
+                            {/* Kisne ye task assign kiya */}
+                            <div className="assignee-details">
+                              <span className="assignee-name">
+                                {task.assignedBy?.name || '-'}
+                              </span>
+                              <span className="assignee-role-tag">
+                                {task.assignedBy?.role || ''}
+                              </span>
                             </div>
                           </td>
                           <td>
@@ -1356,6 +1381,12 @@ const Tasks = ({ isEmbedded }) => {
                             </span>
                             <span className="task-mobile-assignee">{task.assignedTo?.name || '-'}</span>
                           </div>
+
+                          {task.assignedBy?.name && (
+                            <div className="task-mobile-info-item">
+                              <span className="task-mobile-due">By: {task.assignedBy.name}</span>
+                            </div>
+                          )}
 
                           <div className="task-mobile-info-item">
                             <CalendarIcon size={12} style={{ color: '#64748b' }} />
@@ -1561,6 +1592,9 @@ const Tasks = ({ isEmbedded }) => {
                 </span>
                 <span style={{ fontSize: '12px', color: '#64748b' }}>
                   Assignee: <strong>{viewingTask.assignedTo?.name || '-'}</strong>
+                </span>
+                <span style={{ fontSize: '12px', color: '#64748b' }}>
+                  Assigned By: <strong>{viewingTask.assignedBy?.name || '-'}</strong>
                 </span>
               </div>
             </div>

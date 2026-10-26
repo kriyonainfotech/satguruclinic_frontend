@@ -744,6 +744,17 @@ const Attendance = () => {
                                   </span>
                                 </div>
                               </div>
+                              {/* Har shift ki clock-in selfie (mobile view me bhi) */}
+                              {shiftRec?.photo && (
+                                <button
+                                  type="button"
+                                  onClick={() => setPreviewPhoto(shiftRec.photo)}
+                                  title="View shift clock-in selfie"
+                                  style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', color: '#059669', borderRadius: '4px', padding: '1px 6px', fontSize: '10px', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '3px', marginTop: '3px' }}
+                                >
+                                  <CameraIcon size={11} /> Photo
+                                </button>
+                              )}
                             </div>
                           );
                         })}
