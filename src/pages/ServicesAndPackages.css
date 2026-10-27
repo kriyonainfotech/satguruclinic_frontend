@@ -540,6 +540,25 @@
     max-width: 100%;
   }
 
+  /* Services & Packages: search aur Add button ek hi line me */
+  .sp-controls-bar.sp-controls-inline {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .sp-controls-inline .sp-search-input-wrap {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .sp-controls-inline .sp-add-btn {
+    flex-shrink: 0;
+    height: 38px;
+    padding: 0 14px !important;
+  }
+
   .sp-cards-grid {
     grid-template-columns: 1fr;
   }
