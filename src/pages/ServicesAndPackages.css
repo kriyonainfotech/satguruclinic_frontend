@@ -590,3 +590,63 @@
     height: 13px !important;
   }
 }
+
+/* ==========================================================================
+   Medicines Controls: Search + (Filter & Add in one line on sm/md)
+   ========================================================================== */
+.sp-med-controls {
+  flex-wrap: nowrap;
+}
+
+.sp-med-controls .sp-search-input-wrap {
+  max-width: 480px;
+}
+
+.sp-med-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.sp-med-filter {
+  width: 180px;
+}
+
+.sp-med-actions .sp-add-btn {
+  margin-left: auto;
+}
+
+@media (max-width: 1024px) {
+  .sp-med-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .sp-med-controls .sp-search-input-wrap {
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .sp-med-controls .sp-search-input {
+    height: 44px;
+    font-size: 14px;
+  }
+
+  .sp-med-actions {
+    width: 100%;
+  }
+
+  .sp-med-filter {
+    flex: 1;
+    min-width: 0;
+    width: auto;
+  }
+
+  .sp-med-actions .sp-add-btn {
+    flex-shrink: 0;
+    height: 38px;
+  }
+}
