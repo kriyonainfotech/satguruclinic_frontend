@@ -175,6 +175,9 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  /* min-width:0 zaroori — warna lamba task title grid column ko blow up karke
+     poori page ko non-responsive bana deta hai (empty account me content kam hone se dikhta nahi) */
+  min-width: 0;
 }
 
 .section-title-wrap {
@@ -210,6 +213,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  flex-wrap: wrap;
   transition: all 0.2s ease;
 }
 
@@ -232,6 +236,8 @@
   display: flex;
   align-items: center;
   gap: 14px;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .shift-status-icon-wrap {
@@ -419,6 +425,7 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+  min-width: 0;
 }
 
 .dashboard-wallet-card {
@@ -1055,6 +1062,7 @@
   flex-direction: column;
   gap: 5px;
   min-width: 0;
+  flex: 1 1 auto;
 }
 
 .dash-task-title {
@@ -1121,4 +1129,40 @@
 
 .dash-tasks-view-all:hover {
   text-decoration: underline;
+}
+
+/* Shift cards sm/md pe vertical stack — Clock In button screen ke bahar na jaye (shift-type account fix) */
+@media (max-width: 768px) {
+  .shift-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 16px;
+  }
+
+  /* Button normal width me rahe, left aligned — full-width stretch nahi (bahut lamba lagta tha) */
+  .shift-action-btn-wrap {
+    width: auto;
+  }
+
+  .btn-clock-in,
+  .btn-clock-out,
+  .btn-completed-badge {
+    width: auto;
+    padding: 10px 22px;
+  }
+}
+
+/* Today's Tasks row mobile pe: lamba title layout na toode, dropdown neeche aa jaye */
+@media (max-width: 768px) {
+  .dash-task-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .dash-task-title {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
 }

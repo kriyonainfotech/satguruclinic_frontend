@@ -26,3 +26,6 @@ dist-ssr
 # Secrets - kabhi commit mat karna
 .env
 .env.*
+
+# Claude Code local worktrees
+.claude/

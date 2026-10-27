@@ -30,6 +30,32 @@ textarea.crm-input {
   resize: vertical;
 }
 
+.crm-password-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.crm-input.crm-input-password {
+  padding-right: 34px;
+}
+
+/* Eye button — koi hover effect nahi (App.css ka global button:hover bhi nahi) */
+.crm-password-toggle,
+.crm-password-toggle:hover {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  padding: 4px;
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .crm-input:focus {
   border-color: var(--primary-color);
   background-color: #ffffff;

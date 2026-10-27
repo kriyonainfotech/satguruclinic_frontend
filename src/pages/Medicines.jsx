@@ -138,20 +138,20 @@ const Medicines = () => {
     return (
         <div>
             {/* Controls Bar: Search, Category Filter, and Add Button */}
-            <div className="sp-controls-bar">
-                <div style={{ display: 'flex', gap: '12px', flex: 1, flexWrap: 'wrap' }}>
-                    <div className="sp-search-input-wrap">
-                        <SearchIcon size={16} className="sp-search-icon" />
-                        <input
-                            type="text"
-                            placeholder="Search medicines, dosage..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="sp-search-input"
-                        />
-                    </div>
+            <div className="sp-controls-bar sp-med-controls">
+                <div className="sp-search-input-wrap">
+                    <SearchIcon size={16} className="sp-search-icon" />
+                    <input
+                        type="text"
+                        placeholder="Search medicines, dosage..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="sp-search-input"
+                    />
+                </div>
 
-                    <div style={{ width: '180px' }}>
+                <div className="sp-med-actions">
+                    <div className="sp-med-filter">
                         <CustomSelect
                             value={selectedCategoryFilter}
                             onChange={setSelectedCategoryFilter}
@@ -159,17 +159,17 @@ const Medicines = () => {
                             placeholder="All Categories"
                         />
                     </div>
-                </div>
 
-                {perm('add') && (
-                    <button
-                        type="button"
-                        onClick={openCreateModal}
-                        className="sp-add-btn"
-                    >
-                        <PlusIcon size={16} /> Add Medicine
-                    </button>
-                )}
+                    {perm('add') && (
+                        <button
+                            type="button"
+                            onClick={openCreateModal}
+                            className="sp-add-btn"
+                        >
+                            <PlusIcon size={16} /> Add Medicine
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* Medicines Cards Grid */}

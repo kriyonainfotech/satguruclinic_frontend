@@ -189,7 +189,7 @@ const Packages = () => {
     return (
         <div>
             {/* Controls Bar: Search & Add Button */}
-            <div className="sp-controls-bar">
+            <div className="sp-controls-bar sp-controls-inline">
                 <div className="sp-search-input-wrap">
                     <SearchIcon size={16} className="sp-search-icon" />
                     <input
