@@ -1131,17 +1131,26 @@
   text-decoration: underline;
 }
 
-/* Shift cards sm/md pe vertical stack — Clock In button screen ke bahar na jaye (shift-type account fix) */
-@media (max-width: 768px) {
+/* Shift cards sm/md: info left, compact button right — ek hi row me, wrap ho ke neeche na gire.
+   Text (title/time/pill) apni jagah wrap hoga, button screen ke bahar nahi jayega */
+@media (max-width: 1024px) {
   .shift-card {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 14px;
-    padding: 16px;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
   }
 
-  /* Button normal width me rahe, left aligned — full-width stretch nahi (bahut lamba lagta tha) */
+  .shift-left-info {
+    gap: 12px;
+  }
+
+  .shift-left-info > div:last-child {
+    min-width: 0;
+  }
+
   .shift-action-btn-wrap {
+    flex-shrink: 0;
     width: auto;
   }
 
@@ -1149,7 +1158,51 @@
   .btn-clock-out,
   .btn-completed-badge {
     width: auto;
-    padding: 10px 22px;
+    padding: 9px 16px;
+    white-space: nowrap;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 576px) {
+  .shift-card {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .shift-left-info {
+    gap: 10px;
+  }
+
+  .shift-status-icon-wrap {
+    width: 38px;
+    height: 38px;
+  }
+
+  .shift-status-icon-wrap svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .shift-name-text {
+    font-size: 14px;
+  }
+
+  .shift-title-row {
+    gap: 6px;
+  }
+
+  .shift-time-badge {
+    font-size: 11.5px;
+    padding: 2px 6px;
+  }
+
+  .btn-clock-in,
+  .btn-clock-out,
+  .btn-completed-badge {
+    padding: 8px 12px;
+    font-size: 12.5px;
+    gap: 5px;
   }
 }
 
