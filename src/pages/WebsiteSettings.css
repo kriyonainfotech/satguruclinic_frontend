@@ -1040,3 +1040,87 @@ button.settings-toast-close:hover {
     grid-template-columns: 1fr;
   }
 }
+
+/* Task Assign Permissions card (koi hover effect nahi) */
+.task-assign-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+
+.task-assign-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.task-assign-table th,
+.task-assign-table td {
+  padding: 12px 14px;
+  text-align: center;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.task-assign-table tbody tr:last-child th,
+.task-assign-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.task-assign-table thead th {
+  background: #f8fafc;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.task-assign-corner {
+  text-align: left !important;
+  min-width: 150px;
+}
+
+.task-assign-corner span {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.task-assign-row-head {
+  text-align: left !important;
+  font-weight: 700;
+  color: #0f172a;
+  background: #f8fafc;
+}
+
+.task-assign-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.task-assign-check input {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--primary-color, #144b79);
+}
+
+.task-assign-table td.task-assign-changed {
+  background: #fffbeb;
+}
+
+.task-assign-summary {
+  margin: 14px 0 0;
+  padding-left: 18px;
+  font-size: 12.5px;
+  color: #334155;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.task-assign-note {
+  margin: 10px 0 0;
+  font-size: 11.5px;
+  color: #64748b;
+}

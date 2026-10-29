@@ -368,12 +368,15 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
       if (selectedPackages.length > 0) workItems.push(...selectedPackages.map(p => `${p.name} (₹${p.price})`));
       if (selectedMedicines.length > 0) workItems.push(...selectedMedicines.map(m => `${m.name} [Qty: ${m.qty || 1}] (${medicineDuration} days${m.dosage ? ', ' + m.dosage : ''} - ₹${(m.price || 0) * (m.qty || 1)})`));
       const workStr = workItems.length > 0 ? workItems.join(', ') : 'Manual Entry';
+      // Stock tracking ke liye bechi medicines alag se (custom medicine ka id null)
+      const medicineItems = selectedMedicines.map(m => ({ medicine: String(m.id || '').startsWith('custom-') ? null : m.id, name: m.name, qty: Number(m.qty) || 1 }));
 
     const newInvoice = {
       date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
       client: salePatientName,
       mobile: saleMobile,
       work: workStr,
+      medicineItems,
       total: finalAmount,
       balance: finalAmount,
       status: 'Pending',

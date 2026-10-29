@@ -24,6 +24,7 @@ import Payroll from './pages/Payroll';
 import CallLogs from './pages/CallLogs';
 import AdminCallLogs from './pages/AdminCallLogs';
 import HolidaysEvents from './pages/HolidaysEvents';
+import Leaves from './pages/Leaves';
 import Payments from './pages/Payments';
 import PaymentQR from './pages/PaymentQR';
 import ScheduleManagement from './pages/ScheduleManagement';
@@ -182,6 +183,9 @@ function App() {
         } />
         <Route path="/holidays" element={
           isAuthenticated ? <RequireModule module="holidays"><Layout><HolidaysEvents /></Layout></RequireModule> : <Navigate to="/login" />
+        } />
+        <Route path="/leaves" element={
+          isAuthenticated ? <RequireModule module="leaves"><Layout><Leaves /></Layout></RequireModule> : <Navigate to="/login" />
         } />
         <Route path="/daily-reports" element={
           isAuthenticated ? <RequireModule module="daily-reports"><Layout><DailyReport /></Layout></RequireModule> : <Navigate to="/login" />

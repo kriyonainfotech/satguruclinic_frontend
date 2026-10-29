@@ -752,3 +752,998 @@
     gap: 6px;
   }
 }
+
+/* ===== Bills / Medicine Stock tabs + medicine rows (koi hover effect nahi) ===== */
+/* Page ke do hisse: Bills | Medicine Stock (patli underline tabs) */
+.pb-page-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.pharmacy-page .pb-page-tab,
+.pharmacy-page .pb-page-tab:hover {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  margin-bottom: -1px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.pharmacy-page .pb-page-tab.active,
+.pharmacy-page .pb-page-tab.active:hover {
+  color: var(--primary-color, #144b79);
+  border-bottom-color: var(--primary-color, #144b79);
+  background: transparent;
+  box-shadow: none;
+}
+
+/* Bill popup: Category | Medicine | Qty | remove */
+.pb-stock-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.pb-stock-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) 90px 34px;
+  gap: 8px;
+  align-items: start;
+}
+
+.pb-stock-row-head span {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.pb-stock-med {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.pb-stock-row .pb-icon-btn {
+  height: 38px;
+  width: 34px;
+}
+
+.pb-stock-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pharmacy-page .pb-add-row-btn,
+.pharmacy-page .pb-add-row-btn:hover {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1px dashed #94a3b8;
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--primary-color, #144b79);
+  font-size: 12.5px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.pb-stock-total {
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.pb-stock-old {
+  font-size: 12px;
+  color: #64748b;
+  padding: 6px 10px;
+  background: #fffbeb;
+  border-radius: 6px;
+}
+
+/* Medicine Stock tab */
+.ms-table-wrap {
+  overflow-x: auto;
+}
+
+.ms-category {
+  font-size: 11.5px;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+.ms-note {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: #b45309;
+}
+
+@media (max-width: 640px) {
+  .pb-stock-row {
+    grid-template-columns: minmax(0, 1fr) 80px 34px;
+  }
+
+  .pb-stock-row > :first-child {
+    grid-column: 1 / -1;
+  }
+
+  .pb-stock-row-head {
+    display: none;
+  }
+}
+
+/* Medicine Stock -> View popup (koi hover effect nahi) */
+.modal-content.pb-modal.ms-view-modal {
+  max-width: 680px;
+}
+
+.ms-view-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ms-period-tabs {
+  margin-bottom: 8px;
+}
+
+.ms-period-tabs .pb-status-tab {
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
+.ms-view-table {
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.ms-view-table .pb-table th {
+  position: sticky;
+  top: 0;
+}
+
+.ms-by {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ms-role {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.ms-role-superadmin { background: #f3e8ff; color: #6d28d9; }
+.ms-role-admin { background: #eaf1f7; color: #144b79; }
+.ms-role-team { background: #ecfdf5; color: #047857; }
+
+.ms-amber { color: #b45309; }
+
+.pharmacy-page .ms-view-btn,
+.pharmacy-page .ms-view-btn:hover {
+  background: #ffffff;
+  color: var(--primary-color, #144b79);
+}
+
+/* ===== Medicine Stock: professional, compact. Koi hover effect nahi ===== */
+.ms2 {
+  --ms-bar: #2a78d6;
+  --ms-line: #e5e7eb;
+  --ms-soft: #f8fafc;
+  --ms-ink: #0f172a;
+  --ms-ink-2: #475569;
+  --ms-ink-3: #94a3b8;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  font-size: 13px;
+}
+
+/* Toolbar */
+.ms2-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ms2-seg {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  border: 1px solid var(--ms-line);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.pharmacy-page .ms2-seg-btn,
+.pharmacy-page .ms2-seg-btn:hover {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ms-ink-2);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.pharmacy-page .ms2-seg-btn.active,
+.pharmacy-page .ms2-seg-btn.active:hover {
+  background: var(--primary-color, #144b79);
+  color: #ffffff;
+}
+
+.ms2-toolbar-date {
+  font-size: 13px;
+  color: var(--ms-ink-2);
+}
+
+.ms2-toolbar-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pharmacy-page .ms2-info-btn,
+.pharmacy-page .ms2-info-btn:hover {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 9px;
+  border: 1px solid var(--ms-line);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--primary-color, #144b79);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+/* Count button ke andar hi (bahar kone pe hota to kinare pe kat jaata) */
+.ms2-info-count {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #fff7ed;
+  color: #c2410c;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+
+.pharmacy-page .ms2-btn-primary,
+.pharmacy-page .ms2-btn-primary:hover {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 8px;
+  background: var(--primary-color, #144b79);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* KPIs: ek line, ek hi card ke andar dividers ke saath */
+.ms2-kpis {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 1px; /* gap me background dikhta hai = divider line */
+  border: 1px solid var(--ms-line);
+  border-radius: 10px;
+  background: var(--ms-line);
+  overflow: hidden;
+}
+
+.ms2-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 16px;
+  min-width: 0;
+  background: #ffffff;
+}
+
+.ms2-kpi-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ms-ink-2);
+}
+
+.ms2-kpi-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ms2-kpi-row strong {
+  font-size: 22px;
+  line-height: 1.1;
+  font-weight: 700;
+  color: var(--ms-ink);
+}
+
+.ms2-kpi-row small {
+  font-size: 12px;
+  color: var(--ms-ink-3);
+}
+
+.ms2-delta {
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ms2-delta.up { color: #047857; }
+.ms2-delta.down { color: #b91c1c; }
+.ms2-delta.flat { color: var(--ms-ink-3); }
+
+/* Card (All medicines) */
+.ms2-card {
+  border: 1px solid var(--ms-line);
+  border-radius: 10px;
+  background: #ffffff;
+  min-width: 0;
+}
+
+/* Lists: App.css ka global li style (border-left / shadow / margin / padding) yahan nahi */
+.ms2 ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ms2 li {
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+/* Manual entries */
+.ms2-outs {
+  display: flex;
+  flex-direction: column;
+}
+
+.ms2 .ms2-outs li {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 0;
+  border-top: 1px solid var(--ms-line);
+}
+
+.ms2 .ms2-outs li:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.ms2-out-main {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.ms2-out-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 13px;
+  color: var(--ms-ink);
+}
+
+.ms2-out-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  font-size: 12px;
+  color: var(--ms-ink-2);
+}
+
+.ms2-reason {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 4px;
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.ms2-reason.small {
+  display: inline-block;
+  margin-top: 3px;
+  font-size: 10.5px;
+}
+
+.ms2-in-clinic {
+  font-size: 11.5px;
+  color: #64748b;
+}
+
+.ms2-in-clinic.warn {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+/* All medicines: table */
+.ms2-table-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.ms2-table-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 14px 16px 10px;
+}
+
+.ms2-table-head h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ms-ink);
+}
+
+.ms2-table-head > div > span {
+  font-size: 12px;
+  color: var(--ms-ink-3);
+}
+
+.ms2-table-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ms2-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--ms-line);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--ms-ink-3);
+}
+
+.ms2-search input {
+  width: 180px;
+  border: none;
+  outline: none;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--ms-ink);
+  background: transparent;
+}
+
+.ms2-cat-select {
+  width: 170px;
+}
+
+.ms2-filter-row {
+  display: flex;
+  gap: 6px;
+  padding: 0 16px 12px;
+  flex-wrap: wrap;
+}
+
+.pharmacy-page .ms2-filter-btn,
+.pharmacy-page .ms2-filter-btn:hover {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--ms-line);
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--ms-ink-2);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.ms2-filter-btn span {
+  color: var(--ms-ink-3);
+  font-weight: 500;
+}
+
+.pharmacy-page .ms2-filter-btn.active,
+.pharmacy-page .ms2-filter-btn.active:hover {
+  border-color: var(--primary-color, #144b79);
+  background: #eaf1f7;
+  color: var(--primary-color, #144b79);
+}
+
+.ms2-table {
+  border-top: 1px solid var(--ms-line);
+}
+
+.ms2-tr {
+  display: grid;
+  grid-template-columns: minmax(180px, 2fr) minmax(120px, 1.2fr) 110px repeat(4, minmax(64px, 0.6fr)) 76px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.ms2-tr:last-child {
+  border-bottom: none;
+}
+
+.ms2-thead {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  background: var(--ms-soft);
+  border-bottom: 1px solid var(--ms-line);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ms-ink-2);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.ms2-thead .active {
+  color: var(--primary-color, #144b79);
+}
+
+.ms2-tr .num {
+  text-align: right;
+}
+
+.ms2-td-name {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ms2-med-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ms-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ms2-med-sub {
+  font-size: 11.5px;
+  color: var(--ms-ink-3);
+}
+
+.ms2-td-stock {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ms2-td-stock strong {
+  min-width: 34px;
+  font-size: 14px;
+  color: var(--ms-ink);
+}
+
+.ms2-meter {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.ms2-meter > div {
+  height: 100%;
+  border-radius: 3px;
+}
+
+.ms2-meter.in { background: #d1fae5; }
+.ms2-meter.in > div { background: #059669; }
+.ms2-meter.low { background: #fef3c7; }
+.ms2-meter.low > div { background: #d97706; }
+.ms2-meter.out { background: #fee2e2; }
+.ms2-meter.out > div { background: #dc2626; }
+.ms2-meter.none { background: #f1f5f9; }
+
+.ms2-pill {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.ms2-pill.in { background: #ecfdf5; color: #047857; }
+.ms2-pill.low { background: #fffbeb; color: #b45309; }
+.ms2-pill.out { background: #fef2f2; color: #b91c1c; }
+.ms2-pill.none { background: #f1f5f9; color: #64748b; }
+
+.ms2-td-period {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ms-ink);
+}
+
+.ms2-td-period.active {
+  color: var(--primary-color, #144b79);
+}
+
+.ms2-zero {
+  color: #cbd5e1;
+  font-weight: 500;
+}
+
+.ms2-td-action {
+  text-align: right;
+}
+
+.pharmacy-page .ms2-view-btn,
+.pharmacy-page .ms2-view-btn:hover {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--ms-line);
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--primary-color, #144b79);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.ms2-table-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 28px 16px;
+  font-size: 13px;
+  color: var(--ms-ink-3);
+  border-top: 1px solid var(--ms-line);
+}
+
+.ms2-table-card .ms-note {
+  margin: 0;
+  padding: 10px 16px;
+  border-top: 1px solid var(--ms-line);
+}
+
+/* View popup: Today / Week / Month ek line me */
+.ms2-view-periods {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.ms2-view-periods > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #f1f5f9;
+}
+
+.ms2-view-periods span {
+  font-size: 11px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.ms2-view-periods strong {
+  font-size: 16px;
+  color: #0f172a;
+}
+
+/* Container ka flex gap + har section ka margin = double jagah; sirf margin rakho */
+.task-page-container.pharmacy-page {
+  row-gap: 0;
+}
+
+/* ---- Tablet (md) ---- */
+@media (max-width: 1100px) {
+  .ms2-tr {
+    grid-template-columns: minmax(150px, 2fr) minmax(110px, 1.2fr) 100px repeat(4, minmax(52px, 0.6fr)) 70px;
+    gap: 8px;
+  }
+
+  .ms2-search input {
+    width: 140px;
+  }
+}
+
+@media (max-width: 900px) {
+  .ms2-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ms2-kpi:first-child {
+    grid-column: 1 / -1;
+  }
+
+  /* Table -> har medicine ek chhota card */
+  .ms2-thead {
+    display: none;
+  }
+
+  .ms2-tr {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px 10px;
+  }
+
+  .ms2-td-name {
+    grid-column: 1 / 4;
+  }
+
+  .ms2-td-action {
+    grid-column: 4;
+    grid-row: 1;
+  }
+
+  .ms2-td-stock {
+    grid-column: 1 / 4;
+  }
+
+  .ms2-tr > div:nth-child(3) {
+    grid-column: 4;
+    text-align: right;
+  }
+
+  .ms2-td-period {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+    padding: 5px 8px;
+    border-radius: 6px;
+    background: var(--ms-soft);
+    text-align: left !important;
+  }
+
+  .ms2-td-period::before {
+    content: attr(data-label);
+    font-size: 10.5px;
+    font-weight: 500;
+    color: var(--ms-ink-3);
+  }
+}
+
+/* ---- Mobile (sm) ---- */
+@media (max-width: 640px) {
+  .pb-page-tabs {
+    margin-bottom: 12px;
+  }
+
+  .pharmacy-page .pb-page-tab,
+  .pharmacy-page .pb-page-tab:hover,
+  .pharmacy-page .pb-page-tab.active,
+  .pharmacy-page .pb-page-tab.active:hover {
+    flex: 1;
+    justify-content: center;
+    padding: 9px 6px;
+    font-size: 13px;
+  }
+
+  .pharmacy-page .page-header {
+    margin-bottom: 12px !important;
+  }
+
+  /* Bills summary: 3 chhote cards ek line me */
+  .pb-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .pb-summary-card {
+    padding: 10px 10px 10px 12px;
+    gap: 2px;
+    border-left-width: 3px;
+  }
+
+  .pb-summary-label {
+    font-size: 10px;
+    letter-spacing: 0;
+  }
+
+  .pb-summary-card strong {
+    font-size: 15px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .pb-summary-card small {
+    font-size: 10.5px;
+  }
+
+  .ms2 {
+    gap: 10px;
+  }
+
+  .ms2-toolbar {
+    gap: 8px;
+  }
+
+  .ms2-seg {
+    width: 100%;
+  }
+
+  .pharmacy-page .ms2-seg-btn,
+  .pharmacy-page .ms2-seg-btn:hover,
+  .pharmacy-page .ms2-seg-btn.active,
+  .pharmacy-page .ms2-seg-btn.active:hover {
+    flex: 1;
+    padding: 6px 4px;
+  }
+
+  .ms2-toolbar-date {
+    font-size: 12px;
+  }
+
+  .ms2-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ms2-kpi {
+    padding: 10px 12px;
+    gap: 4px;
+  }
+
+  /* Units sold poori line me, baaki 2x2 */
+  .ms2-kpi:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .ms2-kpi-row strong {
+    font-size: 19px;
+  }
+
+  .ms2-table-head {
+    padding: 12px 12px 8px;
+  }
+
+  .ms2-table-tools {
+    width: 100%;
+  }
+
+  .ms2-search {
+    flex: 1;
+  }
+
+  .ms2-search input {
+    width: 100%;
+  }
+
+  .ms2-cat-select {
+    width: 130px;
+  }
+
+  .ms2-filter-row {
+    padding: 0 12px 10px;
+  }
+
+  .ms2-tr {
+    padding: 10px 12px;
+  }
+
+  .ms2-view-btn span {
+    display: none;
+  }
+}
+
+/* Bills summary cards: desktop pe bhi compact */
+.pb-summary {
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.pb-summary-card {
+  padding: 12px 16px;
+  gap: 2px;
+  border-radius: 10px;
+}
+
+.pb-summary-label {
+  font-size: 11px;
+}
+
+.pb-summary-card strong {
+  font-size: 20px;
+}
+
+.pb-summary-card small {
+  font-size: 11.5px;
+}
+
+@media (max-width: 640px) {
+  .pb-summary {
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .pb-summary-card {
+    padding: 10px 10px 10px 12px;
+  }
+
+  .pb-summary-label {
+    font-size: 10px;
+  }
+
+  .pb-summary-card strong {
+    font-size: 15px;
+  }
+
+  .pb-summary-card small {
+    font-size: 10.5px;
+  }
+}
+
+/* Manual entries popup ki list */
+.ms2-outs-wrap {
+  max-height: 360px;
+  overflow-y: auto;
+  padding: 2px 4px 2px 0;
+}
+
+@media (max-width: 640px) {
+  .ms2-toolbar-actions {
+    margin-left: auto;
+  }
+}

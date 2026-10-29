@@ -7,6 +7,7 @@ import CalendarPicker, { formatDateToISO, formatDisplayDate } from '../component
 import DateRangePicker from '../components/DateRangePicker';
 import MonthYearPicker from '../components/MonthYearPicker';
 import usePermissions from '../permissions/usePermissions';
+import MedicineStock from '../components/MedicineStock';
 import './PharmacyBills.css';
 
 const STATUS_OPTIONS = [
@@ -40,12 +41,18 @@ const appendItem = (text, name) => {
   return [...done, last].filter(Boolean).join(', ') + ', ';
 };
 
+// Bill popup me ek medicine row: category se list chhoti hoti hai, medicine = list ka id ya OTHER_MED (naam type karo)
+const OTHER_MED = '__other';
+let rowSeq = 0;
+const emptyStockRow = () => ({ rowId: ++rowSeq, category: 'all', medicine: '', name: '', qty: '' });
+
 const emptyBillForm = () => ({
   supplierName: '',
   billNumber: '',
   billDate: todayISO(),
   dueDate: '',
   items: '',
+  stockRows: [emptyStockRow()],
   totalAmount: '',
   notes: '',
   paidAmount: ''
@@ -59,6 +66,9 @@ const PharmacyBills = () => {
 
   const [bills, setBills] = useState([]);
   const [loading, setLoading] = useState(true);
+  // 'bills' = bills list, 'stock' = medicine stock tracking
+  const [activeTab, setActiveTab] = useState('bills');
+  const [medicines, setMedicines] = useState([]);
   const [search, setSearch] = useState('');
   const [supplierFilter, setSupplierFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -87,7 +97,51 @@ const PharmacyBills = () => {
 
   useEffect(() => {
     fetchBills();
+    if (perm('stock-add')) fetchMedicines();
   }, []);
+
+  const fetchMedicines = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/medicines`, authHeader());
+      setMedicines(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error('Error fetching medicines', err);
+    }
+  };
+
+  // ---------- Medicine rows (bill popup) ----------
+  const medicineCategories = useMemo(
+    () => [...new Set(medicines.map(m => m.category || 'Other'))].sort(),
+    [medicines]
+  );
+  const categorySelectOptions = useMemo(() => [
+    { value: 'all', label: 'All Categories' },
+    ...medicineCategories.map(c => ({ value: c, label: c }))
+  ], [medicineCategories]);
+
+  const medicineOptionsFor = (row) => [
+    { value: '', label: 'Select medicine' },
+    ...medicines
+      .filter(m => row.category === 'all' || (m.category || 'Other') === row.category)
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(m => ({ value: m._id, label: m.name })),
+    { value: OTHER_MED, label: '+ Other (type name)' }
+  ];
+
+  const updateStockRow = (rowId, changes) => {
+    setForm(prev => ({ ...prev, stockRows: prev.stockRows.map(r => (r.rowId === rowId ? { ...r, ...changes } : r)) }));
+    setFormError('');
+  };
+  const addStockRow = () => setForm(prev => ({ ...prev, stockRows: [...prev.stockRows, emptyStockRow()] }));
+  const removeStockRow = (rowId) => setForm(prev => {
+    const rest = prev.stockRows.filter(r => r.rowId !== rowId);
+    return { ...prev, stockRows: rest.length ? rest : [emptyStockRow()] };
+  });
+  const stockRowName = (row) => {
+    if (row.medicine === OTHER_MED) return row.name.trim();
+    return medicines.find(m => m._id === row.medicine)?.name || '';
+  };
+  const totalStockQty = form.stockRows.reduce((sum, r) => sum + (Number(r.qty) > 0 ? Number(r.qty) : 0), 0);
 
   const fetchBills = async () => {
     try {
@@ -191,6 +245,15 @@ const PharmacyBills = () => {
       billDate: bill.billDate,
       dueDate: bill.dueDate || '',
       items: splitItems(bill.items).join(', '),
+      stockRows: (bill.stockItems || []).length
+        ? bill.stockItems.map(i => ({
+          rowId: ++rowSeq,
+          category: 'all',
+          medicine: i.medicine && medicines.some(m => m._id === String(i.medicine)) ? String(i.medicine) : OTHER_MED,
+          name: i.name,
+          qty: String(i.qty)
+        }))
+        : [emptyStockRow()],
       totalAmount: String(bill.totalAmount),
       notes: bill.notes || '',
       paidAmount: ''
@@ -223,6 +286,27 @@ const PharmacyBills = () => {
     const paidNow = Number(form.paidAmount || 0);
     if (!editingId && (paidNow < 0 || paidNow > total)) return setFormError('Amount paid cannot be more than the bill amount.');
 
+    // Medicine rows: puri khali row chhod do, baaki me naam + qty zaroori
+    let stockItems;
+    if (perm('stock-add')) {
+      stockItems = [];
+      for (const row of form.stockRows) {
+        const name = stockRowName(row);
+        const isEmpty = !row.medicine && !row.name.trim() && !row.qty;
+        if (isEmpty) continue;
+        if (!name) return setFormError('Please select or type the medicine name in every row.');
+        const qty = Number(row.qty);
+        if (!Number.isFinite(qty) || qty <= 0) return setFormError(`Please enter the quantity for ${name}.`);
+        const med = row.medicine !== OTHER_MED ? medicines.find(m => m._id === row.medicine) : null;
+        stockItems.push({
+          medicine: med ? med._id : null,
+          name,
+          category: med ? (med.category || '') : (row.category === 'all' ? '' : row.category),
+          qty: Math.round(qty)
+        });
+      }
+    }
+
     setSaving(true);
     try {
       const body = {
@@ -234,6 +318,7 @@ const PharmacyBills = () => {
         totalAmount: total,
         notes: form.notes.trim()
       };
+      if (stockItems) body.stockItems = stockItems;
       if (editingId) {
         const res = await axios.put(`${API_URL}/pharmacy-bills/${editingId}`, body, authHeader());
         replaceBill(res.data);
@@ -312,13 +397,43 @@ const PharmacyBills = () => {
         <div>
           <h2>Pharmacy Bills</h2>
         </div>
-        {perm('create') && (
+        {perm('create') && activeTab === 'bills' && (
           <button type="button" onClick={openAddModal} className="crm-btn crm-btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <PlusIcon size={16} /> Add Bill
           </button>
         )}
       </div>
 
+      {/* Do hisse: Bills (add / payments) aur Medicine Stock (tracking) */}
+      {perm('stock-tracking') && (
+        <div className="pb-page-tabs" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'bills'}
+            className={`pb-page-tab${activeTab === 'bills' ? ' active' : ''}`}
+            onClick={() => setActiveTab('bills')}
+          >
+            <WalletIcon size={16} />
+            <span>Bills</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'stock'}
+            className={`pb-page-tab${activeTab === 'stock' ? ' active' : ''}`}
+            onClick={() => setActiveTab('stock')}
+          >
+            <PillIcon size={16} />
+            <span>Medicine Stock</span>
+          </button>
+        </div>
+      )}
+
+      {activeTab === 'stock' && perm('stock-tracking') ? (
+        <MedicineStock />
+      ) : (
+      <>
       {/* Summary */}
       <div className="pb-summary">
         <div className="pb-summary-card">
@@ -533,6 +648,8 @@ const PharmacyBills = () => {
           </div>
         )}
       </div>
+      </>
+      )}
 
       {/* Add / Edit Bill popup */}
       {showBillModal && (
@@ -633,6 +750,77 @@ const PharmacyBills = () => {
                   />
                 </div>
 
+                {perm('stock-add') ? (
+                  <div className="pb-field full">
+                    <label>Medicines Received</label>
+                    <div className="pb-stock-rows">
+                      <div className="pb-stock-row pb-stock-row-head">
+                        <span>Category</span>
+                        <span>Medicine</span>
+                        <span>Quantity</span>
+                        <span></span>
+                      </div>
+                      {form.stockRows.map(row => (
+                        <div key={row.rowId} className="pb-stock-row">
+                          <CustomSelect
+                            value={row.category}
+                            onChange={v => updateStockRow(row.rowId, {
+                              category: v,
+                              // Category badli aur chuni medicine us category ki nahi to hata do
+                              medicine: row.medicine && row.medicine !== OTHER_MED && v !== 'all'
+                                && (medicines.find(m => m._id === row.medicine)?.category || 'Other') !== v ? '' : row.medicine
+                            })}
+                            options={categorySelectOptions}
+                          />
+                          <div className="pb-stock-med">
+                            <CustomSelect
+                              value={row.medicine}
+                              onChange={v => updateStockRow(row.rowId, { medicine: v })}
+                              options={medicineOptionsFor(row)}
+                            />
+                            {row.medicine === OTHER_MED && (
+                              <input
+                                type="text"
+                                placeholder="Type medicine name"
+                                value={row.name}
+                                onChange={e => updateStockRow(row.rowId, { name: e.target.value })}
+                              />
+                            )}
+                          </div>
+                          <input
+                            type="number"
+                            min="1"
+                            step="1"
+                            placeholder="Qty"
+                            value={row.qty}
+                            onChange={e => updateStockRow(row.rowId, { qty: e.target.value })}
+                          />
+                          <button
+                            type="button"
+                            className="pb-icon-btn delete"
+                            title="Remove row"
+                            onClick={() => removeStockRow(row.rowId)}
+                          >
+                            <XIcon size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="pb-stock-footer">
+                      <button type="button" className="pb-add-row-btn" onClick={addStockRow}>
+                        <PlusIcon size={14} /> Add Medicine
+                      </button>
+                      {totalStockQty > 0 && (
+                        <span className="pb-stock-total">
+                          {form.stockRows.filter(r => Number(r.qty) > 0).length} medicines · {totalStockQty} units
+                        </span>
+                      )}
+                    </div>
+                    {editingId && form.items && !bills.find(b => b._id === editingId)?.stockItems?.length && (
+                      <div className="pb-stock-old">Old items (text): {form.items}</div>
+                    )}
+                  </div>
+                ) : (
                 <div className="pb-field full">
                   <label>Items Received</label>
                   {/* Ek hi field: item chunne / Enter dabane par comma ke saath jud jata hai */}
@@ -697,6 +885,7 @@ const PharmacyBills = () => {
                     );
                   })()}
                 </div>
+                )}
 
                 {!editingId && (
                   <>

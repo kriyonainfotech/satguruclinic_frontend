@@ -12,6 +12,7 @@ import {
   CheckCircleIcon
 } from '../components/Icons';
 import usePermissions from '../permissions/usePermissions';
+import { formatLeaveRange, formatLeaveDuration, leavePillLabel, getTimeForDate } from '../utils/leaveFormat';
 import './HolidaysEvents.css';
 
 const HolidaysEvents = () => {
@@ -32,10 +33,26 @@ const HolidaysEvents = () => {
     isPaid: false,
     isHalfDay: false
   });
+  // Sirf approved leaves (apply/approve Leave Management page se hota hai)
+  const [leaves, setLeaves] = useState([]);
 
   useEffect(() => {
     fetchHolidays();
+    fetchLeaves();
   }, []);
+
+  const fetchLeaves = async () => {
+    try {
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/leaves/calendar`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      setLeaves(res.data || []);
+    } catch (err) {
+      console.error('Error fetching leaves', err);
+    }
+  };
+
+  const getLeavesForDate = (dateStr) => leaves.filter(l => l.startDate <= dateStr && l.endDate >= dateStr);
 
   const fetchHolidays = async () => {
     try {
@@ -259,6 +276,9 @@ const HolidaysEvents = () => {
                 <span className="legend-chip">
                   <span className="legend-dot festival"></span> Festival / Event
                 </span>
+                <span className="legend-chip">
+                  <span className="legend-dot leave"></span> Staff Leave
+                </span>
               </div>
             </div>
 
@@ -316,6 +336,12 @@ const HolidaysEvents = () => {
               }
               const cellDateStr = `${checkYear}-${checkMonth.toString().padStart(2, '0')}-${dayObj.date.toString().padStart(2, '0')}`;
 
+              const dayLeaves = getLeavesForDate(cellDateStr);
+              const pills = [
+                ...dayHolidays.map(h => ({ cls: h.isOfficial ? 'official' : 'festival', text: h.title.toLowerCase() })),
+                ...dayLeaves.map(l => ({ cls: 'leave', text: `${l.user?.name || 'Staff'} (${leavePillLabel(l, cellDateStr)})` }))
+              ];
+
               const isSelected = cellDateStr === selectedDateObj;
               const isToday = cellDateStr === todayIso;
               const isSundayCol = index % 7 === 0;
@@ -341,19 +367,19 @@ const HolidaysEvents = () => {
 
                   {!loading && (
                     <div className="event-indicators">
-                      {dayHolidays.slice(0, 2).map((h, i) => (
+                      {pills.slice(0, 2).map((p, i) => (
                         <div
                           key={i}
-                          className={`event-pill ${h.isOfficial ? 'official' : 'festival'}`}
-                          title={h.title}
+                          className={`event-pill ${p.cls}`}
+                          title={p.text}
                         >
                           <span>•</span>
-                          <span style={{ textTransform: 'capitalize' }}>{h.title.toLowerCase()}</span>
+                          <span style={{ textTransform: 'capitalize' }}>{p.text}</span>
                         </div>
                       ))}
-                      {dayHolidays.length > 2 && (
+                      {pills.length > 2 && (
                         <div className="event-more-count">
-                          +{dayHolidays.length - 2} more
+                          +{pills.length - 2} more
                         </div>
                       )}
                     </div>
@@ -366,7 +392,10 @@ const HolidaysEvents = () => {
 
         {/* Right Column: Events Details */}
         <div className="events-section">
-          {selectedDateObj && (
+          {selectedDateObj && (() => {
+            const selectedLeaves = getLeavesForDate(selectedDateObj);
+            const totalCount = selectedDateDetails.length + selectedLeaves.length;
+            return (
             <div className="events-card daily-events-card">
               <div className="daily-card-header">
                 <div className="daily-heading-row">
@@ -380,17 +409,46 @@ const HolidaysEvents = () => {
                     })}
                   </h3>
                   <span className="daily-count-chip">
-                    {selectedDateDetails.length} {selectedDateDetails.length === 1 ? 'Event' : 'Events'}
+                    {totalCount} {totalCount === 1 ? 'Event' : 'Events'}
                   </span>
                 </div>
                 <p className="daily-date-sub">
-                  {selectedDateDetails.length > 0
+                  {totalCount > 0
                     ? 'Manage holiday declaration and staff compensation for this date.'
                     : 'Regular clinic working day.'}
                 </p>
               </div>
 
-              {selectedDateDetails.length === 0 ? (
+              {selectedLeaves.length > 0 && (
+                <div className="daily-leaves-block">
+                  <span className="daily-leaves-title">On Leave ({selectedLeaves.length})</span>
+                  {selectedLeaves.map(l => {
+                    const dayTime = getTimeForDate(l, selectedDateObj);
+                    return (
+                      <div key={l._id} className="leave-row">
+                        <span className="legend-dot leave"></span>
+                        <div className="leave-row-text">
+                          <div className="leave-row-name-line">
+                            <span className="leave-row-name">{l.user?.name || 'Staff'}</span>
+                            <span className="leave-type-tag">{l.leaveType} Leave</span>
+                          </div>
+                          <span className={`leave-unavailable ${dayTime ? 'partial' : 'full'}`}>
+                            {dayTime
+                              ? `Not available from ${dayTime.fromTime} to ${dayTime.toTime}`
+                              : 'Not available for the full day'}
+                          </span>
+                          <span className="leave-row-sub">
+                            Leave: {formatLeaveRange(l)} · {formatLeaveDuration(l)}
+                          </span>
+                          {l.reason && <span className="leave-row-reason">{l.reason}</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {totalCount === 0 ? (
                 <div className="daily-empty-state">
                   <div className="empty-icon-wrap">
                     <CalendarIcon size={24} />
@@ -398,7 +456,7 @@ const HolidaysEvents = () => {
                   <p className="empty-state-title">No official holiday or event on this date.</p>
                   <span className="empty-state-pill">Normal Working Day</span>
                 </div>
-              ) : (
+              ) : selectedDateDetails.length > 0 && (
                 <div className="daily-events-body">
                   {selectedDateDetails.map((h, i) => (
                     <div
@@ -519,7 +577,8 @@ const HolidaysEvents = () => {
                 </div>
               )}
             </div>
-          )}
+            );
+          })()}
 
           {/* Official Holidays in Current Month Summary Card */}
           <div className="events-card upcoming-holidays-card">

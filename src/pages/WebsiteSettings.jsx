@@ -10,6 +10,7 @@ import {
   UserIcon 
 } from '../components/Icons';
 import RolePermissionsCard from '../components/RolePermissionsCard';
+import TaskAssignCard from '../components/TaskAssignCard';
 import './WebsiteSettings.css';
 
 const WebsiteSettings = () => {
@@ -395,6 +396,11 @@ const WebsiteSettings = () => {
 
                 {/* 4. Roles & Permissions */}
                 <RolePermissionsCard
+                    onMessage={showToast}
+                />
+
+                {/* 5. Task Assign Permissions */}
+                <TaskAssignCard
                     onMessage={showToast}
                 />
             </div>

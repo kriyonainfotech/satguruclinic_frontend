@@ -1,0 +1,327 @@
+/* Leave Management page (baaki leave styles HolidaysEvents.css me hain). Koi hover effect nahi. */
+.leave-stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.leave-stat-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-left-width: 4px;
+}
+
+.leave-stat-card.pending { border-left-color: #f59e0b; }
+.leave-stat-card.approved { border-left-color: #22c55e; }
+.leave-stat-card.rejected { border-left-color: #ef4444; }
+
+.leave-stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.leave-stat-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.leaves-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.leaves-layout.two-col {
+  grid-template-columns: 1.3fr 1fr;
+}
+
+.leave-role-tag {
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #eaf1f7;
+  color: #144b79;
+  text-transform: capitalize;
+}
+
+@media (max-width: 900px) {
+  .leaves-layout.two-col {
+    grid-template-columns: 1fr;
+  }
+  .leave-stats-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Total days / time summary in the leave form */
+.leave-duration-summary {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6d28d9;
+  margin: -6px 0 14px 0;
+}
+
+.leave-duration-summary.error {
+  color: #dc2626;
+}
+
+
+/* Time per day list in the leave form - koi hover effect nahi */
+.leave-days-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.leaves-page .leave-apply-all-btn,
+.leaves-page .leave-apply-all-btn:hover {
+  background: #f3e8ff;
+  color: #6d28d9;
+  border: none;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.leave-days-hint {
+  font-size: 11.5px;
+  color: #64748b;
+  margin: 4px 0 8px 0;
+}
+
+.leave-days-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.leave-day-row {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.leave-day-row.enabled {
+  border-color: #ddd6fe;
+  background: #faf5ff;
+}
+
+.leave-day-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.leave-day-info {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.leave-day-date {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.leave-day-status {
+  font-size: 11.5px;
+  color: #64748b;
+}
+
+.leave-day-times {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.leave-day-times > *:not(.leave-day-to) {
+  flex: 1;
+}
+
+.leave-day-to {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.leave-day-error {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #dc2626;
+}
+
+/* View Leave popup - koi hover effect nahi */
+.leaves-page .leave-action-btn.view,
+.leaves-page .leave-action-btn.view:hover {
+  background: #eaf1f7;
+  color: #144b79;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.leave-view-summary {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.leave-view-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.leave-view-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.leave-view-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.leave-view-days {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+  margin-bottom: 16px;
+}
+
+.leave-view-day-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.leave-view-day-date {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.leave-unavailable-chip {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.leave-unavailable-chip.full {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.leave-unavailable-chip.partial {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.leave-view-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+
+.leave-view-text {
+  margin: 0;
+  font-size: 13px;
+  color: #334155;
+}
+
+.leaves-page .leave-view-footer-btn {
+  padding: 9px 18px;
+  font-size: 13px;
+}
+
+/* "Already on leave" note (apply form + View popup) */
+.leave-overlap-note {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  background: #fffbeb;
+}
+
+.leave-overlap-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #92400e;
+  margin-bottom: 6px;
+}
+
+.leave-overlap-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+/* App.css ka global li style (border / shadow / padding) yahan nahi */
+.leave-overlap-list li {
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+.leave-overlap-who {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.leave-overlap-when {
+  font-size: 12px;
+  color: #78350f;
+  margin-top: 1px;
+}

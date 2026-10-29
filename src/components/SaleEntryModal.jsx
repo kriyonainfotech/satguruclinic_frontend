@@ -61,7 +61,16 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
                 const matchedPackages = pData.filter(p => workItems.includes((p.name || '').toLowerCase()));
                 setSelectedPackages(matchedPackages);
                 
-                const matchedMedicines = mData.filter(m => workItems.includes((m.name || '').toLowerCase()));
+                // Qty bhi wapas lao, warna edit save karne pe stock me qty 1 ho jaati
+                const qtyByName = {};
+                (initialInvoice.medicineItems || []).forEach(mi => { qtyByName[(mi.name || '').toLowerCase()] = mi.qty; });
+                initialInvoice.work.split(', ').forEach(part => {
+                  const q = part.match(/^(.+?)\s*\[Qty:\s*(\d+)\]/);
+                  if (q && !qtyByName[q[1].trim().toLowerCase()]) qtyByName[q[1].trim().toLowerCase()] = Number(q[2]);
+                });
+                const matchedMedicines = mData
+                  .filter(m => workItems.includes((m.name || '').toLowerCase()))
+                  .map(m => ({ ...m, qty: qtyByName[(m.name || '').toLowerCase()] || 1 }));
                 setSelectedMedicines(matchedMedicines);
 
                 setManualTotal(initialInvoice.total);
@@ -145,6 +154,8 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
     if (selectedPackages.length > 0) workItems.push(...selectedPackages.map(p => `${p.name} (₹${p.price})`));
     if (selectedMedicines.length > 0) workItems.push(...selectedMedicines.map(m => `${m.name} [Qty: ${m.qty || 1}] (${medicineDuration} days - ₹${(m.price || 0) * (m.qty || 1)})`));
     const workStr = workItems.length > 0 ? workItems.join(', ') : 'Manual Entry';
+    // Stock tracking ke liye bechi medicines alag se (custom medicine ka id null)
+    const medicineItems = selectedMedicines.map(m => ({ medicine: String(m.id || '').startsWith('custom-') ? null : m.id, name: m.name, qty: Number(m.qty) || 1 }));
 
     try {
       const token = localStorage.getItem('token');
@@ -158,6 +169,7 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
               client: salePatientName,
               mobile: saleMobile,
               work: workStr,
+              medicineItems,
               total: finalAmount,
               balance: newBalance,
               notes: saleNotes
@@ -172,6 +184,7 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
             client: salePatientName,
             mobile: saleMobile,
             work: workStr,
+            medicineItems,
             total: finalAmount,
             balance: finalAmount,
             status: 'Pending',

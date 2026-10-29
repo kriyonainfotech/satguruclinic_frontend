@@ -652,6 +652,13 @@
   }
 }
 
+/* Mobile: upar ki jagah page wrapper deta hai (baaki pages jaisi), extra margin nahi */
+@media (max-width: 768px) {
+  .superadmin-dashboard-container {
+    margin-top: 0;
+  }
+}
+
 .full-width-graph {
   width: 100%;
 }

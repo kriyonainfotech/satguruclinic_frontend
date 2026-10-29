@@ -67,6 +67,8 @@ const Tasks = ({ isEmbedded }) => {
   const perm = (action) => can('tasks:' + action);
 
   const [assignableUsers, setAssignableUsers] = useState([]);
+  // Website Settings -> Task Assign Permissions me is user ka level default se alag set hai (tab dropdown me seedha assignableUsers)
+  const [customAssignRule, setCustomAssignRule] = useState(false);
   const currentUserId = currentUser.id || currentUser._id;
 
   // Senior team member ke juniors (assignable-users API se aate hain)
@@ -74,14 +76,18 @@ const Tasks = ({ isEmbedded }) => {
     if (!isTeam) return [];
     return assignableUsers.filter(u => (u.role || '').toLowerCase() === 'team' && (u._id || u.id) !== currentUserId);
   }, [assignableUsers, isTeam, currentUserId]);
-  const isSenior = isTeam && (currentUser.teamLevel === 'senior' || juniorAssignees.length > 0);
+  // Custom list me doosre team members aa sakte hain, tab senior sirf teamLevel se
+  const isSenior = isTeam && (currentUser.teamLevel === 'senior' || (!customAssignRule && juniorAssignees.length > 0));
 
   // Available Tabs based on user role
+  // "Assigned by Me" = maine doosron ko jo tasks diye, sabko dikhta hai taaki status (Done / Pending) pata chale
+  const assignedByMeTab = { id: 'assigned-by-me', label: 'Assigned by Me' };
   const availableTabs = useMemo(() => {
     if (isSuperadmin) {
       return [
         { id: 'all', label: 'All Tasks' },
         { id: 'my', label: 'My Tasks' },
+        assignedByMeTab,
         { id: 'superadmin', label: 'Superadmin Tasks' },
         { id: 'admin', label: 'Admin Tasks' },
         { id: 'team', label: 'Team Tasks' }
@@ -90,26 +96,30 @@ const Tasks = ({ isEmbedded }) => {
     if (isAdmin) {
       return perm('team-tab') ? [
         { id: 'my', label: 'My Tasks' },
+        assignedByMeTab,
         { id: 'team', label: 'Team Tasks' }
-      ] : [{ id: 'my', label: 'My Tasks' }];
+      ] : [{ id: 'my', label: 'My Tasks' }, assignedByMeTab];
     }
     if (isSenior && perm('team-tab')) {
       return [
         { id: 'my', label: 'My Tasks' },
+        assignedByMeTab,
         { id: 'team', label: 'My Juniors Tasks' }
       ];
     }
     return [
-      { id: 'my', label: 'My Tasks' }
+      { id: 'my', label: 'My Tasks' },
+      assignedByMeTab
     ];
   }, [isSuperadmin, isAdmin, isSenior, can]);
 
   const [activeTab, setActiveTab] = useState('my');
 
   // Senior apne juniors ke tasks add / edit / delete kar sakta hai
-  const canManageTasks = !isTeam || (isSenior && activeTab === 'team');
+  // Apne diye hue tasks (Assigned by Me) bhi manage kar sakte hain
+  const canManageTasks = !isTeam || (isSenior && activeTab === 'team') || activeTab === 'assigned-by-me';
   // Senior ko Add Task har tab par dikhe (My Tasks tab se bhi junior ko task de sake)
-  const canAddTasks = !isTeam || isSenior;
+  const canAddTasks = !isTeam || isSenior || (customAssignRule && assignableUsers.length > 1);
   // Superadmin "Roles & Permissions" se andar ke buttons on/off
   const canCreate = canAddTasks && perm('create');
   const canBulkAdd = canAddTasks && perm('bulk-add');
@@ -201,6 +211,7 @@ const Tasks = ({ isEmbedded }) => {
     if (activeTab === 'team') return teamAssignees;
     if (activeTab === 'admin') return adminAssignees;
     if (activeTab === 'superadmin') return superadminAssignees;
+    if (activeTab === 'assigned-by-me') return assignableUsers.filter(u => (u._id || u.id) !== currentUserId);
     return assignableUsers;
   }, [activeTab, teamAssignees, adminAssignees, superadminAssignees, assignableUsers]);
 
@@ -252,11 +263,13 @@ const Tasks = ({ isEmbedded }) => {
   const fetchAssignableUsers = async () => {
     const token = localStorage.getItem('token');
     try {
-      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/tasks/assignable-users`, {
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/tasks/assignable-users?withMeta=1`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (Array.isArray(res.data) && res.data.length > 0) {
-        setAssignableUsers(res.data);
+      const list = Array.isArray(res.data) ? res.data : res.data?.users;
+      setCustomAssignRule(!!res.data?.customRule);
+      if (Array.isArray(list) && list.length > 0) {
+        setAssignableUsers(list);
         return;
       }
     } catch (error) {
@@ -328,7 +341,9 @@ const Tasks = ({ isEmbedded }) => {
     setCustomCategory('');
     
     // Senior ke bulk dropdown me sirf juniors hain, isliye default junior hi rakho
-    if (isSenior) {
+    if (useCustomAssignees) {
+      setAssignedTo(currentUserId);
+    } else if (isSenior) {
       if (activeTab !== 'team') setActiveTab('team');
       setAssignedTo(teamAssignees.length > 1 ? 'ALL_TEAM' : (teamAssignees[0]?._id || ''));
     } else {
@@ -447,10 +462,13 @@ const Tasks = ({ isEmbedded }) => {
     }
 
     // Senior My Tasks tab se add kare to juniors wale tab par le jao, task junior ko hi jaaye
-    if (isSenior && activeTab !== 'team') setActiveTab('team');
+    if (isSenior && !useCustomAssignees && activeTab !== 'team') setActiveTab('team');
 
     let defaultAssignee = '';
-    if (isSenior) {
+    if (useCustomAssignees) {
+      // Custom list: pehle khud, dropdown se koi bhi allowed insaan chun sakte hain
+      defaultAssignee = currentUserId;
+    } else if (isSenior) {
       defaultAssignee = teamAssignees.length > 1 ? 'ALL_TEAM' : (teamAssignees.length > 0 ? teamAssignees[0]._id : '');
     } else if (activeTab === 'my') {
       defaultAssignee = currentUserId;
@@ -817,7 +835,23 @@ const Tasks = ({ isEmbedded }) => {
     { value: 'High', label: 'High' }
   ];
 
+  // Custom list ho to dropdown me seedha wahi log (backend ne pehle hi filter kar diye)
+  const customAssigneeOptions = useMemo(() => {
+    const roleLabel = (u) => {
+      if ((u.role || '').toLowerCase() === 'admin') return 'Admin';
+      return u.teamLevel ? u.teamLevel.charAt(0).toUpperCase() + u.teamLevel.slice(1) : 'Team';
+    };
+    return [
+      { value: currentUserId, label: `${currentUser.name || 'Myself'} (Myself)` },
+      ...assignableUsers
+        .filter(u => (u._id || u.id) !== currentUserId)
+        .map(u => ({ value: u._id || u.id, label: `${u.name} (${roleLabel(u)})` }))
+    ];
+  }, [assignableUsers, currentUserId, currentUser.name]);
+  const useCustomAssignees = customAssignRule && !isSuperadmin;
+
   const modalAssigneeOptions = useMemo(() => {
+    if (useCustomAssignees) return customAssigneeOptions;
     if (isEditMode) {
       const opts = [];
       opts.push({ value: currentUserId, label: `${currentUser.name || 'Myself'} (Myself)` });
@@ -881,9 +915,12 @@ const Tasks = ({ isEmbedded }) => {
         label: u._id === currentUserId ? `${u.name} (Myself)` : u.name
       }))
     ];
-  }, [activeTab, teamAssignees, adminAssignees, juniorAssignees, currentTabAssignees, currentUserId, isEditMode, isSuperadmin, isAdmin, isSenior, currentUser.name]);
+  }, [activeTab, teamAssignees, adminAssignees, juniorAssignees, currentTabAssignees, currentUserId, isEditMode, isSuperadmin, isAdmin, isSenior, currentUser.name, useCustomAssignees, customAssigneeOptions]);
 
   const bulkAssigneeOptions = useMemo(() => {
+    if (useCustomAssignees) {
+      return [{ value: currentUserId, label: 'Assigned to Self' }, ...customAssigneeOptions.slice(1)];
+    }
     const opts = [];
     opts.push({ value: currentUserId, label: 'Assigned to Self' });
     if (isSuperadmin) {
@@ -899,7 +936,7 @@ const Tasks = ({ isEmbedded }) => {
       juniorAssignees.forEach(u => opts.push({ value: u._id, label: `${u.name} (Junior)` }));
     }
     return opts;
-  }, [isSuperadmin, isAdmin, isSenior, adminAssignees, teamAssignees, juniorAssignees, currentUserId]);
+  }, [isSuperadmin, isAdmin, isSenior, adminAssignees, teamAssignees, juniorAssignees, currentUserId, useCustomAssignees, customAssigneeOptions]);
 
   const modalstatusOptions = [
     { value: 'Pending', label: 'Pending' },

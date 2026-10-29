@@ -512,7 +512,14 @@
   .main-content {
       padding: 0 !important;
   }
+  /* Navbar aur page title ke beech, aur screen ke kinaron se thodi jagah */
   .page-content-wrapper {
+      padding: 12px 10px 16px !important;
+  }
+  /* Spacing sirf wrapper de: kuch pages ka root container apni padding + halka background
+     lagata tha, jisse mobile pe double padding aur ek extra box dikhta tha */
+  .page-content-wrapper > * {
       padding: 0 !important;
+      background: transparent !important;
   }
 }

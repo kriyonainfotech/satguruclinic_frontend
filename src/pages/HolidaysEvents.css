@@ -1152,3 +1152,239 @@
     gap: 12px;
   }
 }
+
+/* ===== Staff Leaves (koi hover effect nahi) ===== */
+.holidays-events-container .leave-apply-btn,
+.holidays-events-container .leave-apply-btn:hover {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #7c3aed;
+  color: #ffffff;
+  border: none;
+}
+
+.legend-dot.leave {
+  background: #8b5cf6;
+  flex-shrink: 0;
+}
+
+.event-pill.leave {
+  background: #f3e8ff;
+  color: #6d28d9;
+}
+
+.daily-leaves-block {
+  padding: 12px 20px 4px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.daily-leaves-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #6d28d9;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.leave-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  background: #faf5ff;
+  border: 1px solid #ede9fe;
+  border-radius: 8px;
+}
+
+.leave-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.leave-row-name-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.leave-row-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.leave-row-sub {
+  font-size: 11.5px;
+  color: #64748b;
+}
+
+.leave-row-reason {
+  font-size: 12px;
+  color: #475569;
+  font-style: italic;
+}
+
+.leave-count-badge {
+  background: #f3e8ff;
+  color: #7c3aed;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.leave-filter-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 12px 20px 0 20px;
+}
+
+.holidays-events-container .leave-filter-tab,
+.holidays-events-container .leave-filter-tab:hover {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.holidays-events-container .leave-filter-tab.active,
+.holidays-events-container .leave-filter-tab.active:hover {
+  background: #7c3aed;
+  color: #ffffff;
+  border-color: #7c3aed;
+}
+
+.leave-request-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 8px;
+}
+
+.leave-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.holidays-events-container .leave-action-btn {
+  border: none;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.holidays-events-container .leave-action-btn.approve,
+.holidays-events-container .leave-action-btn.approve:hover {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.holidays-events-container .leave-action-btn.reject,
+.holidays-events-container .leave-action-btn.reject:hover {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.holidays-events-container .leave-delete-btn:hover {
+  background: #fee2e2;
+  color: #ef4444;
+}
+
+.leave-status-tag {
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.leave-status-tag.pending {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.leave-status-tag.approved {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.leave-status-tag.rejected {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.leave-empty-text {
+  font-size: 13px;
+  color: #64748b;
+  margin: 8px 0;
+}
+
+.modal-icon-badge.leave-icon-badge {
+  background: #f3e8ff;
+  color: #7c3aed;
+}
+
+.holiday-input.leave-reason-input {
+  height: auto;
+  padding: 10px 12px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+/* Selected date ke "On Leave" box me us din ka time */
+.leave-row .leave-row-text {
+  gap: 3px;
+}
+
+.leave-type-tag {
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.leave-unavailable {
+  font-size: 12.5px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.leave-unavailable.full {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.leave-unavailable.partial {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.daily-leaves-block .leave-row {
+  align-items: flex-start;
+}
+
+.daily-leaves-block .leave-row .legend-dot.leave {
+  margin-top: 5px;
+}
