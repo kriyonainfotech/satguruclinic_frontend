@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { createPortal } from 'react-dom';
-import { PlusIcon, XIcon, TrashIcon, EditIcon, SearchIcon, PillIcon, WalletIcon } from '../components/Icons';
+import { PlusIcon, XIcon, TrashIcon, EditIcon, SearchIcon, PillIcon, WalletIcon, InfoIcon } from '../components/Icons';
 import CustomSelect from '../components/CustomSelect';
 import CalendarPicker, { formatDateToISO, formatDisplayDate } from '../components/CalendarPicker';
 import DateRangePicker from '../components/DateRangePicker';
@@ -25,6 +25,12 @@ const PERIOD_OPTIONS = [
   { value: 'range', label: 'Date Range' }
 ];
 const STATUS_LABEL = { pending: 'Pending', partial: 'Partially Paid', paid: 'Paid' };
+// Payment kis account se hua: Payments & Finances ke accounts, wahan Expense ban jata hai
+const ACCOUNT_OPTIONS = [
+  { value: 'Company Bank', label: 'Company Bank' },
+  { value: 'Personal Bank', label: 'Personal Bank' },
+  { value: 'Cash', label: 'Cash' }
+];
 
 const money = (n) => '₹' + Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
 const todayISO = () => formatDateToISO(new Date());
@@ -55,7 +61,8 @@ const emptyBillForm = () => ({
   stockRows: [emptyStockRow()],
   totalAmount: '',
   notes: '',
-  paidAmount: ''
+  paidAmount: '',
+  paidFrom: ''
 });
 
 const PharmacyBills = () => {
@@ -84,21 +91,51 @@ const PharmacyBills = () => {
   const [form, setForm] = useState(emptyBillForm());
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
-  const [supplierOpen, setSupplierOpen] = useState(false);
   const [itemsOpen, setItemsOpen] = useState(false);
   const itemsRef = useRef(null);
   const [itemMenuPos, setItemMenuPos] = useState({ top: 0, left: 0, width: 0 });
 
   // Payments popup (history + add payment)
   const [paymentBill, setPaymentBill] = useState(null);
-  const [payForm, setPayForm] = useState({ amount: '', date: todayISO(), note: '' });
+  const [payForm, setPayForm] = useState({ amount: '', date: todayISO(), note: '', account: '' });
   const [payError, setPayError] = useState('');
   const [paying, setPaying] = useState(false);
 
+  // Account ka bacha balance (Paid From dropdown me dikhta hai)
+  const [balances, setBalances] = useState({});
+  // Paid ke bagal wale info icon se khulne wala popup: us bill ke saare payments
+  const [paidInfo, setPaidInfo] = useState(null);
+
   useEffect(() => {
     fetchBills();
+    fetchBalances();
     if (perm('stock-add')) fetchMedicines();
   }, []);
+
+  const fetchBalances = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/pharmacy-bills/account-balances`, authHeader());
+      setBalances(res.data || {});
+    } catch (err) {
+      console.error('Error fetching account balances', err);
+    }
+  };
+
+  const accountOptions = ACCOUNT_OPTIONS.map(o => ({
+    ...o,
+    label: balances[o.value] !== undefined ? `${o.label} (Balance ${money(balances[o.value])})` : o.label
+  }));
+
+  // Account me itna paisa nahi to sirf note, payment phir bhi ho jayega
+  const balanceNote = (account, amount) => {
+    const amt = Number(amount);
+    if (!account || !(amt > 0) || balances[account] === undefined || amt <= balances[account]) return null;
+    return (
+      <div className="pb-balance-note">
+        Note: Insufficient balance in {account} (available {money(balances[account])}). The payment will still be saved.
+      </div>
+    );
+  };
 
   const fetchMedicines = async () => {
     try {
@@ -285,6 +322,7 @@ const PharmacyBills = () => {
     if (form.totalAmount === '' || !Number.isFinite(total) || total < 0) return setFormError('Please enter a valid bill amount.');
     const paidNow = Number(form.paidAmount || 0);
     if (!editingId && (paidNow < 0 || paidNow > total)) return setFormError('Amount paid cannot be more than the bill amount.');
+    if (!editingId && paidNow > 0 && !form.paidFrom) return setFormError('Please select the account the payment was made from.');
 
     // Medicine rows: puri khali row chhod do, baaki me naam + qty zaroori
     let stockItems;
@@ -326,9 +364,11 @@ const PharmacyBills = () => {
         const res = await axios.post(`${API_URL}/pharmacy-bills`, {
           ...body,
           paidAmount: paidNow,
-          paymentDate: form.billDate
+          paymentDate: form.billDate,
+          paymentAccount: form.paidFrom
         }, authHeader());
         setBills(prev => [res.data, ...prev].sort((a, b) => b.billDate.localeCompare(a.billDate)));
+        if (paidNow > 0) fetchBalances();
       }
       setShowBillModal(false);
     } catch (err) {
@@ -351,7 +391,7 @@ const PharmacyBills = () => {
   // ---------- Payments ----------
   const openPayments = (bill) => {
     setPaymentBill(bill);
-    setPayForm({ amount: bill.pendingAmount > 0 ? String(bill.pendingAmount) : '', date: todayISO(), note: '' });
+    setPayForm({ amount: bill.pendingAmount > 0 ? String(bill.pendingAmount) : '', date: todayISO(), note: '', account: '' });
     setPayError('');
   };
 
@@ -361,12 +401,15 @@ const PharmacyBills = () => {
     if (!Number.isFinite(amount) || amount <= 0) return setPayError('Please enter a valid amount.');
     if (amount > paymentBill.pendingAmount) return setPayError(`Amount cannot be more than the pending ${money(paymentBill.pendingAmount)}.`);
     if (!payForm.date) return setPayError('Please select the payment date.');
+    if (!payForm.account) return setPayError('Please select the account the payment was made from.');
 
     setPaying(true);
     try {
       const res = await axios.post(`${API_URL}/pharmacy-bills/${paymentBill._id}/payments`, { ...payForm, amount }, authHeader());
       replaceBill(res.data);
-      setPayForm({ amount: res.data.pendingAmount > 0 ? String(res.data.pendingAmount) : '', date: todayISO(), note: '' });
+      fetchBalances();
+      // Payment ho gaya to popup band, table me Paid / Pending update dikh jata hai
+      setPaymentBill(null);
       setPayError('');
     } catch (err) {
       setPayError(err.response?.data?.message || 'Could not add the payment.');
@@ -376,14 +419,26 @@ const PharmacyBills = () => {
   };
 
   const handleRemovePayment = async (payment) => {
-    if (!window.confirm(`Remove payment of ${money(payment.amount)} on ${formatDisplayDate(payment.date)}?`)) return;
+    const fromFinance = payment.expense ? ' It will also be removed from Payments & Finances.' : '';
+    if (!window.confirm(`Remove payment of ${money(payment.amount)} on ${formatDisplayDate(payment.date)}?${fromFinance}`)) return;
     try {
       const res = await axios.delete(`${API_URL}/pharmacy-bills/${paymentBill._id}/payments/${payment._id}`, authHeader());
       replaceBill(res.data);
+      fetchBalances();
     } catch (err) {
       alert(err.response?.data?.message || 'Could not remove the payment.');
     }
   };
+
+  // Bill ke payments pehle se aakhri tak (date, phir entry ka time)
+  const paymentsInOrder = (bill) => [...(bill.payments || [])].sort((a, b) =>
+    a.date.localeCompare(b.date) || String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
+
+  const paidInfoButton = (b) => (b.payments?.length > 0 && (
+    <button type="button" className="pb-info-btn" title="Payment details" onClick={() => setPaidInfo(b)}>
+      <InfoIcon size={14} />
+    </button>
+  ));
 
   const statusBadge = (bill) => (
     <span className={`pb-status pb-status-${bill.paymentStatus}`}>
@@ -562,7 +617,9 @@ const PharmacyBills = () => {
                     <td>{b.billNumber || '-'}</td>
                     <td className="pb-items" title={b.items}>{b.items || '-'}</td>
                     <td className="num">{money(b.totalAmount)}</td>
-                    <td className="num pb-green">{money(b.paidAmount)}</td>
+                    <td className="num pb-green">
+                      <span className="pb-paid-cell">{money(b.paidAmount)}{paidInfoButton(b)}</span>
+                    </td>
                     <td className={`num ${b.pendingAmount > 0 ? 'pb-red pb-strong' : 'pb-muted'}`}>{money(b.pendingAmount)}</td>
                     <td>{statusBadge(b)}</td>
                     <td className="center">
@@ -620,7 +677,7 @@ const PharmacyBills = () => {
                   </div>
                   <div>
                     <span>Paid</span>
-                    <strong className="pb-green">{money(b.paidAmount)}</strong>
+                    <strong className="pb-green pb-paid-cell">{money(b.paidAmount)}{paidInfoButton(b)}</strong>
                   </div>
                   <div>
                     <span>Pending</span>
@@ -666,57 +723,19 @@ const PharmacyBills = () => {
               <div className="pb-form-grid">
                 <div className="pb-field full">
                   <label>Supplier / Pharma Name *</label>
-                  {/* Pehle add kiye suppliers dropdown me aate hain, naya naam bhi type kar sakte hain */}
-                  <div className="pb-combo">
-                    <input
-                      type="text"
-                      placeholder={supplierSummary.length ? 'Select or type supplier name' : 'e.g. Sun Pharma Distributors'}
-                      value={form.supplierName}
-                      onChange={e => { setField('supplierName', e.target.value); setSupplierOpen(true); }}
-                      onFocus={() => setSupplierOpen(true)}
-                      onBlur={() => setSupplierOpen(false)}
-                      onKeyDown={e => { if (e.key === 'Escape') setSupplierOpen(false); }}
-                      autoComplete="off"
-                      autoFocus
-                    />
-                    {supplierSummary.length > 0 && (
-                      <button
-                        type="button"
-                        className="pb-combo-toggle"
-                        tabIndex={-1}
-                        onMouseDown={e => { e.preventDefault(); setSupplierOpen(o => !o); }}
-                        aria-label="Show suppliers"
-                      >▾</button>
-                    )}
-                    {supplierOpen && (() => {
-                      const q = form.supplierName.trim().toLowerCase();
-                      const matches = supplierSummary.filter(s => s.name.toLowerCase().includes(q));
-                      const exact = supplierSummary.some(s => s.name.trim().toLowerCase() === q);
-                      if (!matches.length && (!q || exact)) return null;
-                      return (
-                        <div className="pb-combo-menu">
-                          {matches.map(s => (
-                            <div
-                              key={s.name}
-                              className={`pb-combo-option${s.name.trim().toLowerCase() === q ? ' active' : ''}`}
-                              onMouseDown={e => { e.preventDefault(); setField('supplierName', s.name); setSupplierOpen(false); }}
-                            >
-                              <span>{s.name}</span>
-                              <span className="pb-combo-meta">{s.bills} bill{s.bills > 1 ? 's' : ''}</span>
-                            </div>
-                          ))}
-                          {q && !exact && (
-                            <div
-                              className="pb-combo-option new"
-                              onMouseDown={e => { e.preventDefault(); setSupplierOpen(false); }}
-                            >
-                              + Add new supplier "{form.supplierName.trim()}"
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()}
-                  </div>
+                  <input
+                    type="text"
+                    placeholder="e.g. Sun Pharma Distributors"
+                    value={form.supplierName}
+                    onChange={e => setField('supplierName', e.target.value)}
+                    name="pb-supplier-name"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    data-lpignore="true"
+                    data-form-type="other"
+                    autoFocus
+                  />
                 </div>
 
                 <div className="pb-field">
@@ -889,13 +908,23 @@ const PharmacyBills = () => {
 
                 {!editingId && (
                   <>
-                    <div className="pb-field full">
+                    <div className="pb-field">
                       <label>Amount Paid Now (₹)</label>
-                      <input type="number" min="0" step="0.01" placeholder="0 if not paid yet" value={form.paidAmount} onChange={e => setField('paidAmount', e.target.value)} />
+                      <input type="number" min="0" step="0.01" placeholder="0 if not paid yet" value={form.paidAmount} onChange={e => setField('paidAmount', e.target.value)} autoComplete="off" />
                     </div>
+                    <div className="pb-field">
+                      <label>Paid From</label>
+                      <CustomSelect value={form.paidFrom} onChange={v => setField('paidFrom', v)} options={accountOptions} placeholder="Cash / Bank" />
+                    </div>
+                    {balanceNote(form.paidFrom, form.paidAmount) && (
+                      <div className="pb-field full">{balanceNote(form.paidFrom, form.paidAmount)}</div>
+                    )}
                     {Number(form.totalAmount) > 0 && (
                       <div className="pb-field full">
                         <div className="pb-pending-preview">
+                          {Number(form.paidAmount) > 0 && (
+                            <>Paid now: <strong className="pb-green">{money(form.paidAmount)}</strong>{form.paidFrom ? ` from ${form.paidFrom}` : ''} · </>
+                          )}
                           Pending after save: <strong>{money(Math.max(0, Number(form.totalAmount) - Number(form.paidAmount || 0)))}</strong>
                         </div>
                       </div>
@@ -959,6 +988,7 @@ const PharmacyBills = () => {
                     <div>
                       <strong>{money(p.amount)}</strong>
                       <span className="pb-muted"> · {formatDisplayDate(p.date)}</span>
+                      {p.account && <span className="pb-pay-account"> · {p.account}</span>}
                       {p.note && <div className="pb-muted pb-note">{p.note}</div>}
                     </div>
                     {perm('payment') && (
@@ -996,6 +1026,16 @@ const PharmacyBills = () => {
                     />
                   </div>
                   <div className="pb-field full">
+                    <label>Paid From *</label>
+                    <CustomSelect
+                      value={payForm.account}
+                      onChange={v => { setPayForm({ ...payForm, account: v }); setPayError(''); }}
+                      options={accountOptions}
+                      placeholder="Select bank / cash"
+                    />
+                    {balanceNote(payForm.account, payForm.amount)}
+                  </div>
+                  <div className="pb-field full">
                     <label>Note</label>
                     <input type="text" placeholder="Optional" value={payForm.note} onChange={e => setPayForm({ ...payForm, note: e.target.value })} />
                   </div>
@@ -1018,6 +1058,81 @@ const PharmacyBills = () => {
           </div>
         </div>
       )}
+      {paidInfo && (() => {
+        const bill = paidInfo;
+        const list = paymentsInOrder(bill);
+        const percent = bill.totalAmount > 0 ? Math.min(100, Math.round((bill.paidAmount / bill.totalAmount) * 100)) : 100;
+        const accountClass = (acc) => ({ 'Cash': 'cash', 'Company Bank': 'company', 'Personal Bank': 'personal' }[acc] || 'none');
+        return (
+          <div className="modal-overlay" onClick={() => setPaidInfo(null)}>
+            <div className="modal-content pb-pi-modal" onClick={e => e.stopPropagation()}>
+              <div className="modal-header">
+                <div>
+                  <h3 className="modal-title">Payment Details</h3>
+                  <div className="pb-pi-sub">
+                    <strong>{bill.supplierName}</strong>
+                    {bill.billNumber && <> · Bill {bill.billNumber}</>}
+                    {' · '}{formatDisplayDate(bill.billDate)}
+                  </div>
+                </div>
+                <button className="modal-close" onClick={() => setPaidInfo(null)} aria-label="Close">
+                  <XIcon size={16} />
+                </button>
+              </div>
+
+              <div className="pb-pi-summary">
+                <div className="pb-pi-card">
+                  <span>Bill Amount</span>
+                  <strong>{money(bill.totalAmount)}</strong>
+                </div>
+                <div className="pb-pi-card paid">
+                  <span>Total Paid</span>
+                  <strong>{money(bill.paidAmount)}</strong>
+                </div>
+                <div className={`pb-pi-card ${bill.pendingAmount > 0 ? 'pending' : 'clear'}`}>
+                  <span>Pending</span>
+                  <strong>{money(bill.pendingAmount)}</strong>
+                </div>
+              </div>
+
+              <div className="pb-pi-progress">
+                <div className="pb-pi-progress-bar"><div style={{ width: `${percent}%` }} /></div>
+                <span>{percent}% paid · {statusBadge(bill)}</span>
+              </div>
+
+              <div className="pb-pi-heading">
+                All Payments <span>({list.length})</span>
+              </div>
+              <div className="pb-pi-timeline">
+                {list.map((pay, i) => (
+                  <div key={pay._id} className="pb-pi-row">
+                    <div className="pb-pi-dot">{i + 1}</div>
+                    <div className="pb-pi-body">
+                      <div className="pb-pi-top">
+                        <span className="pb-pi-date">{formatDisplayDate(pay.date)}</span>
+                        <strong className="pb-pi-amount">{money(pay.amount)}</strong>
+                      </div>
+                      <div className="pb-pi-meta">
+                        <span className={`pb-pi-account ${accountClass(pay.account)}`}>{pay.account || 'Account not set'}</span>
+                        {pay.note && <span className="pb-pi-note">{pay.note}</span>}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="modal-footer">
+                <button type="button" className="crm-btn crm-btn-secondary" onClick={() => setPaidInfo(null)}>Close</button>
+                {perm('payment') && bill.pendingAmount > 0 && (
+                  <button type="button" className="crm-btn crm-btn-primary" onClick={() => { setPaidInfo(null); openPayments(bill); }}>
+                    Add Payment
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

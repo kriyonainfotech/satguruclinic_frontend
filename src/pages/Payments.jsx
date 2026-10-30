@@ -16,7 +16,8 @@ import {
   WalletIcon, 
   CreditCardIcon, 
   PlusIcon,
-  SearchIcon 
+  SearchIcon,
+  ChevronDownIcon
 } from '../components/Icons';
 import '../App.css';
 import usePermissions from '../permissions/usePermissions';
@@ -341,6 +342,9 @@ const Payments = () => {
     });
   };
 const [saleTotalAmount, setSaleTotalAmount] = useState(0);
+  // Sale entry ke waqt hi mila paisa aur kis account me aaya
+  const [saleReceived, setSaleReceived] = useState('');
+  const [saleReceivedAccount, setSaleReceivedAccount] = useState('');
 
   useEffect(() => {
     const sum = selectedServices.reduce((acc, srv) => acc + srv.price, 0) + selectedPackages.reduce((acc, p) => acc + p.price, 0) + selectedMedicines.reduce((acc, m) => acc + ((m.price || 0) * (m.qty || 1)), 0);
@@ -360,6 +364,11 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
     }
     
     const finalAmount = Number(saleTotalAmount) || 0;
+    const received = Number(saleReceived) || 0;
+    if (received > 0) {
+      if (received > finalAmount) { alert("Received amount cannot be more than the total."); return; }
+      if (!saleReceivedAccount) { alert("Please select the account the payment was received in."); return; }
+    }
 
     
     const workItems = [];
@@ -380,7 +389,9 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
       total: finalAmount,
       balance: finalAmount,
       status: 'Pending',
-      notes: saleNotes
+      notes: saleNotes,
+      receivedAmount: received,
+      receivedAccount: saleReceivedAccount
     };
     
     try {
@@ -397,6 +408,7 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
         loss: created.loss || 0,
         status: created.status
       }, ...invoices]);
+      if (created.collection) setCollections([created.collection, ...collections]);
       
       // Reset form
       setSaleMobile('');
@@ -408,9 +420,11 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
       setIncludeConsultationFee(true);
       setSaleNotes('');
       setSaleTotalAmount(0);
+      setSaleReceived('');
+      setSaleReceivedAccount('');
       setShowNewSaleModal(false);
     } catch (err) {
-      alert("Error creating entry");
+      alert(err.response?.data?.message || "Error creating entry");
     }
   };
 
@@ -485,7 +499,39 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
   const displayedExpenses = React.useMemo(() => {
     return filteredExpenses.filter(e => (e.party || '').toLowerCase().includes(searchExpense.toLowerCase()));
   }, [filteredExpenses, searchExpense]);
-  const currentExpenses = displayedExpenses.slice((expensesPage - 1) * expensesPerPage, expensesPage * expensesPerPage);
+  // Ek hi Pharmacy Bill ke 2+ payments ek accordion row me (sabse naye payment ki jagah par)
+  const expenseRows = React.useMemo(() => {
+    const byBill = {};
+    displayedExpenses.forEach(e => {
+      if (e.pharmacyBill) (byBill[e.pharmacyBill] = byBill[e.pharmacyBill] || []).push(e);
+    });
+    const rows = [];
+    const added = new Set();
+    displayedExpenses.forEach(e => {
+      const items = e.pharmacyBill ? byBill[e.pharmacyBill] : null;
+      if (!items || items.length < 2) return rows.push({ key: e._id, exp: e });
+      if (added.has(e.pharmacyBill)) return;
+      added.add(e.pharmacyBill);
+      const ordered = [...items].sort((a, b) => (parseItemDate(a)?.valueOf() || 0) - (parseItemDate(b)?.valueOf() || 0)
+        || String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
+      const accounts = [...new Set(ordered.map(x => x.account))];
+      rows.push({
+        key: 'bill-' + e.pharmacyBill,
+        group: true,
+        items: ordered,
+        party: e.party,
+        category: e.category,
+        date: ordered[ordered.length - 1].date,
+        total: ordered.reduce((sum, x) => sum + (x.amount || 0), 0),
+        account: accounts.length === 1 ? accounts[0] : 'Multiple'
+      });
+    });
+    return rows;
+  }, [displayedExpenses]);
+  const currentExpenseRows = expenseRows.slice((expensesPage - 1) * expensesPerPage, expensesPage * expensesPerPage);
+  const [openExpenseGroups, setOpenExpenseGroups] = useState({});
+  const toggleExpenseGroup = (key) => setOpenExpenseGroups(prev => ({ ...prev, [key]: !prev[key] }));
+  const accountColor = (acc) => (acc === 'Cash' ? '#10b981' : acc === 'Personal Bank' ? '#7c3aed' : acc === 'Multiple' ? '#64748b' : '#2563eb');
 
   const selectedMonthObj = MONTH_LIST.find(m => m.val === selectedMonth);
   const selectedPeriodLabel = selectedMonth === 'All'
@@ -2221,7 +2267,7 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
           </div>
 
           {/* KPI Cards */}
-          <div className="payments-kpi-grid">
+          <div className="payments-kpi-grid expense-kpi-grid">
             <div className="payments-kpi-card kpi-theme-outflow">
               <div className="payments-kpi-header">
                 <span className="payments-kpi-label">Total Outflow</span>
@@ -2307,7 +2353,58 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
                 No expenses found for {selectedPeriodLabel}
               </div>
             ) : (
-              currentExpenses.map(exp => {
+              currentExpenseRows.map(row => {
+                if (row.group) {
+                  const open = !!openExpenseGroups[row.key];
+                  return (
+                    <div key={row.key} className="payment-invoice-card payment-col-card">
+                      <div className="pay-card-top-row">
+                        <div className="pay-card-client-wrap">
+                          <div className="pay-card-avatar avatar-expense">
+                            {(row.party || 'E').substring(0, 2).toUpperCase()}
+                          </div>
+                          <div className="pay-card-client-info">
+                            <h4 className="pay-card-client-name" title={row.party}>{row.party}</h4>
+                            <span className="pay-card-id-badge">{row.category}</span>
+                          </div>
+                        </div>
+                        <span className="pay-exp-amount-pill">
+                          -{R}{row.total.toLocaleString()}
+                        </span>
+                      </div>
+
+                      <button type="button" className={`exp-acc-card-toggle${open ? ' open' : ''}`} onClick={() => toggleExpenseGroup(row.key)}>
+                        <span>{row.items.length} payments · {row.account}</span>
+                        <ChevronDownIcon size={15} className="exp-acc-chevron" />
+                      </button>
+                      {open && (
+                        <div className="exp-acc-card-list">
+                          {row.items.map((exp, i) => (
+                            <div key={exp._id} className="exp-acc-card-item">
+                              <span className="exp-acc-no">{i + 1}</span>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontWeight: 600, color: '#1e293b' }}>{exp.date}</div>
+                                <div style={{ color: accountColor(exp.account), fontWeight: 600, fontSize: '11.5px' }}>{exp.account}</div>
+                              </div>
+                              <strong style={{ color: '#ef4444' }}>{R}{exp.amount.toLocaleString()}</strong>
+                              {perm('reports') && (
+                                <button type="button" onClick={() => handleDownloadExpenseReceipt(exp)} className="pay-card-icon-btn btn-download" title="Download Receipt">
+                                  <DownloadIcon size={15} />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="pay-card-footer">
+                        <span className="pay-card-receipt-tag">Outflow Expense</span>
+                        <span style={{ fontSize: '11px', color: '#94a3b8' }}>From Pharmacy Bills</span>
+                      </div>
+                    </div>
+                  );
+                }
+                const exp = row.exp;
                 const partyInitials = (exp.party || 'E').substring(0, 2).toUpperCase();
                 return (
                   <div key={exp._id} className="payment-invoice-card payment-col-card">
@@ -2350,7 +2447,8 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
                           <DownloadIcon size={17} />
                         </button>
                          )}
-                         {perm('expense-edit') && (<>
+                         {exp.pharmacyBill && <span style={{ fontSize: '11px', color: '#94a3b8' }}>From Pharmacy Bills</span>}
+                         {perm('expense-edit') && !exp.pharmacyBill && (<>
                         <button type="button" onClick={() => openEditExpense(exp)} className="pay-card-icon-btn btn-edit" title="Edit Expense">
                           <EditIcon size={17} />
                         </button>
@@ -2368,7 +2466,7 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
               <div className="pay-mobile-pagination-wrap">
                 <Pagination
                   currentPage={expensesPage}
-                  totalItems={displayedExpenses.length}
+                  totalItems={expenseRows.length}
                   itemsPerPage={expensesPerPage}
                   onPageChange={setExpensesPage}
                   itemName="expenses"
@@ -2397,29 +2495,57 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
                     </td>
                   </tr>
                 ) : (
-                  currentExpenses.map(exp => (
-                    <tr key={exp._id}>
-                      <td style={{ color: '#64748b' }}>{exp.date}</td>
-                      <td style={{ fontWeight: 700 }}>{exp.party}</td>
-                      <td style={{ fontWeight: 700, color: '#ef4444' }}>{R}{exp.amount}</td>
-                      <td style={{ color: '#64748b', fontWeight: 500 }}>{exp.category}</td>
-                      <td style={{ color: exp.account === 'Cash' ? '#10b981' : (exp.account === 'Personal Bank' ? '#7c3aed' : '#2563eb'), fontWeight: 600 }}>{exp.account}</td>
-                      <td className="text-right">
-                         <div className="payments-table-actions">
-                             {perm('reports') && <button type="button" onClick={() => handleDownloadExpenseReceipt(exp)} className="payments-icon-action-btn" title="Download Receipt"><DownloadIcon size={15} /></button>}
-                             {perm('expense-edit') && <button type="button" onClick={() => openEditExpense(exp)} className="payments-icon-action-btn" title="Edit"><EditIcon size={15} /></button>}
-                             {perm('expense-edit') && <button type="button" onClick={() => handleDeleteExpense(exp._id)} className="payments-icon-action-btn btn-delete" title="Delete"><TrashIcon size={15} /></button>}
-                         </div>
-                      </td>
-                    </tr>
-                  ))
+                  currentExpenseRows.map(row => {
+                    const expenseTr = (exp, childNo) => (
+                      <tr key={exp._id} className={childNo ? 'exp-acc-child' : ''}>
+                        <td style={{ color: '#64748b' }}>{exp.date}</td>
+                        <td style={{ fontWeight: childNo ? 500 : 700 }}>
+                          {childNo ? <span className="exp-acc-child-label"><span className="exp-acc-no">{childNo}</span>Payment {childNo}</span> : exp.party}
+                        </td>
+                        <td style={{ fontWeight: 700, color: '#ef4444' }}>{R}{exp.amount}</td>
+                        <td style={{ color: '#64748b', fontWeight: 500 }}>{exp.category}</td>
+                        <td style={{ color: accountColor(exp.account), fontWeight: 600 }}>{exp.account}</td>
+                        <td className="text-right">
+                           <div className="payments-table-actions">
+                               {perm('reports') && <button type="button" onClick={() => handleDownloadExpenseReceipt(exp)} className="payments-icon-action-btn" title="Download Receipt"><DownloadIcon size={15} /></button>}
+                               {perm('expense-edit') && !exp.pharmacyBill && <button type="button" onClick={() => openEditExpense(exp)} className="payments-icon-action-btn" title="Edit"><EditIcon size={15} /></button>}
+                               {perm('expense-edit') && !exp.pharmacyBill && <button type="button" onClick={() => handleDeleteExpense(exp._id)} className="payments-icon-action-btn btn-delete" title="Delete"><TrashIcon size={15} /></button>}
+                               {exp.pharmacyBill && !childNo && <span style={{ fontSize: '11px', color: '#94a3b8', whiteSpace: 'nowrap' }} title="Edit or remove this payment from Pharmacy Bills">From Pharmacy Bills</span>}
+                           </div>
+                        </td>
+                      </tr>
+                    );
+                    if (!row.group) return expenseTr(row.exp);
+                    const open = !!openExpenseGroups[row.key];
+                    return (
+                      <React.Fragment key={row.key}>
+                        <tr className={`exp-acc-head${open ? ' open' : ''}`} onClick={() => toggleExpenseGroup(row.key)}>
+                          <td style={{ color: '#64748b' }}>{row.date}</td>
+                          <td style={{ fontWeight: 700 }}>
+                            <span className="exp-acc-title">
+                              <ChevronDownIcon size={15} className="exp-acc-chevron" />
+                              {row.party}
+                              <span className="exp-acc-count">{row.items.length} payments</span>
+                            </span>
+                          </td>
+                          <td style={{ fontWeight: 700, color: '#ef4444' }}>{R}{row.total}</td>
+                          <td style={{ color: '#64748b', fontWeight: 500 }}>{row.category}</td>
+                          <td style={{ color: accountColor(row.account), fontWeight: 600 }}>{row.account}</td>
+                          <td className="text-right">
+                            <span style={{ fontSize: '11px', color: '#94a3b8', whiteSpace: 'nowrap' }} title="Edit or remove these payments from Pharmacy Bills">From Pharmacy Bills</span>
+                          </td>
+                        </tr>
+                        {open && row.items.map((exp, i) => expenseTr(exp, i + 1))}
+                      </React.Fragment>
+                    );
+                  })
                 )}
               </tbody>
             </table>
             {displayedExpenses.length > 0 && (
               <Pagination
                 currentPage={expensesPage}
-                totalItems={displayedExpenses.length}
+                totalItems={expenseRows.length}
                 itemsPerPage={expensesPerPage}
                 onPageChange={setExpensesPage}
                 itemName="expenses"
@@ -2669,6 +2795,39 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
                 <input type="text" defaultValue="28 Sep 2026, 12:00 AM" style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '14px', boxSizing: 'border-box', background: '#ffffff', color: '#1e293b' }} />
               </div>
             </div>
+
+            {perm('collect') && (
+              <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', color: '#1e293b', marginBottom: '6px' }}>Amount Received Now ({R})</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={saleReceived}
+                    onChange={(e) => setSaleReceived(e.target.value)}
+                    placeholder="0 if not paid yet"
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '14px', boxSizing: 'border-box', background: '#ffffff', color: '#1e293b' }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  {(
+                    <>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', color: '#1e293b', marginBottom: '6px' }}>Received In</label>
+                      <CustomSelect
+                        value={saleReceivedAccount}
+                        onChange={setSaleReceivedAccount}
+                        placeholder="Select bank / cash"
+                        options={[
+                          { value: 'Company Bank', label: 'Company Bank' },
+                          { value: 'Personal Bank', label: 'Personal Bank' },
+                          { value: 'Cash', label: 'Cash' }
+                        ]}
+                      />
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div style={{ marginBottom: '24px' }}>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', color: '#1e293b', marginBottom: '6px' }}>Description</label>

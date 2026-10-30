@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import CalendarPicker, { formatDateToISO } from '../components/CalendarPicker';
 import CustomSelect from '../components/CustomSelect';
 import CustomTimePicker from '../components/CustomTimePicker';
-import { CalendarIcon, PlusIcon, XIcon, TrashIcon, UserIcon, EyeIcon } from '../components/Icons';
+import { CalendarIcon, PlusIcon, XIcon, TrashIcon, UserIcon, EyeIcon, InfoIcon, ClockIcon } from '../components/Icons';
 import usePermissions from '../permissions/usePermissions';
 import {
   formatLeaveRange,
@@ -22,38 +23,116 @@ const LEAVE_TYPES = ['Casual', 'Sick', 'Emergency', 'Other'];
 
 const ROLE_LABEL = { superadmin: 'Super Admin', admin: 'Admin', team: 'Team' };
 
-// "In dates pe ye log pehle se leave pe hain" note. Har insaan ki sirf chuni hui dates wali leave dikhti hai.
+const dayCountText = (n) => `${n} ${n === 1 ? 'day' : 'days'}`;
+
+// "In dates pe ye log pehle se leave pe hain" note. Note me sirf naam, details info popup me.
 const OverlapNote = ({ leaves, start, end, title }) => {
+  const [infoLeave, setInfoLeave] = useState(null);
   if (!leaves || leaves.length === 0) return null;
   const from = start;
   const to = end || start;
+  const inRange = (d) => d.date >= from && d.date <= to;
   return (
     <div className="leave-overlap-note" role="status">
       <div className="leave-overlap-title">⚠ {title}</div>
       <ul className="leave-overlap-list">
         {leaves.map(l => {
-          // Sirf chuni hui dates ke din, aur us din ka time (ya full day)
-          const days = leaveDayBreakdown(l).filter(d => d.date >= from && d.date <= to);
-          const sameLabel = days.length > 0 && days.every(d => d.label === days[0].label);
-          const dateText = days.length === 1
-            ? fmtDate(days[0].date, { weekday: 'short' })
-            : `${fmtDate(days[0]?.date || from)} – ${fmtDate(days[days.length - 1]?.date || to)}`;
+          const clashCount = leaveDayBreakdown(l).filter(inRange).length;
           return (
-            <li key={l._id}>
+            <li key={l._id} className="leave-overlap-row">
               <div className="leave-overlap-who">
                 <strong>{l.user?.name || 'Staff'}</strong>
                 {l.user?.role && <span className="leave-role-tag">{ROLE_LABEL[l.user.role] || l.user.role}</span>}
                 {l.status === 'Pending' && <span className="leave-status-tag pending">Pending</span>}
               </div>
-              <div className="leave-overlap-when">
-                {sameLabel
-                  ? `${dateText} · ${days[0].label}`
-                  : days.map(d => `${fmtDate(d.date, { weekday: 'short' })}: ${d.label}`).join(' · ')}
-              </div>
+              <span className="leave-overlap-count">{dayCountText(clashCount)}</span>
+              <button
+                type="button"
+                className="leave-overlap-info-btn"
+                onClick={() => setInfoLeave(l)}
+                title="View leave details"
+              >
+                <InfoIcon size={16} />
+              </button>
             </li>
           );
         })}
       </ul>
+
+      {infoLeave && createPortal((() => {
+        const l = infoLeave;
+        const days = leaveDayBreakdown(l);
+        const clashCount = days.filter(inRange).length;
+        return (
+          <div className="crm-modal-overlay leave-info-overlay" onClick={() => setInfoLeave(null)}>
+            <div className="holiday-modal-card leave-info-card" onClick={(e) => e.stopPropagation()}>
+              <div className="crm-modal-header">
+                <div className="modal-header-left">
+                  <div className="modal-icon-badge leave-icon-badge">
+                    <InfoIcon size={20} />
+                  </div>
+                  <div>
+                    <h3 className="crm-modal-title">{l.user?.name || 'Staff'} - {l.leaveType} Leave</h3>
+                    <p className="crm-modal-subtitle">{formatLeaveRange(l, true)}</p>
+                  </div>
+                </div>
+                <button type="button" className="crm-modal-close-btn" onClick={() => setInfoLeave(null)} title="Close">
+                  <XIcon size={18} />
+                </button>
+              </div>
+
+              <div className="leave-info-body">
+                <div className="leave-view-summary">
+                  <div className="leave-view-item">
+                    <span className="leave-view-label">Status</span>
+                    <span className={`leave-status-tag ${String(l.status || '').toLowerCase()}`}>{l.status}</span>
+                  </div>
+                  <div className="leave-view-item">
+                    <span className="leave-view-label">Total Leave</span>
+                    <span className="leave-view-value">{formatLeaveDuration(l)}</span>
+                  </div>
+                  <div className="leave-view-item">
+                    <span className="leave-view-label">On Selected Dates</span>
+                    <span className="leave-view-value">{dayCountText(clashCount)}</span>
+                  </div>
+                  {l.user?.role && (
+                    <div className="leave-view-item">
+                      <span className="leave-view-label">Role</span>
+                      <span className="leave-view-value">{ROLE_LABEL[l.user.role] || l.user.role}</span>
+                    </div>
+                  )}
+                </div>
+
+                <label className="holiday-form-label">Day-wise Leave Time</label>
+                <p className="leave-info-hint">Highlighted days fall on your selected dates.</p>
+                <div className="leave-info-days">
+                  {days.map(d => (
+                    <div key={d.date} className={`leave-view-day-row ${inRange(d) ? 'clash' : ''}`}>
+                      <span className="leave-view-day-date">{fmtDate(d.date, { weekday: 'short', year: 'numeric' })}</span>
+                      <span className={`leave-unavailable-chip ${d.label === 'Full day' ? 'full' : 'partial'}`}>
+                        {d.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {l.reason && (
+                  <div className="leave-view-block">
+                    <span className="leave-view-label">Reason</span>
+                    <p className="leave-view-text">{l.reason}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="holiday-modal-footer leave-info-footer">
+                <button type="button" className="holiday-btn-cancel" onClick={() => setInfoLeave(null)}>
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })(), document.body)}
     </div>
   );
 };
@@ -74,6 +153,8 @@ const Leaves = () => {
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [savingLeave, setSavingLeave] = useState(false);
   const [viewLeave, setViewLeave] = useState(null);
+  const [showTimeModal, setShowTimeModal] = useState(false);
+  useEffect(() => { if (!showLeaveModal) setShowTimeModal(false); }, [showLeaveModal]);
   // Chuni hui dates pe aur kaun leave pe hai (apply form) / is request ki dates pe (View popup)
   const [formOverlaps, setFormOverlaps] = useState([]);
   const [viewOverlaps, setViewOverlaps] = useState([]);
@@ -396,7 +477,7 @@ const Leaves = () => {
         const days = leaveDayBreakdown(l);
         return (
           <div className="crm-modal-overlay">
-            <div className="holiday-modal-card">
+            <div className="holiday-modal-card leave-scroll-card">
               <div className="crm-modal-header">
                 <div className="modal-header-left">
                   <div className="modal-icon-badge leave-icon-badge">
@@ -510,7 +591,7 @@ const Leaves = () => {
       {/* Apply Leave Modal */}
       {showLeaveModal && (
         <div className="crm-modal-overlay">
-          <div className="holiday-modal-card">
+          <div className="holiday-modal-card leave-scroll-card">
             <div className="crm-modal-header">
               <div className="modal-header-left">
                 <div className="modal-icon-badge leave-icon-badge">
@@ -585,57 +666,32 @@ const Leaves = () => {
               </div>
 
               <div className="holiday-form-group">
-                <div className="leave-days-header">
-                  <label className="holiday-form-label" style={{ marginBottom: 0 }}>Time per day (optional)</label>
-                  {rangeDates.length > 1 && getDayTime(rangeDates[0]).enabled && !dayTimeError(rangeDates[0]) && (
-                    <button type="button" className="leave-apply-all-btn" onClick={applyFirstTimeToAll}>
-                      Apply {fmtDate(rangeDates[0])} time to all days
-                    </button>
-                  )}
-                </div>
-                <p className="leave-days-hint">Turn on a day to set a specific time. Days left off are full-day leave.</p>
-                <div className="leave-days-list">
-                  {rangeDates.map(date => {
-                    const t = getDayTime(date);
-                    const error = dayTimeError(date);
-                    return (
-                      <div key={date} className={`leave-day-row ${t.enabled ? 'enabled' : ''}`}>
-                        <div className="leave-day-top">
-                          <div className="leave-day-info">
-                            <span className="leave-day-date">{fmtDate(date, { weekday: 'short' })}</span>
-                            <span className="leave-day-status">{t.enabled ? 'Specific time' : 'Full day'}</span>
-                          </div>
-                          <label className="modern-switch">
-                            <input
-                              type="checkbox"
-                              checked={t.enabled}
-                              onChange={(e) => setDayTime(date, { enabled: e.target.checked })}
-                            />
-                            <span className="modern-slider switch-blue"></span>
-                          </label>
-                        </div>
-                        {t.enabled && (
-                          <div className="leave-day-times">
-                            <CustomTimePicker
-                              value={t.fromTime}
-                              onChange={(val) => setDayTime(date, { fromTime: val })}
-                              placeholder="From"
-                            />
-                            <span className="leave-day-to">to</span>
-                            <CustomTimePicker
-                              value={t.toTime}
-                              onChange={(val) => setDayTime(date, { toTime: val })}
-                              placeholder="To"
-                            />
-                          </div>
-                        )}
-                        {t.enabled && error && t.fromTime && t.toTime && (
-                          <span className="leave-day-error">{error}</span>
+                <label className="holiday-form-label">Time per day (optional)</label>
+                {(() => {
+                  const timedCount = enabledDayTimes.length;
+                  const errorCount = rangeDates.filter(d => dayTimeError(d)).length;
+                  const summary = timedCount === 0
+                    ? `Full day for ${rangeDates.length === 1 ? 'this day' : `all ${rangeDates.length} days`}`
+                    : `${timedCount} of ${rangeDates.length} ${rangeDates.length === 1 ? 'day' : 'days'} with specific time`;
+                  return (
+                    <div className={`leave-time-summary ${errorCount ? 'has-error' : ''}`}>
+                      <div className="leave-time-summary-text">
+                        <span className="leave-time-summary-main">{summary}</span>
+                        {errorCount > 0 && (
+                          <span className="leave-day-error">Fix time on {errorCount} {errorCount === 1 ? 'day' : 'days'}</span>
                         )}
                       </div>
-                    );
-                  })}
-                </div>
+                      <button
+                        type="button"
+                        className="leave-time-set-btn"
+                        onClick={() => setShowTimeModal(true)}
+                        disabled={rangeDates.length === 0}
+                      >
+                        <ClockIcon size={14} /> Set Time
+                      </button>
+                    </div>
+                  );
+                })()}
               </div>
 
               {leaveData.startDate && leaveData.endDate && (
@@ -685,6 +741,91 @@ const Leaves = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Time per day popup: din ke hisaab se time (form me sirf summary dikhti hai) */}
+      {showLeaveModal && showTimeModal && createPortal(
+        <div className="crm-modal-overlay leave-time-overlay" onClick={() => setShowTimeModal(false)}>
+          <div className="holiday-modal-card leave-info-card leave-time-card" onClick={(e) => e.stopPropagation()}>
+            <div className="crm-modal-header">
+              <div className="modal-header-left">
+                <div className="modal-icon-badge leave-icon-badge">
+                  <ClockIcon size={20} />
+                </div>
+                <div>
+                  <h3 className="crm-modal-title">Time per day</h3>
+                  <p className="crm-modal-subtitle">
+                    {rangeDates.length > 0 && formatLeaveRange({ startDate: leaveData.startDate, endDate: leaveData.endDate }, true)}
+                    {' · '}{rangeDates.length} {rangeDates.length === 1 ? 'day' : 'days'}
+                  </p>
+                </div>
+              </div>
+              <button type="button" className="crm-modal-close-btn" onClick={() => setShowTimeModal(false)} title="Close">
+                <XIcon size={18} />
+              </button>
+            </div>
+
+            <div className="leave-info-body">
+              <div className="leave-days-header">
+                <p className="leave-days-hint" style={{ margin: 0 }}>Turn on a day to set a specific time. Days left off are full-day leave.</p>
+                {rangeDates.length > 1 && getDayTime(rangeDates[0]).enabled && !dayTimeError(rangeDates[0]) && (
+                  <button type="button" className="leave-apply-all-btn" onClick={applyFirstTimeToAll}>
+                    Apply {fmtDate(rangeDates[0])} time to all days
+                  </button>
+                )}
+              </div>
+              <div className="leave-days-list leave-time-days">
+                {rangeDates.map(date => {
+                  const t = getDayTime(date);
+                  const error = dayTimeError(date);
+                  return (
+                    <div key={date} className={`leave-day-row ${t.enabled ? 'enabled' : ''}`}>
+                      <div className="leave-day-top">
+                        <div className="leave-day-info">
+                          <span className="leave-day-date">{fmtDate(date, { weekday: 'short' })}</span>
+                          <span className="leave-day-status">{t.enabled ? 'Specific time' : 'Full day'}</span>
+                        </div>
+                        <label className="modern-switch">
+                          <input
+                            type="checkbox"
+                            checked={t.enabled}
+                            onChange={(e) => setDayTime(date, { enabled: e.target.checked })}
+                          />
+                          <span className="modern-slider switch-blue"></span>
+                        </label>
+                      </div>
+                      {t.enabled && (
+                        <div className="leave-day-times">
+                          <CustomTimePicker
+                            value={t.fromTime}
+                            onChange={(val) => setDayTime(date, { fromTime: val })}
+                            placeholder="From"
+                          />
+                          <span className="leave-day-to">to</span>
+                          <CustomTimePicker
+                            value={t.toTime}
+                            onChange={(val) => setDayTime(date, { toTime: val })}
+                            placeholder="To"
+                          />
+                        </div>
+                      )}
+                      {t.enabled && error && t.fromTime && t.toTime && (
+                        <span className="leave-day-error">{error}</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="holiday-modal-footer leave-info-footer">
+              <button type="button" className="holiday-btn-submit" onClick={() => setShowTimeModal(false)}>
+                Done
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

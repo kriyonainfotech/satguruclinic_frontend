@@ -2,8 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { XIcon } from './Icons';
 import CustomSelect from './CustomSelect';
+import usePermissions from '../permissions/usePermissions';
 
-const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPatientName = '', initialAppointment = null, initialInvoice = null, onSuccess }) => {
+// Paisa kis account me aaya (Payments & Finances ke accounts)
+const ACCOUNT_OPTIONS = [
+  { value: 'Company Bank', label: 'Company Bank' },
+  { value: 'Personal Bank', label: 'Personal Bank' },
+  { value: 'Cash', label: 'Cash' }
+];
+
+const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPatientName = '', initialAppointment = null, initialInvoice = null, defaultConsultationFee = true, onSuccess }) => {
   const [saleMobile, setSaleMobile] = useState(initialPatientMobile);
   const [salePatientName, setSalePatientName] = useState(initialPatientName);
   const [showMobileDropdown, setShowMobileDropdown] = useState(false);
@@ -23,6 +31,9 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
   
   const [saleTotalAmount, setSaleTotalAmount] = useState(0);
   const [saleNotes, setSaleNotes] = useState('');
+  const [receivedAmount, setReceivedAmount] = useState('');
+  const [receivedAccount, setReceivedAccount] = useState('');
+  const { can } = usePermissions();
   
   const dropdownRef = useRef(null);
   
@@ -116,8 +127,10 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
     setSelectedPackages([]);
     setSelectedMedicines([]);
     setMedicineDuration(1);
-    setIncludeConsultationFee(true);
+    setIncludeConsultationFee(defaultConsultationFee);
     setSaleNotes('');
+    setReceivedAmount('');
+    setReceivedAccount('');
   }, [isOpen, initialPatientMobile, initialPatientName, initialAppointment]);
   
   useEffect(() => {
@@ -147,6 +160,11 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
     if (!salePatientName) return alert("Please select a patient.");
     
     const finalAmount = Number(saleTotalAmount) || 0;
+    const received = Number(receivedAmount) || 0;
+    if (!initialInvoice && received > 0) {
+      if (received > finalAmount) return alert("Received amount cannot be more than the total.");
+      if (!receivedAccount) return alert("Please select the account the payment was received in.");
+    }
     
     const workItems = [];
     if (includeConsultationFee) workItems.push(`Consultation (₹${consultationFeeAmount})`);
@@ -159,7 +177,7 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
 
     try {
       const token = localStorage.getItem('token');
-      
+      let saved;
       if (initialInvoice) {
           const diff = Number(finalAmount) - Number(initialInvoice.total || 0);
           const newBalance = Number(initialInvoice.balance || 0) + diff;
@@ -175,7 +193,7 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
               notes: saleNotes
           };
           
-          await axios.put(`${import.meta.env.VITE_API_BASE_URL}/invoices/${initialInvoice._id}`, updatedInvoice, {
+          saved = await axios.put(`${import.meta.env.VITE_API_BASE_URL}/invoices/${initialInvoice._id}`, updatedInvoice, {
               headers: { Authorization: 'Bearer ' + token }
           });
       } else {
@@ -188,16 +206,18 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
             total: finalAmount,
             balance: finalAmount,
             status: 'Pending',
-            notes: saleNotes
+            notes: saleNotes,
+            receivedAmount: received,
+            receivedAccount
           };
-          await axios.post(`${import.meta.env.VITE_API_BASE_URL}/invoices`, newInvoice, {
+          saved = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/invoices`, newInvoice, {
             headers: { Authorization: 'Bearer ' + token }
           });
       }
-      if (onSuccess) onSuccess();
+      if (onSuccess) onSuccess(saved?.data);
       onClose();
     } catch (err) {
-      alert("Error saving entry");
+      alert(err.response?.data?.message || "Error saving entry");
     }
   };
 
@@ -368,6 +388,18 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
           <label className="modal-label">Total Amount ({R})</label>
           <input type="number" value={saleTotalAmount} onChange={(e) => setSaleTotalAmount(e.target.value)} className="modal-text-input" style={{ fontWeight: 700, fontSize: '15px' }} />
         </div>
+        {!initialInvoice && can('payments:collect') && (
+          <div style={{ marginBottom: '14px', display: 'flex', gap: '10px' }}>
+            <div style={{ flex: 1 }}>
+              <label className="modal-label">Amount Received Now ({R})</label>
+              <input type="number" min="0" value={receivedAmount} onChange={(e) => setReceivedAmount(e.target.value)} placeholder="0 if not paid yet" className="modal-text-input" />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label className="modal-label">Received In</label>
+              <CustomSelect value={receivedAccount} onChange={setReceivedAccount} options={ACCOUNT_OPTIONS} placeholder="Select bank / cash" />
+            </div>
+          </div>
+        )}
         <div style={{ marginBottom: '6px' }}>
           <label className="modal-label">Notes</label>
           <textarea value={saleNotes} onChange={(e) => setSaleNotes(e.target.value)} placeholder="Add any extra details here..." className="modal-textarea-input"></textarea>
