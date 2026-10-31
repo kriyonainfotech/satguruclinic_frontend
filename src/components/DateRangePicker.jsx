@@ -69,10 +69,24 @@ const DateRangePicker = ({
       if (!openUp && spaceBelow < 350 && spaceAbove > spaceBelow) {
         shouldOpenUp = true;
       }
+
+      // Keep the popover inside the viewport horizontally
+      const popupWidth = Math.min(280, window.innerWidth - 16);
+      let calcLeft = rect.left;
+      if (calcLeft + popupWidth > window.innerWidth - 12) {
+        calcLeft = rect.right - popupWidth;
+      }
+      if (calcLeft + popupWidth > window.innerWidth - 8) {
+        calcLeft = window.innerWidth - popupWidth - 8;
+      }
+      if (calcLeft < 8) {
+        calcLeft = 8;
+      }
+
       setMenuPos({
         top: shouldOpenUp ? 'auto' : rect.bottom + 6,
         bottom: shouldOpenUp ? window.innerHeight - rect.top + 6 : 'auto',
-        left: rect.left,
+        left: calcLeft,
         isUp: shouldOpenUp
       });
       if (false) {
