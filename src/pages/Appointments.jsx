@@ -5,6 +5,7 @@ import axios from 'axios';
 import { PlusIcon, EditIcon, TrashIcon, SearchIcon, FilterIcon, PhoneIcon, CalendarIcon, ClockIcon, UserIcon, InfoIcon, XIcon } from '../components/Icons';
 import StatusDropdown from '../components/StatusDropdown';
 import CustomSelect from '../components/CustomSelect';
+import CreatableSelect from '../components/CreatableSelect';
 import CustomTimePicker from '../components/CustomTimePicker';
 import CalendarPicker from '../components/CalendarPicker';
 import Pagination from '../components/Pagination';
@@ -688,7 +689,7 @@ const Appointments = () => {
             
             {/* Creator Filter */}
             <div style={{ minWidth: '150px' }}>
-              <CustomSelect 
+              <CustomSelect
                 value={creatorFilter} 
                 onChange={setCreatorFilter}
                 options={creatorOptions}
@@ -698,7 +699,7 @@ const Appointments = () => {
 
             {/* Status Filter */}
             <div style={{ minWidth: '150px' }}>
-              <CustomSelect 
+              <CustomSelect
                 value={statusFilter} 
                 onChange={setStatusFilter}
                 options={[
@@ -714,7 +715,7 @@ const Appointments = () => {
 
             {/* Date Filter Type */}
             <div style={{ minWidth: '150px' }}>
-              <CustomSelect 
+              <CustomSelect
                 value={dateFilterType} 
                 onChange={(val) => {
                   setDateFilterType(val);
@@ -734,7 +735,7 @@ const Appointments = () => {
             {dateFilterType === 'month' && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <div style={{ minWidth: '110px' }}>
-                  <CustomSelect 
+                  <CustomSelect
                     value={filterMonth} 
                     onChange={setFilterMonth}
                     options={[{value:'', label:'Month'}, ...MONTH_LIST]}
@@ -742,7 +743,7 @@ const Appointments = () => {
                   />
                 </div>
                 <div style={{ minWidth: '100px' }}>
-                  <CustomSelect 
+                  <CustomSelect
                     value={filterYear} 
                     onChange={setFilterYear}
                     options={[{value:'', label:'Year'}, ...YEAR_OPTIONS]}
@@ -1210,7 +1211,7 @@ const Appointments = () => {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                       <div>
                         <label className="modal-label">Blood Group</label>
-                        <CustomSelect 
+                        <CustomSelect
                           value={bloodGroup}
                           options={['Unknown', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(bg => ({value: bg, label: bg}))}
                           onChange={val => setBloodGroup(val)}
@@ -1263,7 +1264,7 @@ const Appointments = () => {
                   </div>
                   <div>
                     <label className="modal-label">Services</label>
-                    <CustomSelect 
+                    <CustomSelect
                       value=""
                       placeholder="-- Add Service --"
                       options={(services || []).map(s => ({
@@ -1298,7 +1299,7 @@ const Appointments = () => {
                   
                   <div>
                     <label className="modal-label">Packages</label>
-                    <CustomSelect 
+                    <CustomSelect
                       value=""
                       placeholder="-- Add Package --"
                       options={(packages || []).map(p => ({
@@ -1332,13 +1333,31 @@ const Appointments = () => {
 
                   <div style={{ gridColumn: 'span 2' }}>
                     <label className="modal-label">Medicines</label>
-                    <CustomSelect 
-                      value=""
-                      placeholder="-- Add Medicine --"
+                    {/* List me na ho to naam likh kar "+ Add" karo, medicine list me ban jayegi */}
+                    <CreatableSelect
+                      placeholder="Type medicine name..."
+                      createLabel="Add new medicine"
                       options={(medicines || []).map(m => ({
                         value: `${m.name} (₹${m.price || 0})`,
-                        label: `${m.name} (₹${m.price || 0})`
+                        label: `${m.name} (₹${m.price || 0})`,
+                        name: m.name
                       }))}
+                      onCreate={async (name) => {
+                        try {
+                          const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/medicines/quick`, { name }, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+                          const med = res.data;
+                          setMedicines(prev => (prev || []).some(x => x._id === med._id) ? prev : [med, ...(prev || [])]);
+                          setSelectedMedicines(prev => prev.some(x => (x.baseName || '').toLowerCase() === med.name.toLowerCase()) ? prev : [...prev, {
+                            nameStr: `${med.name} (₹${med.price || 0})`,
+                            baseName: med.name,
+                            basePrice: med.price || '',
+                            qty: 1,
+                            dosage: med.defaultDosage || ''
+                          }]);
+                        } catch (err) {
+                          alert(err.response?.data?.message || 'Could not add the medicine');
+                        }
+                      }}
                       onChange={val => {
                         const baseNameExtracted = val.split(' (₹')[0];
                         if (val && !selectedMedicines.find(x => x.baseName === baseNameExtracted)) {

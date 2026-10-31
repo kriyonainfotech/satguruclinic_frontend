@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { XIcon } from './Icons';
 import CustomSelect from './CustomSelect';
+import CreatableSelect from './CreatableSelect';
 import usePermissions from '../permissions/usePermissions';
 import { splitPrice } from '../utils/itemPrice';
 
@@ -330,7 +331,7 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
         {/* Services Dropdown */}
         <div style={{ marginBottom: '14px' }}>
           <label className="modal-label">Services</label>
-          <CustomSelect 
+          <CustomSelect
             value=""
             placeholder="-- Add Service --"
             options={(servicesList || []).map(s => ({ value: s.id, label: `${s.name} - ${R}${s.price}` }))}
@@ -359,7 +360,7 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
         {/* Packages Dropdown */}
         <div style={{ marginBottom: '14px' }}>
           <label className="modal-label">Packages</label>
-          <CustomSelect 
+          <CustomSelect
             value=""
             placeholder="-- Add Package --"
             options={(allPackages || []).map(p => ({ value: p.id, label: `${p.name} - ${R}${p.price}` }))}
@@ -388,10 +389,21 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
         {/* Medicines Dropdown */}
         <div style={{ marginBottom: '14px' }}>
           <label className="modal-label">Medicines</label>
-          <CustomSelect 
-            value=""
-            placeholder="-- Add Medicine --"
-            options={(allMedicines || []).map(m => ({ value: m.id, label: `${m.name} - ${R}${m.price}` }))}
+          {/* List me na ho to naam likh kar "+ Add" karo, medicine list me ban jayegi */}
+          <CreatableSelect
+            placeholder="Type medicine name..."
+            createLabel="Add new medicine"
+            options={(allMedicines || []).map(m => ({ value: m.id, label: `${m.name} - ${R}${m.price}`, name: m.name }))}
+            onCreate={async (name) => {
+              try {
+                const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/medicines/quick`, { name }, { headers: { Authorization: 'Bearer ' + localStorage.getItem('token') } });
+                const med = { id: res.data._id, name: res.data.name, price: res.data.price || 0, masterPrice: res.data.price || 0 };
+                setAllMedicines(prev => prev.some(m => m.id === med.id) ? prev : [med, ...prev]);
+                setSelectedMedicines(prev => prev.some(m => m.id === med.id) ? prev : [...prev, { ...med, qty: 1 }]);
+              } catch (err) {
+                alert(err.response?.data?.message || 'Could not add the medicine');
+              }
+            }}
             onChange={(val) => {
               const med = allMedicines.find(m => m.id === val);
               if (med && !selectedMedicines.find(m => m.id === med.id)) setSelectedMedicines([...selectedMedicines, med]);

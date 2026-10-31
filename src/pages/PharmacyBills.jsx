@@ -379,6 +379,8 @@ const PharmacyBills = () => {
         setBills(prev => [res.data, ...prev].sort((a, b) => b.billDate.localeCompare(a.billDate)));
         if (paidNow > 0) fetchBalances();
       }
+      // "+ Other" se likhi medicine backend me list me ban jaati hai, list taaza karo
+      if (stockItems?.some(i => !i.medicine)) fetchMedicines();
       setShowBillModal(false);
     } catch (err) {
       setFormError(err.response?.data?.message || 'Could not save the bill.');
