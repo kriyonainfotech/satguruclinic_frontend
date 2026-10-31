@@ -120,7 +120,7 @@ const Medicines = () => {
     };
 
     const { can } = usePermissions();
-    const perm = (action) => can('services:medicine-' + action);
+    const perm = (action) => can('pharmacy-bills:medicine-' + action);
 
     const filterOptions = [
         { value: 'ALL', label: 'All Categories' },

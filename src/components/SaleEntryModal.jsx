@@ -3,6 +3,7 @@ import axios from 'axios';
 import { XIcon } from './Icons';
 import CustomSelect from './CustomSelect';
 import usePermissions from '../permissions/usePermissions';
+import { splitPrice } from '../utils/itemPrice';
 
 // Paisa kis account me aaya (Payments & Finances ke accounts)
 const ACCOUNT_OPTIONS = [
@@ -49,15 +50,16 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
             setPatientsList((pRes.data || []).map(p => ({ id: p._id, mobile: p.mobileNumber || '', name: p.fullName || '' })));
             
             const sRes = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/services`, config);
-            const sData = (sRes.data || []).map(s => ({ id: s._id, name: s.name || '', price: s.price || 0 }));
+            // masterPrice: master me price ho to wahi fix, 0 ho to manual box
+            const sData = (sRes.data || []).map(s => ({ id: s._id, name: s.name || '', price: s.price || 0, masterPrice: s.price || 0 }));
             setServicesList(sData);
             
             const pkgRes = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/packages`, config);
-            const pData = (pkgRes.data || []).map(p => ({ id: p._id, name: p.name || '', price: p.totalPrice || 0 }));
+            const pData = (pkgRes.data || []).map(p => ({ id: p._id, name: p.name || '', price: p.totalPrice || 0, masterPrice: p.totalPrice || 0 }));
             setAllPackages(pData);
             
             const mRes = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/medicines`, config);
-            const mData = (mRes.data || []).map(m => ({ id: m._id, name: m.name || '', price: m.price || 0 }));
+            const mData = (mRes.data || []).map(m => ({ id: m._id, name: m.name || '', price: m.price || 0, masterPrice: m.price || 0 }));
             setAllMedicines(mData);
             
             const setRes = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/settings`, config);
@@ -66,10 +68,24 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
             if (initialInvoice && initialInvoice.work) {
                 const workItems = initialInvoice.work.split(', ').map(s => s.split(' (?')[0].split(' (\u20B9')[0].split(' (Rs.')[0].split(' [Qty:')[0].trim().toLowerCase());
                 
-                const matchedServices = sData.filter(s => workItems.includes((s.name || '').toLowerCase()));
+                // Bill me jo price likha tha wahi wapas aaye (medicine me total / qty = ek ka price)
+                const priceByName = {};
+                initialInvoice.work.split(', ').forEach(part => {
+                  const name = part.split(' (')[0].split(' [Qty:')[0].trim().toLowerCase();
+                  const pm = part.match(/₹\s*([\d.]+)\)\s*$/);
+                  if (!name || !pm) return;
+                  const qm = part.match(/\[Qty:\s*(\d+)\]/);
+                  priceByName[name] = Number(pm[1]) / (qm ? Number(qm[1]) || 1 : 1);
+                });
+                const withBillPrice = (item) => {
+                  const price = priceByName[(item.name || '').toLowerCase()];
+                  return price !== undefined ? { ...item, price } : item;
+                };
+
+                const matchedServices = sData.filter(s => workItems.includes((s.name || '').toLowerCase())).map(withBillPrice);
                 setSelectedServices(matchedServices);
                 
-                const matchedPackages = pData.filter(p => workItems.includes((p.name || '').toLowerCase()));
+                const matchedPackages = pData.filter(p => workItems.includes((p.name || '').toLowerCase())).map(withBillPrice);
                 setSelectedPackages(matchedPackages);
                 
                 // Qty bhi wapas lao, warna edit save karne pe stock me qty 1 ho jaati
@@ -81,34 +97,45 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
                 });
                 const matchedMedicines = mData
                   .filter(m => workItems.includes((m.name || '').toLowerCase()))
-                  .map(m => ({ ...m, qty: qtyByName[(m.name || '').toLowerCase()] || 1 }));
+                  .map(m => withBillPrice({ ...m, qty: qtyByName[(m.name || '').toLowerCase()] || 1 }));
                 setSelectedMedicines(matchedMedicines);
 
                 setManualTotal(initialInvoice.total);
             } else if (initialAppointment) {
+               // Master me price ho to wahi, warna appointment me jo likha wo
+               const fromAppointment = (str, list, prefix) => {
+                   const { name, price } = splitPrice(str.split(' [Qty:')[0]);
+                   if (!name) return null;
+                   const found = list.find(x => (x.name || '').toLowerCase() === name.toLowerCase());
+                   const typed = price === null ? null : Number(price) || 0;
+                   const finalPrice = found?.price > 0 ? found.price : (typed ?? 0);
+                   return found ? { ...found, price: finalPrice } : { id: prefix + '-custom-' + Date.now() + Math.random(), name, price: finalPrice };
+               };
                if (initialAppointment.services) {
-                   const sNames = initialAppointment.services.split(', ').map(s => s.split(' (₹')[0].split(' [Qty:')[0].trim().toLowerCase());
-                   setSelectedServices(sData.filter(s => sNames.includes((s.name || '').toLowerCase())));
+                   setSelectedServices(initialAppointment.services.split(', ').map(s => fromAppointment(s, sData, 'srv')).filter(Boolean));
                }
                if (initialAppointment.packages) {
-                   const pNames = initialAppointment.packages.split(', ').map(p => p.split(' (₹')[0].split(' [Qty:')[0].trim().toLowerCase());
-                   setSelectedPackages(pData.filter(p => pNames.includes((p.name || '').toLowerCase())));
+                   setSelectedPackages(initialAppointment.packages.split(', ').map(p => fromAppointment(p, pData, 'pkg')).filter(Boolean));
                }
                if (initialAppointment.medicines) {
                    const mItems = initialAppointment.medicines.split(', ').map(str => {
                        const baseName = str.split(' (₹')[0].split(' [Qty:')[0].trim();
                        const qtyMatch = str.match(/\[Qty: (\d+)\]/);
                        const qty = qtyMatch ? parseInt(qtyMatch[1]) : 1;
-                       return { baseName, qty };
+                       // Appointment me "(₹total)" hota hai, ek ka price = total / qty
+                       const priceMatch = str.match(/\(₹\s*([\d.]+)\)/);
+                       const unitPrice = priceMatch ? Number(priceMatch[1]) / (qty || 1) : null;
+                       return { baseName, qty, unitPrice };
                    });
                    const selectedM = [];
                    mItems.forEach(item => {
                        const med = mData.find(m => (m.name || '').toLowerCase() === item.baseName.toLowerCase());
                        if (med) {
-                           selectedM.push({ ...med, qty: item.qty });
+                           const price = med.price > 0 ? med.price : (item.unitPrice ?? 0);
+                           selectedM.push({ ...med, price, qty: item.qty });
                        } else if (item.baseName && !['Morning', 'Afternoon', 'Night', 'After Meal', 'Before Meal'].includes(item.baseName) && !item.baseName.endsWith(']')) {
                            // If custom medicine typed in appointment
-                           selectedM.push({ id: 'custom-' + Date.now() + Math.random(), name: item.baseName, price: 0, qty: item.qty });
+                           selectedM.push({ id: 'custom-' + Date.now() + Math.random(), name: item.baseName, price: item.unitPrice || 0, qty: item.qty });
                        }
                    });
                    setSelectedMedicines(selectedM);
@@ -134,9 +161,9 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
   }, [isOpen, initialPatientMobile, initialPatientName, initialAppointment]);
   
   useEffect(() => {
-    let sum = selectedServices.reduce((acc, srv) => acc + srv.price, 0);
-    sum += selectedPackages.reduce((acc, pkg) => acc + pkg.price, 0);
-    sum += selectedMedicines.reduce((acc, med) => acc + ((med.price || 0) * (med.qty || 1)), 0);
+    let sum = selectedServices.reduce((acc, srv) => acc + (Number(srv.price) || 0), 0);
+    sum += selectedPackages.reduce((acc, pkg) => acc + (Number(pkg.price) || 0), 0);
+    sum += selectedMedicines.reduce((acc, med) => acc + ((Number(med.price) || 0) * (med.qty || 1)), 0);
     if (includeConsultationFee) sum += consultationFeeAmount;
     setSaleTotalAmount(sum);
   }, [selectedServices, selectedPackages, selectedMedicines, includeConsultationFee, consultationFeeAmount]);
@@ -168,9 +195,9 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
     
     const workItems = [];
     if (includeConsultationFee) workItems.push(`Consultation (₹${consultationFeeAmount})`);
-    if (selectedServices.length > 0) workItems.push(...selectedServices.map(s => `${s.name} (₹${s.price})`));
-    if (selectedPackages.length > 0) workItems.push(...selectedPackages.map(p => `${p.name} (₹${p.price})`));
-    if (selectedMedicines.length > 0) workItems.push(...selectedMedicines.map(m => `${m.name} [Qty: ${m.qty || 1}] (${medicineDuration} days - ₹${(m.price || 0) * (m.qty || 1)})`));
+    if (selectedServices.length > 0) workItems.push(...selectedServices.map(s => `${s.name} (₹${Number(s.price) || 0})`));
+    if (selectedPackages.length > 0) workItems.push(...selectedPackages.map(p => `${p.name} (₹${Number(p.price) || 0})`));
+    if (selectedMedicines.length > 0) workItems.push(...selectedMedicines.map(m => `${m.name} [Qty: ${m.qty || 1}] (${medicineDuration} days - ₹${(Number(m.price) || 0) * (m.qty || 1)})`));
     const workStr = workItems.length > 0 ? workItems.join(', ') : 'Manual Entry';
     // Stock tracking ke liye bechi medicines alag se (custom medicine ka id null)
     const medicineItems = selectedMedicines.map(m => ({ medicine: String(m.id || '').startsWith('custom-') ? null : m.id, name: m.name, qty: Number(m.qty) || 1 }));
@@ -316,7 +343,12 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
             <div className="modal-chip-group">
               {selectedServices.map(srv => (
                 <span key={'s'+srv.id} className="modal-chip service">
-                  {srv.name} ({R}{srv.price})
+                  {srv.name}
+                  {srv.masterPrice > 0 ? (
+                    <span className="modal-chip-price">({R}{Number(srv.price) || 0})</span>
+                  ) : (
+                    <span className="modal-chip-price">{R}<input type="number" min="0" value={srv.price ?? ''} placeholder="0" title="Price" onChange={(e) => setSelectedServices(prev => prev.map(s => s.id === srv.id ? { ...s, price: e.target.value } : s))} /></span>
+                  )}
                   <span className="modal-chip-remove" onClick={() => setSelectedServices(selectedServices.filter(s => s.id !== srv.id))} title="Remove">×</span>
                 </span>
               ))}
@@ -340,7 +372,12 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
             <div className="modal-chip-group">
               {selectedPackages.map(pkg => (
                 <span key={'p'+pkg.id} className="modal-chip package">
-                  {pkg.name} ({R}{pkg.price})
+                  {pkg.name}
+                  {pkg.masterPrice > 0 ? (
+                    <span className="modal-chip-price">({R}{Number(pkg.price) || 0})</span>
+                  ) : (
+                    <span className="modal-chip-price">{R}<input type="number" min="0" value={pkg.price ?? ''} placeholder="0" title="Price" onChange={(e) => setSelectedPackages(prev => prev.map(p => p.id === pkg.id ? { ...p, price: e.target.value } : p))} /></span>
+                  )}
                   <span className="modal-chip-remove" onClick={() => setSelectedPackages(selectedPackages.filter(p => p.id !== pkg.id))} title="Remove">×</span>
                 </span>
               ))}
@@ -364,7 +401,12 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
             <div className="modal-chip-group" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
               {selectedMedicines.map(med => (
                 <div key={'m'+med.id} className="modal-chip medicine" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  {med.name} ({R}{(med.price || 0) * (med.qty || 1)})
+                  {med.name}
+                  {med.masterPrice > 0 ? (
+                    <span className="modal-chip-price">{R}{Number(med.price) || 0} per medicine</span>
+                  ) : (
+                    <span className="modal-chip-price">{R}<input type="number" min="0" value={med.price ?? ''} placeholder="0" title="Price per medicine" onChange={(e) => setSelectedMedicines(prev => prev.map(m => m.id === med.id ? { ...m, price: e.target.value } : m))} /> per medicine</span>
+                  )}
                   <span style={{ fontSize: '10px', marginLeft: '4px', opacity: 0.8 }}>Qty:</span>
                   <input type="number" min="1" value={med.qty || 1} onChange={(e) => {
                     const val = parseInt(e.target.value) || 1;

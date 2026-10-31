@@ -9,6 +9,7 @@ import CustomTimePicker from '../components/CustomTimePicker';
 import CalendarPicker from '../components/CalendarPicker';
 import Pagination from '../components/Pagination';
 import { formatDate, formatDisplayTime } from '../utils/formatDate';
+import { splitPrice, withPrice } from '../utils/itemPrice';
 import usePermissions from '../permissions/usePermissions';
 import '../App.css';
 
@@ -128,6 +129,12 @@ const Appointments = () => {
     }
   };
 
+
+  // Master me price ho to wahi fix chalega, 0 / na ho to manual box (packages me totalPrice hota hai)
+  const masterPriceOf = (list, name) => {
+    const item = (list || []).find(x => (x.name || '').toLowerCase() === (name || '').toLowerCase());
+    return Number(item?.totalPrice ?? item?.price) || 0;
+  };
 
   const handleEditClick = (a) => {
     setEditId(a._id);
@@ -435,10 +442,18 @@ const Appointments = () => {
         return formatDisplayTime(time24);
       };
 
-      const servicesStr = selectedServices.join(', ');
-      const packagesStr = selectedPackages.join(', ');
+      // Jinka master price hai unme wahi price save ho
+      const fixPrice = (list) => (str) => {
+          const { name } = splitPrice(str);
+          const fixed = masterPriceOf(list, name);
+          return fixed > 0 ? withPrice(name, fixed) : str;
+      };
+      const servicesStr = selectedServices.map(fixPrice(services)).join(', ');
+      const packagesStr = selectedPackages.map(fixPrice(packages)).join(', ');
       const medicinesStr = selectedMedicines.map(m => {
-          let str = `${m.nameStr} [Qty: ${m.qty || 1}]`;
+          const fixed = masterPriceOf(medicines, m.baseName);
+          const nameStr = fixed > 0 ? `${m.baseName} (₹${fixed * (m.qty || 1)})` : m.nameStr;
+          let str = `${nameStr} [Qty: ${m.qty || 1}]`;
           if (m.dosage) str += ` [${m.dosage}]`;
           return str;
       }).join(', ');
@@ -1256,17 +1271,28 @@ const Appointments = () => {
                         label: `${s.name} (₹${s.price || 0})`
                       }))}
                       onChange={val => {
-                        if (val && !selectedServices.includes(val)) {
+                        if (val && !selectedServices.some(x => splitPrice(x).name === splitPrice(val).name)) {
                           setSelectedServices([...selectedServices, val]);
                         }
                       }}
                     />
                     <div className="modal-chip-group">
-                      {selectedServices.map(s => (
-                        <span key={s} className="modal-chip service">
-                          {s} <span className="modal-chip-remove" onClick={() => setSelectedServices(selectedServices.filter(x => x !== s))} title="Remove">×</span>
-                        </span>
-                      ))}
+                      {selectedServices.map((s, i) => {
+                        const { name, price } = splitPrice(s);
+                        const fixed = masterPriceOf(services, name);
+                        return (
+                          <span key={'s' + i} className="modal-chip service">
+                            {name}
+                            {/* Master price ho to wahi, warna yahan likho; Sale Entry me yahi aayega */}
+                            {fixed > 0 ? (
+                              <span className="modal-chip-price">(₹{fixed})</span>
+                            ) : (
+                              <span className="modal-chip-price">₹<input type="number" min="0" value={price ?? ''} placeholder="0" title="Price" onChange={e => setSelectedServices(selectedServices.map((x, idx) => idx === i ? withPrice(name, e.target.value) : x))} /></span>
+                            )}
+                            <span className="modal-chip-remove" onClick={() => setSelectedServices(selectedServices.filter((_, idx) => idx !== i))} title="Remove">×</span>
+                          </span>
+                        );
+                      })}
                     </div>
                   </div>
                   
@@ -1276,21 +1302,31 @@ const Appointments = () => {
                       value=""
                       placeholder="-- Add Package --"
                       options={(packages || []).map(p => ({
-                        value: `${p.name} (₹${p.price || 0})`,
-                        label: `${p.name} (₹${p.price || 0})`
+                        value: `${p.name} (₹${p.totalPrice ?? p.price ?? 0})`,
+                        label: `${p.name} (₹${p.totalPrice ?? p.price ?? 0})`
                       }))}
                       onChange={val => {
-                        if (val && !selectedPackages.includes(val)) {
+                        if (val && !selectedPackages.some(x => splitPrice(x).name === splitPrice(val).name)) {
                           setSelectedPackages([...selectedPackages, val]);
                         }
                       }}
                     />
                     <div className="modal-chip-group">
-                      {selectedPackages.map(p => (
-                        <span key={p} className="modal-chip package">
-                          {p} <span className="modal-chip-remove" onClick={() => setSelectedPackages(selectedPackages.filter(x => x !== p))} title="Remove">×</span>
-                        </span>
-                      ))}
+                      {selectedPackages.map((p, i) => {
+                        const { name, price } = splitPrice(p);
+                        const fixed = masterPriceOf(packages, name);
+                        return (
+                          <span key={'p' + i} className="modal-chip package">
+                            {name}
+                            {fixed > 0 ? (
+                              <span className="modal-chip-price">(₹{fixed})</span>
+                            ) : (
+                              <span className="modal-chip-price">₹<input type="number" min="0" value={price ?? ''} placeholder="0" title="Price" onChange={e => setSelectedPackages(selectedPackages.map((x, idx) => idx === i ? withPrice(name, e.target.value) : x))} /></span>
+                            )}
+                            <span className="modal-chip-remove" onClick={() => setSelectedPackages(selectedPackages.filter((_, idx) => idx !== i))} title="Remove">×</span>
+                          </span>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -1320,7 +1356,7 @@ const Appointments = () => {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
                       {selectedMedicines.map((m, i) => (
                         <div key={i} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', color: '#0f172a', padding: '6px 12px', borderRadius: '8px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', width: '100%', boxSizing: 'border-box' }}>
-                          <div style={{ fontWeight: 600, minWidth: '130px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#166534' }} title={m.nameStr}>{m.nameStr}</div>
+                          <div style={{ fontWeight: 600, minWidth: '130px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#166534' }} title={m.nameStr}>{m.baseName || m.nameStr}</div>
                           
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <span style={{ fontSize: '11px', color: '#64748b' }}>Qty:</span>
@@ -1333,7 +1369,7 @@ const Appointments = () => {
                                 const newQty = parseInt(e.target.value) || 1;
                                 newMeds[i].qty = newQty;
                                 if (m.basePrice !== undefined) {
-                                    newMeds[i].nameStr = `${m.baseName} (₹${m.basePrice * newQty})`;
+                                    newMeds[i].nameStr = `${m.baseName} (₹${(Number(m.basePrice) || 0) * newQty})`;
                                 }
                                 setSelectedMedicines(newMeds);
                               }}
@@ -1341,6 +1377,32 @@ const Appointments = () => {
                               style={{ width: '45px', height: '32px', fontSize: '12.5px', padding: '4px' }}
                             />
                           </div>
+
+                          {/* Ek medicine ka price: master me ho to wahi, warna yahan likho; Sale Entry me yahi aayega */}
+                          {masterPriceOf(medicines, m.baseName) > 0 ? (
+                            <div style={{ fontSize: '12.5px', fontWeight: 600, color: '#166534', whiteSpace: 'nowrap' }}>
+                              ₹{masterPriceOf(medicines, m.baseName)} <span style={{ fontSize: '11px', fontWeight: 500, color: '#64748b' }}>per medicine</span>
+                            </div>
+                          ) : (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span style={{ fontSize: '11px', color: '#64748b' }}>₹</span>
+                            <input
+                              type="number"
+                              min="0"
+                              placeholder="Price"
+                              title="Price per unit"
+                              value={m.basePrice ?? ''}
+                              onChange={(e) => {
+                                const newMeds = [...selectedMedicines];
+                                newMeds[i] = { ...m, basePrice: e.target.value, nameStr: `${m.baseName} (₹${(Number(e.target.value) || 0) * (m.qty || 1)})` };
+                                setSelectedMedicines(newMeds);
+                              }}
+                              className="modal-text-input"
+                              style={{ width: '70px', height: '32px', fontSize: '12.5px', padding: '4px' }}
+                            />
+                            <span style={{ fontSize: '11px', color: '#64748b', whiteSpace: 'nowrap' }}>per medicine</span>
+                          </div>
+                          )}
 
                           <input 
                             type="text" 

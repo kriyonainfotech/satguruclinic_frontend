@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { createPortal } from 'react-dom';
-import { PlusIcon, XIcon, TrashIcon, EditIcon, SearchIcon, PillIcon, WalletIcon, InfoIcon } from '../components/Icons';
+import { PlusIcon, XIcon, TrashIcon, EditIcon, SearchIcon, PillIcon, WalletIcon, InfoIcon, ClipboardListIcon } from '../components/Icons';
 import CustomSelect from '../components/CustomSelect';
 import CalendarPicker, { formatDateToISO, formatDisplayDate } from '../components/CalendarPicker';
 import DateRangePicker from '../components/DateRangePicker';
 import MonthYearPicker from '../components/MonthYearPicker';
 import usePermissions from '../permissions/usePermissions';
 import MedicineStock from '../components/MedicineStock';
+import Medicines from './Medicines';
 import './PharmacyBills.css';
 
 const STATUS_OPTIONS = [
@@ -37,6 +38,12 @@ const todayISO = () => formatDateToISO(new Date());
 const isOverdue = (bill) => bill.pendingAmount > 0 && bill.dueDate && bill.dueDate < todayISO();
 // Items ek hi field me comma se jude text me rehte hain
 const splitItems = (text) => (text || '').split(/[,\n]/).map(s => s.trim()).filter(Boolean);
+// Bill ki medicines: stockItems ho to naam + qty, warna purane text wale items (qty nahi)
+const billMedicines = (b) => (b.stockItems || []).length
+  ? b.stockItems.map(i => ({ name: i.name, qty: i.qty }))
+  : splitItems(b.items).map(name => ({ name, qty: null }));
+// Table / card me itni medicines dikhti hain, baaki "+N more" popup me
+const MED_PREVIEW = 2;
 // Aakhri comma ke baad jo type ho raha hai
 const currentItemToken = (text) => (text || '').split(/[,\n]/).pop().trim();
 // Aakhri adhoora item hata kar naya item + ", " jod do
@@ -73,7 +80,7 @@ const PharmacyBills = () => {
 
   const [bills, setBills] = useState([]);
   const [loading, setLoading] = useState(true);
-  // 'bills' = bills list, 'stock' = medicine stock tracking
+  // 'bills' = bills list, 'stock' = medicine stock tracking, 'medicines' = medicine master list (packages bhi yahi use karte hain)
   const [activeTab, setActiveTab] = useState('bills');
   const [medicines, setMedicines] = useState([]);
   const [search, setSearch] = useState('');
@@ -105,6 +112,8 @@ const PharmacyBills = () => {
   const [balances, setBalances] = useState({});
   // Paid ke bagal wale info icon se khulne wala popup: us bill ke saare payments
   const [paidInfo, setPaidInfo] = useState(null);
+  // "+N more" se khulne wala popup: us bill ki saari medicines
+  const [medInfo, setMedInfo] = useState(null);
 
   useEffect(() => {
     fetchBills();
@@ -440,6 +449,27 @@ const PharmacyBills = () => {
     </button>
   ));
 
+  // Medicine chips (naam × qty); zyada ho to "+N more" button popup kholta hai
+  const medicineChips = (b) => {
+    const list = billMedicines(b);
+    if (!list.length) return <span className="pb-muted">-</span>;
+    return (
+      <div className="pb-med-chips">
+        {list.slice(0, MED_PREVIEW).map((m, i) => (
+          <span key={i} className="pb-med-chip" title={m.qty ? `${m.name} × ${m.qty}` : m.name}>
+            <span className="pb-med-chip-name">{m.name}</span>
+            {m.qty && <span className="pb-med-chip-qty">× {m.qty}</span>}
+          </span>
+        ))}
+        {list.length > MED_PREVIEW && (
+          <button type="button" className="pb-med-more" title="View all medicines" onClick={() => setMedInfo(b)}>
+            +{list.length - MED_PREVIEW} more
+          </button>
+        )}
+      </div>
+    );
+  };
+
   const statusBadge = (bill) => (
     <span className={`pb-status pb-status-${bill.paymentStatus}`}>
       {STATUS_LABEL[bill.paymentStatus]}
@@ -459,19 +489,23 @@ const PharmacyBills = () => {
         )}
       </div>
 
-      {/* Do hisse: Bills (add / payments) aur Medicine Stock (tracking) */}
-      {perm('stock-tracking') && (
-        <div className="pb-page-tabs" role="tablist">
+      {/* Teen hisse: Bills (add / payments), Medicine Stock (tracking) aur Medicines (master list) */}
+      <div className="pb-page-tabs" role="tablist">
           <button
             type="button"
             role="tab"
             aria-selected={activeTab === 'bills'}
             className={`pb-page-tab${activeTab === 'bills' ? ' active' : ''}`}
-            onClick={() => setActiveTab('bills')}
+            onClick={() => {
+              setActiveTab('bills');
+              // Medicines tab me naya add / edit hua ho to bill popup ki list bhi taaza ho
+              if (perm('stock-add')) fetchMedicines();
+            }}
           >
             <WalletIcon size={16} />
             <span>Bills</span>
           </button>
+          {perm('stock-tracking') && (
           <button
             type="button"
             role="tab"
@@ -482,10 +516,22 @@ const PharmacyBills = () => {
             <PillIcon size={16} />
             <span>Medicine Stock</span>
           </button>
-        </div>
-      )}
+          )}
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'medicines'}
+            className={`pb-page-tab${activeTab === 'medicines' ? ' active' : ''}`}
+            onClick={() => setActiveTab('medicines')}
+          >
+            <ClipboardListIcon size={16} />
+            <span>Medicines</span>
+          </button>
+      </div>
 
-      {activeTab === 'stock' && perm('stock-tracking') ? (
+      {activeTab === 'medicines' ? (
+        <Medicines />
+      ) : activeTab === 'stock' && perm('stock-tracking') ? (
         <MedicineStock />
       ) : (
       <>
@@ -517,7 +563,7 @@ const PharmacyBills = () => {
             <SearchIcon size={15} />
             <input
               type="text"
-              placeholder="Search supplier, bill no. or items..."
+              placeholder="Search supplier, bill no. or medicine..."
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
@@ -594,7 +640,7 @@ const PharmacyBills = () => {
                   <th>Bill Date</th>
                   <th>Supplier / Pharma</th>
                   <th>Bill No.</th>
-                  <th>Items</th>
+                  <th>Medicine</th>
                   <th className="num">Amount</th>
                   <th className="num">Paid</th>
                   <th className="num">Pending</th>
@@ -615,7 +661,7 @@ const PharmacyBills = () => {
                     </td>
                     <td className="pb-strong">{b.supplierName}</td>
                     <td>{b.billNumber || '-'}</td>
-                    <td className="pb-items" title={b.items}>{b.items || '-'}</td>
+                    <td className="pb-items">{medicineChips(b)}</td>
                     <td className="num">{money(b.totalAmount)}</td>
                     <td className="num pb-green">
                       <span className="pb-paid-cell">{money(b.paidAmount)}{paidInfoButton(b)}</span>
@@ -668,7 +714,7 @@ const PharmacyBills = () => {
                   </div>
                 )}
 
-                {b.items && <p className="pb-card-items" title={b.items}>{b.items}</p>}
+                {billMedicines(b).length > 0 && <div className="pb-card-meds">{medicineChips(b)}</div>}
 
                 <div className="pb-card-amounts">
                   <div>
@@ -1058,6 +1104,47 @@ const PharmacyBills = () => {
           </div>
         </div>
       )}
+      {medInfo && (() => {
+        const bill = medInfo;
+        const list = billMedicines(bill);
+        const totalQty = list.reduce((sum, m) => sum + (m.qty || 0), 0);
+        return (
+          <div className="modal-overlay" onClick={() => setMedInfo(null)}>
+            <div className="modal-content pb-pi-modal" onClick={e => e.stopPropagation()}>
+              <div className="modal-header">
+                <div>
+                  <h3 className="modal-title">Medicines</h3>
+                  <div className="pb-pi-sub">
+                    <strong>{bill.supplierName}</strong>
+                    {bill.billNumber && <> · Bill {bill.billNumber}</>}
+                    {' · '}{formatDisplayDate(bill.billDate)}
+                  </div>
+                </div>
+                <button className="modal-close" onClick={() => setMedInfo(null)} aria-label="Close">
+                  <XIcon size={16} />
+                </button>
+              </div>
+
+              <div className="pb-pi-heading">
+                All Medicines <span>({list.length}{totalQty > 0 ? ` · ${totalQty} units` : ''})</span>
+              </div>
+              <div className="pb-med-list">
+                {list.map((m, i) => (
+                  <div key={i} className="pb-med-row">
+                    <span className="pb-med-row-no">{i + 1}</span>
+                    <span className="pb-med-row-name">{m.name}</span>
+                    {m.qty && <strong className="pb-med-row-qty">× {m.qty}</strong>}
+                  </div>
+                ))}
+              </div>
+
+              <div className="modal-footer">
+                <button type="button" className="crm-btn crm-btn-secondary" onClick={() => setMedInfo(null)}>Close</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
       {paidInfo && (() => {
         const bill = paidInfo;
         const list = paymentsInOrder(bill);

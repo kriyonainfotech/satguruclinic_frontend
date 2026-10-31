@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import Services from './Services';
 import Packages from './Packages';
-import Medicines from './Medicines';
-import { PackageIcon, ClipboardListIcon, SparkleIcon } from '../components/Icons';
+import { PackageIcon, SparkleIcon } from '../components/Icons';
 import './ServicesAndPackages.css';
 
 const ServicesAndPackages = () => {
-    const [activeTab, setActiveTab] = useState('medicines');
+    const [activeTab, setActiveTab] = useState('services');
 
     return (
         <div className="services-packages-wrapper">
@@ -29,13 +28,6 @@ const ServicesAndPackages = () => {
                     >
                         <PackageIcon size={16} /> Packages
                     </button>
-                    <button
-                        type="button"
-                        className={`sp-tab-btn ${activeTab === 'medicines' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('medicines')}
-                    >
-                        <ClipboardListIcon size={16} /> Medicines
-                    </button>
                 </div>
             </div>
 
@@ -43,7 +35,6 @@ const ServicesAndPackages = () => {
             <div style={{ animation: 'fadeIn 0.2s ease-out' }}>
                 {activeTab === 'services' && <Services />}
                 {activeTab === 'packages' && <Packages />}
-                {activeTab === 'medicines' && <Medicines />}
             </div>
         </div>
     );
