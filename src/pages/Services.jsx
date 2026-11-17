@@ -15,6 +15,8 @@ const Services = () => {
 
     const [name, setName] = useState('');
     const [price, setPrice] = useState('');
+    const [discountPercent, setDiscountPercent] = useState(0);
+    const [finalPrice, setFinalPrice] = useState('');
     const [description, setDescription] = useState('');
 
     const token = localStorage.getItem('token');
@@ -34,11 +36,58 @@ const Services = () => {
         }
     };
 
+    const handlePriceChange = (e) => {
+        const val = e.target.value;
+        setPrice(val);
+        const p = Number(val) || 0;
+        const d = Number(discountPercent) || 0;
+        if (p > 0 && d > 0) {
+            setFinalPrice(Math.round(p * (1 - d / 100)));
+        } else {
+            setFinalPrice(val);
+        }
+    };
+
+    const handlePresetClick = (pct) => {
+        setDiscountPercent(pct);
+        const p = Number(price) || 0;
+        if (p > 0 && pct > 0) {
+            setFinalPrice(Math.round(p * (1 - pct / 100)));
+        } else {
+            setFinalPrice(price);
+        }
+    };
+
+    const handleDiscountChange = (e) => {
+        const val = e.target.value;
+        setDiscountPercent(val);
+        const d = Math.max(0, Math.min(100, Number(val) || 0));
+        const p = Number(price) || 0;
+        if (p > 0 && d > 0) {
+            setFinalPrice(Math.round(p * (1 - d / 100)));
+        } else {
+            setFinalPrice(price);
+        }
+    };
+
+    const handleFinalPriceChange = (e) => {
+        const val = e.target.value;
+        setFinalPrice(val);
+        const fp = Number(val);
+        const p = Number(price) || 0;
+        if (p > 0 && fp >= 0 && val !== '') {
+            const calculatedDisc = Math.max(0, Math.min(100, Math.round(((p - fp) / p) * 100)));
+            setDiscountPercent(calculatedDisc);
+        }
+    };
+
     const openCreateModal = () => {
         setIsEditMode(false);
         setEditingId(null);
         setName('');
         setPrice('');
+        setDiscountPercent(0);
+        setFinalPrice('');
         setDescription('');
         setShowModal(true);
     };
@@ -48,15 +97,30 @@ const Services = () => {
         setEditingId(service._id);
         setName(service.name);
         setPrice(service.price);
+        const d = service.discountPercent || 0;
+        setDiscountPercent(d);
+        setFinalPrice(
+            service.finalPrice !== undefined
+                ? service.finalPrice
+                : (d > 0 ? Math.round(service.price * (1 - d / 100)) : service.price)
+        );
         setDescription(service.description || '');
         setShowModal(true);
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        const numPrice = Number(price);
+        const disc = Math.max(0, Math.min(100, Number(discountPercent) || 0));
+        const calcFinalPrice = finalPrice !== ''
+            ? Number(finalPrice)
+            : (disc > 0 ? Math.round(numPrice * (1 - disc / 100)) : numPrice);
+
         const payload = {
             name: name.trim(),
-            price: Number(price),
+            price: numPrice,
+            discountPercent: disc,
+            finalPrice: calcFinalPrice,
             description: description.trim()
         };
 
@@ -138,9 +202,25 @@ const Services = () => {
                             <div>
                                 <div className="sp-card-top">
                                     <h3 className="sp-card-name">{service.name}</h3>
-                                    <span className="sp-card-price-badge">
-                                        ₹{service.price}
-                                    </span>
+                                    <div className="sp-card-price-container">
+                                        {service.discountPercent > 0 ? (
+                                            <>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                    <span className="sp-card-price-original">₹{service.price}</span>
+                                                    <span className="sp-card-price-badge discount">
+                                                        ₹{service.finalPrice ?? Math.round(service.price * (1 - service.discountPercent / 100))}
+                                                    </span>
+                                                </div>
+                                                <span className="sp-discount-pill">
+                                                    {service.discountPercent}% OFF
+                                                </span>
+                                            </>
+                                        ) : (
+                                            <span className="sp-card-price-badge">
+                                                ₹{service.price}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
 
                                 <div className="sp-card-body">
@@ -232,17 +312,94 @@ const Services = () => {
 
                     <div>
                         <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
-                            Price (₹) <span style={{ color: '#ef4444' }}>*</span>
+                            Base / Regular Price (₹) <span style={{ color: '#ef4444' }}>*</span>
                         </label>
                         <input
                             type="number"
                             min="0"
                             required
                             value={price}
-                            onChange={(e) => setPrice(e.target.value)}
+                            onChange={handlePriceChange}
                             placeholder="0.00"
                             className="holiday-input"
                         />
+                    </div>
+
+                    {/* Discount & Offer Pricing Section */}
+                    <div className="discount-section-box">
+                        <div className="discount-presets-label">
+                            <span>Discount (% OFF)</span>
+                            {Number(discountPercent) > 0 && (
+                                <span className="sp-discount-pill">{discountPercent}% OFF</span>
+                            )}
+                        </div>
+
+                        {/* Quick Presets */}
+                        <div className="discount-presets-row">
+                            {[0, 10, 20, 30, 50].map(pct => (
+                                <button
+                                    key={pct}
+                                    type="button"
+                                    className={`discount-preset-btn ${Number(discountPercent) === pct ? 'active' : ''}`}
+                                    onClick={() => handlePresetClick(pct)}
+                                >
+                                    {pct === 0 ? 'No Off (0%)' : `${pct}% Off`}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Custom Percentage & Calculated Final Price Inputs */}
+                        <div className="discount-inputs-row">
+                            <div>
+                                <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#64748b', marginBottom: '4px' }}>
+                                    Custom % Off:
+                                </label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    value={discountPercent}
+                                    onChange={handleDiscountChange}
+                                    placeholder="e.g. 20"
+                                    className="holiday-input"
+                                    style={{ height: '36px' }}
+                                />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#64748b', marginBottom: '4px' }}>
+                                    Final Selling Price (₹):
+                                </label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    value={finalPrice}
+                                    onChange={handleFinalPriceChange}
+                                    placeholder="Final price"
+                                    className="holiday-input"
+                                    style={{ height: '36px', fontWeight: 600, color: '#047857' }}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Summary Card */}
+                        {Number(price) > 0 && (
+                            <div className="pricing-summary-card">
+                                <div className="pricing-summary-item">
+                                    <span className="pricing-summary-title">Customer Pays:</span>
+                                    <span className="pricing-summary-val">₹{finalPrice || price}</span>
+                                </div>
+                                {Number(discountPercent) > 0 && (
+                                    <div style={{ textAlign: 'right' }}>
+                                        <span className="pricing-summary-saving">
+                                            Saves ₹{Math.max(0, Number(price) - Number(finalPrice || price))} ({discountPercent}% Off)
+                                        </span>
+                                        <div style={{ fontSize: '11px', color: '#94a3b8', textDecoration: 'line-through' }}>
+                                            ₹{price}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     <div>

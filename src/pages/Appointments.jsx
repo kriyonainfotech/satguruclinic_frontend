@@ -134,7 +134,7 @@ const Appointments = () => {
   // Master me price ho to wahi fix chalega, 0 / na ho to manual box (packages me totalPrice hota hai)
   const masterPriceOf = (list, name) => {
     const item = (list || []).find(x => (x.name || '').toLowerCase() === (name || '').toLowerCase());
-    return Number(item?.totalPrice ?? item?.price) || 0;
+    return Number(item?.finalPrice ?? item?.totalPrice ?? item?.price) || 0;
   };
 
   const handleEditClick = (a) => {
@@ -1267,10 +1267,13 @@ const Appointments = () => {
                     <CustomSelect
                       value=""
                       placeholder="-- Add Service --"
-                      options={(services || []).map(s => ({
-                        value: `${s.name} (₹${s.price || 0})`,
-                        label: `${s.name} (₹${s.price || 0})`
-                      }))}
+                      options={(services || []).map(s => {
+                        const p = (s.discountPercent > 0 && s.finalPrice !== undefined) ? s.finalPrice : (s.price || 0);
+                        return {
+                          value: `${s.name} (₹${p})`,
+                          label: `${s.name} (₹${p}${s.discountPercent > 0 ? ` - ${s.discountPercent}% OFF` : ''})`
+                        };
+                      })}
                       onChange={val => {
                         if (val && !selectedServices.some(x => splitPrice(x).name === splitPrice(val).name)) {
                           setSelectedServices([...selectedServices, val]);
@@ -1302,10 +1305,13 @@ const Appointments = () => {
                     <CustomSelect
                       value=""
                       placeholder="-- Add Package --"
-                      options={(packages || []).map(p => ({
-                        value: `${p.name} (₹${p.totalPrice ?? p.price ?? 0})`,
-                        label: `${p.name} (₹${p.totalPrice ?? p.price ?? 0})`
-                      }))}
+                      options={(packages || []).map(p => {
+                        const pVal = p.totalPrice ?? p.price ?? 0;
+                        return {
+                          value: `${p.name} (₹${pVal})`,
+                          label: `${p.name} (₹${pVal}${p.discountPercent > 0 ? ` - ${p.discountPercent}% OFF` : ''})`
+                        };
+                      })}
                       onChange={val => {
                         if (val && !selectedPackages.some(x => splitPrice(x).name === splitPrice(val).name)) {
                           setSelectedPackages([...selectedPackages, val]);

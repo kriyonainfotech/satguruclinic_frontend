@@ -650,3 +650,133 @@
     height: 38px;
   }
 }
+
+
+/* ==========================================================================
+   Discount & Offer Price Styles
+   ========================================================================== */
+
+.sp-card-price-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.sp-card-price-original {
+  font-size: 12px;
+  color: #94a3b8;
+  text-decoration: line-through;
+  font-weight: 500;
+}
+
+.sp-card-price-badge.discount {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.sp-discount-pill {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #15803d;
+  background: #dcfce7;
+  border: 1px solid #bbf7d0;
+  padding: 1px 7px;
+  border-radius: 4px;
+  letter-spacing: 0.3px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.discount-section-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.discount-presets-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.discount-presets-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.discount-preset-btn {
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.discount-preset-btn:hover {
+  border-color: #144b79;
+  color: #144b79;
+  background: #f1f5f9;
+}
+
+.discount-preset-btn.active {
+  background: #144b79 !important;
+  color: #ffffff !important;
+  border-color: #144b79 !important;
+  box-shadow: 0 1px 3px rgba(20, 75, 121, 0.2);
+}
+
+.discount-inputs-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.pricing-summary-card {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pricing-summary-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.pricing-summary-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #065f46;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.pricing-summary-val {
+  font-size: 16px;
+  font-weight: 700;
+  color: #047857;
+}
+
+.pricing-summary-saving {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #15803d;
+}

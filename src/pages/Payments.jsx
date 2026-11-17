@@ -202,10 +202,22 @@ const Payments = () => {
         }));
         setPatientsList(loadedPatients);
 
-        const loadedServices = (servicesRes.data || []).map(s => ({ id: s._id, name: s.name || '', price: s.price || 0 }));
+        const loadedServices = (servicesRes.data || []).map(s => ({
+          id: s._id,
+          name: s.name || '',
+          price: (s.discountPercent > 0 && s.finalPrice !== undefined) ? s.finalPrice : (s.price || 0),
+          originalPrice: s.price || 0,
+          discountPercent: s.discountPercent || 0
+        }));
         setServicesList(loadedServices);
         
-        const loadedPackages = (packagesRes.data || []).map(p => ({ id: p._id, name: p.name || '', price: p.totalPrice || 0 }));
+        const loadedPackages = (packagesRes.data || []).map(p => ({
+          id: p._id,
+          name: p.name || '',
+          price: p.totalPrice || 0,
+          originalPrice: p.originalPrice || p.totalPrice || 0,
+          discountPercent: p.discountPercent || 0
+        }));
         setAllPackages(loadedPackages);
         
         const loadedMedicines = (medsRes.data || []).map(m => ({ id: m._id, name: m.name || '', price: m.price || 0 }));
@@ -2644,6 +2656,7 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 {isSelected ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"></polyline></svg> : <div style={{ width: '14px', height: '14px', border: '1px solid #cbd5e1', borderRadius: '3px' }}></div>}
                                 <span>{pkg.name}</span>
+                                {pkg.discountPercent > 0 && <span style={{ fontSize: '10.5px', background: '#dcfce7', color: '#15803d', padding: '1px 6px', borderRadius: '4px', fontWeight: 700 }}>{pkg.discountPercent}% OFF</span>}
                               </div>
                               <span style={{ fontWeight: 'bold' }}>{R}{pkg.price}</span>
                             </div>
@@ -2766,7 +2779,10 @@ const [saleTotalAmount, setSaleTotalAmount] = useState(0);
                               ) : (
                                 <div style={{ width: '14px', height: '14px', border: '1px solid #cbd5e1', borderRadius: '3px' }}></div>
                               )}
-                              <span>{srv.name} <span style={{fontSize: '11px', color: '#94a3b8'}}>({srv.type})</span></span>
+                              <span>
+                                {srv.name}
+                                {srv.discountPercent > 0 && <span style={{ fontSize: '10.5px', background: '#dcfce7', color: '#15803d', padding: '1px 6px', borderRadius: '4px', fontWeight: 700, marginLeft: '6px' }}>{srv.discountPercent}% OFF</span>}
+                              </span>
                             </div>
                             <span style={{ fontWeight: 'bold' }}>{R}{srv.price}</span>
                           </div>

@@ -166,6 +166,18 @@ const Tasks = ({ isEmbedded }) => {
     remarkPopupRef.current = { taskId: remarkTask?._id || null, draft: remarkDraft };
   }, [remarkTask, remarkDraft]);
 
+  // Lock body scroll when any popup modal is open so background never scrolls
+  useEffect(() => {
+    const isAnyModalOpen = Boolean(showModal || showBulkModal || viewingTask || remarkTask);
+    if (isAnyModalOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [showModal, showBulkModal, viewingTask, remarkTask]);
+
   // Form Fields
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');

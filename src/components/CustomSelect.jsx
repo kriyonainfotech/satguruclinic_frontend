@@ -10,7 +10,7 @@ const CustomSelect = ({ value, onChange, options = [], placeholder = "Select..."
 
   const current = options.find(o => o.value === value);
 
-  // Close on outside click
+  // Close on outside click or scroll
   useEffect(() => {
     if (!open) return;
     const handler = (e) => {
@@ -21,8 +21,16 @@ const CustomSelect = ({ value, onChange, options = [], placeholder = "Select..."
         setOpen(false);
       }
     };
+    const scrollHandler = (e) => {
+      if (menuRef.current && menuRef.current.contains(e.target)) return;
+      setOpen(false);
+    };
     document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    window.addEventListener('scroll', scrollHandler, true);
+    return () => {
+      document.removeEventListener('mousedown', handler);
+      window.removeEventListener('scroll', scrollHandler, true);
+    };
   }, [open]);
 
   

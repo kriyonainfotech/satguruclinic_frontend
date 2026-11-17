@@ -22,6 +22,8 @@ const Packages = () => {
     const [selectedServices, setSelectedServices] = useState([]);
     const [selectedMedicines, setSelectedMedicines] = useState([]);
     const [medicineQuantities, setMedicineQuantities] = useState({}); // New state for quantities
+    const [discountPercent, setDiscountPercent] = useState(0);
+    const [customFinalPrice, setCustomFinalPrice] = useState('');
 
     // Extra custom services for this package
     const [extraServices, setExtraServices] = useState([]);
@@ -55,6 +57,50 @@ const Packages = () => {
         fetchData();
     }, []);
 
+    // Calculate dynamic base items price for the form
+    const currentBasePrice = allServices
+        .filter(s => selectedServices.includes(s._id))
+        .reduce((sum, s) => sum + (s.finalPrice !== undefined ? s.finalPrice : (s.price || 0)), 0);
+    const currentMedPrice = allMedicines
+        .filter(m => selectedMedicines.includes(m._id))
+        .reduce((sum, m) => {
+            const qty = medicineQuantities[m._id] || 1;
+            return sum + ((m.price || 0) * qty);
+        }, 0);
+    const extraPrice = extraServices.reduce((sum, es) => sum + Number(es.price || 0), 0);
+    const pendingExtraPrice = (newExtraServiceName.trim() && newExtraServicePrice) ? Number(newExtraServicePrice) : 0;
+    const currentBaseItemsTotal = currentBasePrice + currentMedPrice + extraPrice + pendingExtraPrice;
+
+    const handlePresetClick = (pct) => {
+        setDiscountPercent(pct);
+        if (pct > 0 && currentBaseItemsTotal > 0) {
+            setCustomFinalPrice(Math.round(currentBaseItemsTotal * (1 - pct / 100)));
+        } else {
+            setCustomFinalPrice(currentBaseItemsTotal);
+        }
+    };
+
+    const handleDiscountChange = (e) => {
+        const val = e.target.value;
+        setDiscountPercent(val);
+        const d = Math.max(0, Math.min(100, Number(val) || 0));
+        if (d > 0 && currentBaseItemsTotal > 0) {
+            setCustomFinalPrice(Math.round(currentBaseItemsTotal * (1 - d / 100)));
+        } else {
+            setCustomFinalPrice(currentBaseItemsTotal);
+        }
+    };
+
+    const handleFinalPriceChange = (e) => {
+        const val = e.target.value;
+        setCustomFinalPrice(val);
+        const fp = Number(val);
+        if (currentBaseItemsTotal > 0 && fp >= 0 && val !== '') {
+            const calculatedDisc = Math.max(0, Math.min(100, Math.round(((currentBaseItemsTotal - fp) / currentBaseItemsTotal) * 100)));
+            setDiscountPercent(calculatedDisc);
+        }
+    };
+
     const openCreateModal = () => {
         setIsEditMode(false);
         setEditingId(null);
@@ -66,6 +112,8 @@ const Packages = () => {
         setExtraServices([]);
         setNewExtraServiceName('');
         setNewExtraServicePrice('');
+        setDiscountPercent(0);
+        setCustomFinalPrice('');
         setShowModal(true);
     };
 
@@ -88,6 +136,8 @@ const Packages = () => {
         setExtraServices(pkg.extraServices || []);
         setNewExtraServiceName('');
         setNewExtraServicePrice('');
+        setDiscountPercent(pkg.discountPercent || 0);
+        setCustomFinalPrice(pkg.totalPrice !== undefined ? pkg.totalPrice : '');
         setShowModal(true);
     };
 
@@ -140,12 +190,18 @@ const Packages = () => {
                 for (let i = 0; i < qty; i++) finalMedicinesArray.push(medId);
             });
 
+            const finalPriceNum = customFinalPrice !== '' 
+                ? Number(customFinalPrice) 
+                : (Number(discountPercent) > 0 ? Math.round(currentBaseItemsTotal * (1 - Number(discountPercent) / 100)) : currentBaseItemsTotal);
+
             const payload = {
                 name,
                 description,
                 services: selectedServices,
                 medicines: finalMedicinesArray,
-                extraServices: finalExtraServices
+                extraServices: finalExtraServices,
+                discountPercent: Number(discountPercent) || 0,
+                customPrice: finalPriceNum
             };
 
             if (isEditMode) {
@@ -163,20 +219,6 @@ const Packages = () => {
             alert(error.response?.data?.message || 'Error saving package');
         }
     };
-
-    // Calculate dynamic total price for the form
-    const currentBasePrice = allServices
-        .filter(s => selectedServices.includes(s._id))
-        .reduce((sum, s) => sum + (s.price || 0), 0);
-    const currentMedPrice = allMedicines
-        .filter(m => selectedMedicines.includes(m._id))
-        .reduce((sum, m) => {
-            const qty = medicineQuantities[m._id] || 1;
-            return sum + ((m.price || 0) * qty);
-        }, 0);
-    const extraPrice = extraServices.reduce((sum, es) => sum + Number(es.price || 0), 0);
-    const pendingExtraPrice = (newExtraServiceName.trim() && newExtraServicePrice) ? Number(newExtraServicePrice) : 0;
-    const currentTotalPrice = currentBasePrice + currentMedPrice + extraPrice + pendingExtraPrice;
 
     const { can } = usePermissions();
     const perm = (action) => can('services:package-' + action);
@@ -222,6 +264,9 @@ const Packages = () => {
                 ) : (
                     filteredPackages.map(pkg => {
                         const totalServicesCount = (pkg.services?.length || 0) + (pkg.medicines?.length || 0) + (pkg.extraServices?.length || 0);
+                        const hasDiscount = pkg.discountPercent > 0 || (pkg.originalPrice && pkg.originalPrice > pkg.totalPrice);
+                        const origP = pkg.originalPrice || pkg.totalPrice;
+                        const discVal = pkg.discountPercent || (origP > pkg.totalPrice ? Math.round(((origP - pkg.totalPrice) / origP) * 100) : 0);
 
                         return (
                             <div key={pkg._id} className="sp-item-card">
@@ -233,9 +278,27 @@ const Packages = () => {
                                                 {totalServicesCount} items included
                                             </span>
                                         </div>
-                                        <span className="sp-card-price-badge">
-                                            ₹{pkg.totalPrice}
-                                        </span>
+                                        <div className="sp-card-price-container">
+                                            {hasDiscount ? (
+                                                <>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                        <span className="sp-card-price-original">
+                                                            ₹{origP}
+                                                        </span>
+                                                        <span className="sp-card-price-badge discount">
+                                                            ₹{pkg.totalPrice}
+                                                        </span>
+                                                    </div>
+                                                    <span className="sp-discount-pill">
+                                                        {discVal}% OFF
+                                                    </span>
+                                                </>
+                                            ) : (
+                                                <span className="sp-card-price-badge">
+                                                    ₹{pkg.totalPrice}
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
 
                                     {/* Included Services List */}
@@ -246,7 +309,10 @@ const Packages = () => {
                                                     <span className="sp-pkg-service-name">
                                                         <span style={{ color: '#94a3b8', fontSize: '11px', minWidth: '14px' }}>{idx + 1}.</span> {s.name}
                                                     </span>
-                                                    <span style={{ color: '#64748b', fontSize: '11px', fontWeight: 600 }}>₹{s.price}</span>
+                                                    <span style={{ color: '#64748b', fontSize: '11px', fontWeight: 600 }}>
+                                                        ₹{s.finalPrice !== undefined && s.discountPercent > 0 ? s.finalPrice : s.price}
+                                                        {s.discountPercent > 0 && <span style={{ color: '#16a34a', fontSize: '10px', marginLeft: '4px' }}>({s.discountPercent}% OFF)</span>}
+                                                    </span>
                                                 </div>
                                             ))}
 
@@ -367,11 +433,14 @@ const Packages = () => {
                             Main Services
                         </label>
                         <CustomMultiSelect
-                            options={allServices.map(s => ({
-                                value: s._id,
-                                label: s.name,
-                                price: s.price
-                            }))}
+                            options={allServices.map(s => {
+                                const effPrice = (s.discountPercent > 0 && s.finalPrice !== undefined) ? s.finalPrice : s.price;
+                                return {
+                                    value: s._id,
+                                    label: s.discountPercent > 0 ? `${s.name} (₹${effPrice} - ${s.discountPercent}% OFF)` : s.name,
+                                    price: effPrice
+                                };
+                            })}
                             values={selectedServices}
                             onChange={setSelectedServices}
                             placeholder="Choose services to include in package..."
@@ -469,10 +538,81 @@ const Packages = () => {
                         )}
                     </div>
 
-                    {/* Total Price Banner */}
-                    <div className="pkg-total-price-box">
-                        <span className="pkg-total-label">Total Calculated Package Price:</span>
-                        <span className="pkg-total-value">₹{currentTotalPrice}</span>
+                    {/* Pricing & Discount Controls Box */}
+                    <div className="discount-section-box">
+                        <div className="discount-presets-label">
+                            <span>Package Discount (% OFF)</span>
+                            {Number(discountPercent) > 0 && (
+                                <span className="sp-discount-pill">{discountPercent}% OFF</span>
+                            )}
+                        </div>
+
+                        {/* Quick Presets */}
+                        <div className="discount-presets-row">
+                            {[0, 10, 20, 30, 50].map(pct => (
+                                <button
+                                    key={pct}
+                                    type="button"
+                                    className={`discount-preset-btn ${Number(discountPercent) === pct ? 'active' : ''}`}
+                                    onClick={() => handlePresetClick(pct)}
+                                >
+                                    {pct === 0 ? 'No Off (0%)' : `${pct}% Off`}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Custom % and Final Price Inputs */}
+                        <div className="discount-inputs-row">
+                            <div>
+                                <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#64748b', marginBottom: '4px' }}>
+                                    Custom % Off:
+                                </label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    value={discountPercent}
+                                    onChange={handleDiscountChange}
+                                    placeholder="e.g. 20"
+                                    className="holiday-input"
+                                    style={{ height: '36px' }}
+                                />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#64748b', marginBottom: '4px' }}>
+                                    Final Package Price (₹):
+                                </label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    value={customFinalPrice}
+                                    onChange={handleFinalPriceChange}
+                                    placeholder={currentBaseItemsTotal.toString()}
+                                    className="holiday-input"
+                                    style={{ height: '36px', fontWeight: 600, color: '#047857' }}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Price Summary Card */}
+                        <div className="pricing-summary-card">
+                            <div className="pricing-summary-item">
+                                <span className="pricing-summary-title">Final Package Price:</span>
+                                <span className="pricing-summary-val">
+                                    ₹{customFinalPrice !== '' ? customFinalPrice : (Number(discountPercent) > 0 ? Math.round(currentBaseItemsTotal * (1 - Number(discountPercent) / 100)) : currentBaseItemsTotal)}
+                                </span>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                                <div style={{ fontSize: '11.5px', color: '#64748b' }}>
+                                    Items Total: <strong>₹{currentBaseItemsTotal}</strong>
+                                </div>
+                                {Number(discountPercent) > 0 && (
+                                    <span className="pricing-summary-saving">
+                                        Saves ₹{Math.max(0, currentBaseItemsTotal - (customFinalPrice !== '' ? Number(customFinalPrice) : Math.round(currentBaseItemsTotal * (1 - Number(discountPercent) / 100))))} ({discountPercent}% Off)
+                                    </span>
+                                )}
+                            </div>
+                        </div>
                     </div>
 
                     {/* Modal Footer Buttons */}

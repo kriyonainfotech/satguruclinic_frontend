@@ -39,6 +39,16 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
   
   const dropdownRef = useRef(null);
   
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (!isOpen) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen]);
+
   useEffect(() => {
     if (!isOpen) return;
     const fetchData = async () => {
@@ -52,11 +62,31 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
             
             const sRes = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/services`, config);
             // masterPrice: master me price ho to wahi fix, 0 ho to manual box
-            const sData = (sRes.data || []).map(s => ({ id: s._id, name: s.name || '', price: s.price || 0, masterPrice: s.price || 0 }));
+            const sData = (sRes.data || []).map(s => {
+              const effectivePrice = (s.discountPercent > 0 && s.finalPrice !== undefined) ? s.finalPrice : (s.price || 0);
+              return {
+                id: s._id,
+                name: s.name || '',
+                price: effectivePrice,
+                masterPrice: effectivePrice,
+                originalPrice: s.price || 0,
+                discountPercent: s.discountPercent || 0
+              };
+            });
             setServicesList(sData);
             
             const pkgRes = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/packages`, config);
-            const pData = (pkgRes.data || []).map(p => ({ id: p._id, name: p.name || '', price: p.totalPrice || 0, masterPrice: p.totalPrice || 0 }));
+            const pData = (pkgRes.data || []).map(p => {
+              const effectivePrice = p.totalPrice || 0;
+              return {
+                id: p._id,
+                name: p.name || '',
+                price: effectivePrice,
+                masterPrice: effectivePrice,
+                originalPrice: p.originalPrice || effectivePrice,
+                discountPercent: p.discountPercent || 0
+              };
+            });
             setAllPackages(pData);
             
             const mRes = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/medicines`, config);
@@ -334,7 +364,12 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
           <CustomSelect
             value=""
             placeholder="-- Add Service --"
-            options={(servicesList || []).map(s => ({ value: s.id, label: `${s.name} - ${R}${s.price}` }))}
+            options={(servicesList || []).map(s => ({
+              value: s.id,
+              label: s.discountPercent > 0
+                ? `${s.name} - ${R}${s.price} (${s.discountPercent}% OFF)`
+                : `${s.name} - ${R}${s.price}`
+            }))}
             onChange={(val) => {
               const srv = servicesList.find(s => s.id === val);
               if (srv && !selectedServices.find(s => s.id === srv.id)) setSelectedServices([...selectedServices, srv]);
@@ -346,7 +381,10 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
                 <span key={'s'+srv.id} className="modal-chip service">
                   {srv.name}
                   {srv.masterPrice > 0 ? (
-                    <span className="modal-chip-price">({R}{Number(srv.price) || 0})</span>
+                    <span className="modal-chip-price">
+                      ({R}{Number(srv.price) || 0}
+                      {srv.discountPercent > 0 && <span style={{ color: '#16a34a', marginLeft: '4px', fontSize: '10.5px', fontWeight: 600 }}>{srv.discountPercent}% OFF</span>})
+                    </span>
                   ) : (
                     <span className="modal-chip-price">{R}<input type="number" min="0" value={srv.price ?? ''} placeholder="0" title="Price" onChange={(e) => setSelectedServices(prev => prev.map(s => s.id === srv.id ? { ...s, price: e.target.value } : s))} /></span>
                   )}
@@ -363,7 +401,12 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
           <CustomSelect
             value=""
             placeholder="-- Add Package --"
-            options={(allPackages || []).map(p => ({ value: p.id, label: `${p.name} - ${R}${p.price}` }))}
+            options={(allPackages || []).map(p => ({
+              value: p.id,
+              label: p.discountPercent > 0
+                ? `${p.name} - ${R}${p.price} (${p.discountPercent}% OFF)`
+                : `${p.name} - ${R}${p.price}`
+            }))}
             onChange={(val) => {
               const pkg = allPackages.find(p => p.id === val);
               if (pkg && !selectedPackages.find(p => p.id === pkg.id)) setSelectedPackages([...selectedPackages, pkg]);
@@ -375,7 +418,10 @@ const SaleEntryModal = ({ isOpen, onClose, initialPatientMobile = '', initialPat
                 <span key={'p'+pkg.id} className="modal-chip package">
                   {pkg.name}
                   {pkg.masterPrice > 0 ? (
-                    <span className="modal-chip-price">({R}{Number(pkg.price) || 0})</span>
+                    <span className="modal-chip-price">
+                      ({R}{Number(pkg.price) || 0}
+                      {pkg.discountPercent > 0 && <span style={{ color: '#16a34a', marginLeft: '4px', fontSize: '10.5px', fontWeight: 600 }}>{pkg.discountPercent}% OFF</span>})
+                    </span>
                   ) : (
                     <span className="modal-chip-price">{R}<input type="number" min="0" value={pkg.price ?? ''} placeholder="0" title="Price" onChange={(e) => setSelectedPackages(prev => prev.map(p => p.id === pkg.id ? { ...p, price: e.target.value } : p))} /></span>
                   )}
